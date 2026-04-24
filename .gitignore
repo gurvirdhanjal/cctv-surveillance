@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# AI model files (large binaries — download separately)
+models/
+*.pt
+*.onnx
+*.engine
+*.trt
+runs/
+
+# Sensitive biometric data — NEVER commit
+employee_db.npy
+employees/
+
+# Environment / secrets
+.env
+.env.*
+*.key
+*secret*
+
+# Internal tooling
+.superpowers/
+.claude/
+.kiro/
+
+# Logs and temp
+*.log
+*.tmp
+*.bak
+tmp/
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+Thumbs.db
+.DS_Store
