@@ -1,0 +1,2318 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VMS — Plant Surveillance Architecture</title>
+  <style>
+    :root {
+      --bg: #0a0e1a;
+      --card: #111827;
+      --card2: #1a2236;
+      --border: #1e3a5f;
+      --accent: #2563eb;
+      --accent2: #06b6d4;
+      --accent3: #10b981;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --dim: #475569;
+      --green: #10b981;
+      --purple: #8b5cf6;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* SLIDE CONTAINER */
+    #deck {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(40px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .slide {
+      display: none;
+      position: absolute;
+      inset: 0;
+      flex-direction: column;
+      padding: 0 60px 90px;
+    }
+
+    .slide.active {
+      display: flex;
+      animation: slideIn 0.35s ease forwards;
+      overflow-y: auto;
+    }
+
+    /* TOP BAR */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 0 16px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 32px;
+      flex-shrink: 0;
+    }
+
+    .topbar-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent2);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .topbar-logo svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    .topbar-label {
+      font-size: 12px;
+      color: var(--dim);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    /* SLIDE HEADER */
+    .slide-tag {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent2);
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      font-size: 42px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      background: linear-gradient(135deg, #fff 0%, var(--accent2) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+    }
+
+    h2 {
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+      margin-bottom: 24px;
+      color: #fff;
+    }
+
+    .subtitle {
+      font-size: 16px;
+      color: var(--muted);
+      line-height: 1.6;
+      max-width: 700px;
+    }
+
+    /* GRID LAYOUTS */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 18px;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 16px;
+    }
+
+    .grid-2-3 {
+      display: grid;
+      grid-template-columns: 2fr 3fr;
+      gap: 20px;
+    }
+
+    .grid-3-2 {
+      display: grid;
+      grid-template-columns: 3fr 2fr;
+      gap: 20px;
+    }
+
+    /* CARDS */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .card-sm {
+      padding: 14px 16px;
+    }
+
+    .card-accent {
+      border-color: var(--accent);
+    }
+
+    .card-cyan {
+      border-color: var(--accent2);
+    }
+
+    .card-green {
+      border-color: var(--accent3);
+    }
+
+    .card-warn {
+      border-color: var(--warn);
+    }
+
+    .card-purple {
+      border-color: var(--purple);
+    }
+
+    .card h3 {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent2);
+      margin-bottom: 12px;
+    }
+
+    .card p {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* STAT BOXES */
+    .stat {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+      text-align: center;
+    }
+
+    .stat-num {
+      font-size: 36px;
+      font-weight: 900;
+      line-height: 1;
+      background: linear-gradient(135deg, #fff, var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-top: 6px;
+    }
+
+    /* PIPELINE */
+    .pipeline {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      overflow: hidden;
+    }
+
+    .pipeline-step {
+      flex: 1;
+      text-align: center;
+      padding: 10px 8px;
+      border-radius: 8px;
+      position: relative;
+    }
+
+    .pipeline-step .ps-icon {
+      font-size: 22px;
+      margin-bottom: 4px;
+    }
+
+    .pipeline-step .ps-name {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #fff;
+    }
+
+    .pipeline-step .ps-sub {
+      font-size: 9px;
+      color: var(--muted);
+      margin-top: 2px;
+      line-height: 1.4;
+    }
+
+    .pipeline-arrow {
+      color: var(--dim);
+      font-size: 18px;
+      padding: 0 4px;
+      flex-shrink: 0;
+    }
+
+    .ps-cam {
+      background: rgba(37, 99, 235, 0.2);
+    }
+
+    .ps-ingest {
+      background: rgba(6, 182, 212, 0.15);
+    }
+
+    .ps-redis {
+      background: rgba(239, 68, 68, 0.15);
+    }
+
+    .ps-gpu {
+      background: rgba(139, 92, 246, 0.2);
+    }
+
+    .ps-id {
+      background: rgba(16, 185, 129, 0.2);
+    }
+
+    .ps-db {
+      background: rgba(245, 158, 11, 0.15);
+    }
+
+    .ps-api {
+      background: rgba(37, 99, 235, 0.15);
+    }
+
+    .ps-ui {
+      background: rgba(16, 185, 129, 0.15);
+    }
+
+    /* TABLE */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    thead th {
+      background: var(--card2);
+      padding: 8px 12px;
+      text-align: left;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    tbody td {
+      padding: 7px 12px;
+      border-bottom: 1px solid rgba(30, 58, 95, 0.5);
+      color: var(--muted);
+      vertical-align: top;
+      line-height: 1.5;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    tbody tr:hover td {
+      background: rgba(37, 99, 235, 0.06);
+    }
+
+    td.mono {
+      font-family: 'Consolas', monospace;
+      color: var(--accent2);
+      font-size: 11px;
+    }
+
+    td.em {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    td.green {
+      color: var(--green);
+    }
+
+    td.warn {
+      color: var(--warn);
+    }
+
+    /* BADGE */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .badge-blue {
+      background: rgba(37, 99, 235, 0.25);
+      color: #60a5fa;
+    }
+
+    .badge-cyan {
+      background: rgba(6, 182, 212, 0.2);
+      color: #67e8f9;
+    }
+
+    .badge-green {
+      background: rgba(16, 185, 129, 0.2);
+      color: #6ee7b7;
+    }
+
+    .badge-warn {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fcd34d;
+    }
+
+    .badge-danger {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fca5a5;
+    }
+
+    .badge-purple {
+      background: rgba(139, 92, 246, 0.2);
+      color: #c4b5fd;
+    }
+
+    /* LIST */
+    .check-list {
+      list-style: none;
+    }
+
+    .check-list li {
+      font-size: 13px;
+      color: var(--muted);
+      padding: 5px 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      line-height: 1.5;
+    }
+
+    .check-list li::before {
+      content: '▸';
+      color: var(--accent2);
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .check-list li strong {
+      color: var(--text);
+    }
+
+    /* CODE BLOCK */
+    .code {
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 11px;
+      color: var(--accent2);
+      background: rgba(6, 182, 212, 0.06);
+      border: 1px solid rgba(6, 182, 212, 0.2);
+      border-radius: 6px;
+      padding: 10px 14px;
+      line-height: 1.7;
+      white-space: pre;
+    }
+
+    /* ARCHITECTURE DIAGRAM */
+    .arch-box {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      position: relative;
+    }
+
+    .arch-label {
+      font-size: 9px;
+      color: var(--muted);
+      margin-top: 3px;
+      font-weight: 400;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* PHASE TIMELINE */
+    .phase-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(30, 58, 95, 0.4);
+    }
+
+    .phase-row:last-child {
+      border-bottom: none;
+    }
+
+    .phase-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+
+    .phase-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      flex: 1;
+    }
+
+    .phase-items {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* THRESHOLD TABLE */
+    .thresh-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .thresh-item {
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+
+    .thresh-val {
+      font-family: 'Consolas', monospace;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--accent2);
+    }
+
+    .thresh-name {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    /* FSM TABLE */
+    .fsm-row {
+      display: grid;
+      grid-template-columns: 140px 80px 80px 70px 160px;
+      gap: 8px;
+      align-items: center;
+      padding: 7px 10px;
+      border-bottom: 1px solid rgba(30, 58, 95, 0.4);
+      font-size: 11px;
+    }
+
+    .fsm-row.header {
+      background: var(--card2);
+      border-radius: 6px 6px 0 0;
+      font-size: 10px;
+      color: var(--accent2);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 700;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* NAVIGATION */
+    #nav {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: rgba(17, 24, 39, 0.95);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 8px 20px;
+      backdrop-filter: blur(12px);
+      z-index: 100;
+    }
+
+    .nav-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 18px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: color 0.2s, background 0.2s;
+      display: flex;
+      align-items: center;
+    }
+
+    .nav-btn:hover {
+      color: #fff;
+      background: rgba(37, 99, 235, 0.2);
+    }
+
+    .nav-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    #slide-counter {
+      font-size: 13px;
+      color: var(--muted);
+      min-width: 70px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* PROGRESS BAR */
+    #progress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      transition: width 0.4s ease;
+      z-index: 200;
+    }
+
+    /* DOT INDICATORS */
+    #dots {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--dim);
+      cursor: pointer;
+      transition: background 0.2s, transform 0.2s;
+    }
+
+    .dot.active {
+      background: var(--accent2);
+      transform: scale(1.4);
+    }
+
+    /* TITLE SLIDE SPECIAL */
+    #slide-0 {
+      justify-content: center;
+      padding-top: 0;
+    }
+
+    .title-hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      flex: 1;
+      gap: 0;
+    }
+
+    .title-hero .eyebrow {
+      font-size: 12px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--accent2);
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+
+    .title-hero h1 {
+      font-size: 58px;
+      max-width: 900px;
+      margin-bottom: 16px;
+    }
+
+    .title-hero .sub {
+      font-size: 18px;
+      color: var(--muted);
+      max-width: 640px;
+      line-height: 1.6;
+      margin-bottom: 36px;
+    }
+
+    .title-badges {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 48px;
+    }
+
+    .title-stats {
+      display: flex;
+      gap: 40px;
+    }
+
+    .title-stat-item {
+      text-align: center;
+    }
+
+    .title-stat-num {
+      font-size: 40px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #fff, var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .title-stat-lbl {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    /* GLOW EFFECT */
+    .glow-blue {
+      box-shadow: 0 0 20px rgba(37, 99, 235, 0.3);
+    }
+
+    .glow-cyan {
+      box-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+    }
+
+    .content-area {
+      flex: 1;
+      overflow: visible;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* COLOR UTILITIES */
+    .text-cyan {
+      color: var(--accent2);
+    }
+
+    .text-green {
+      color: var(--accent3);
+    }
+
+    .text-warn {
+      color: var(--warn);
+    }
+
+    .text-muted {
+      color: var(--muted);
+    }
+
+    .text-white {
+      color: #fff;
+    }
+
+    .text-blue {
+      color: #60a5fa;
+    }
+
+    .text-purple {
+      color: #c4b5fd;
+    }
+
+    /* DIVIDER */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 0;
+    }
+
+    /* MICRO TEXT */
+    .micro {
+      font-size: 10px;
+      color: var(--dim);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 600;
+    }
+
+    /* TIGHT LIST */
+    .tight-list {
+      list-style: none;
+    }
+
+    .tight-list li {
+      font-size: 12px;
+      color: var(--muted);
+      padding: 3px 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+    }
+
+    .tight-list li span.dot-mark {
+      color: var(--accent2);
+      flex-shrink: 0;
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    /* FLOW ARROWS */
+    .flow-vertical {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .flow-arrow-v {
+      color: var(--dim);
+      font-size: 16px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="progress"></div>
+
+  <div id="deck">
+
+    <!-- SLIDE 0: TITLE -->
+    <div class="slide active" id="slide-0">
+      <div class="topbar">
+        <div class="topbar-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+          VMS Intelligence Platform
+        </div>
+        <div class="topbar-label">Confidential — Director Review</div>
+      </div>
+      <div class="title-hero">
+        <div class="eyebrow">Plant Surveillance Architecture</div>
+        <h1>Video Management System with Facial Recognition</h1>
+        <div class="sub">A production-grade, AI-powered surveillance platform for manufacturing plant security 50-60
+          cameras, real-time cross-camera tracking, and instant alerting.</div>
+        <div class="title-badges">
+          <span class="badge badge-blue">On-Premises GPU Server</span>
+          <span class="badge badge-cyan">MSSQL Server</span>
+          <span class="badge badge-green">React Frontend</span>
+          <span class="badge badge-purple">ONNX Inference</span>
+          <span class="badge badge-warn">Redis Streams</span>
+        </div>
+        <div class="title-stats">
+          <div class="title-stat-item">
+            <div class="title-stat-num">50-60</div>
+            <div class="title-stat-lbl">Cameras</div>
+          </div>
+          <div class="title-stat-item">
+            <div class="title-stat-num">512</div>
+            <div class="title-stat-lbl">Dim Embeddings</div>
+          </div>
+          <div class="title-stat-item">
+            <div class="title-stat-num">5</div>
+            <div class="title-stat-lbl">Dev Phases</div>
+          </div>
+          <div class="title-stat-item">
+            <div class="title-stat-num">3</div>
+            <div class="title-stat-lbl">User Roles</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 1: PROBLEM & GOALS -->
+    <div class="slide" id="slide-1">
+      <div class="topbar">
+        <div class="topbar-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+          VMS Intelligence Platform
+        </div>
+        <div class="topbar-label">1 of 11 — Business Case</div>
+      </div>
+      <div class="slide-tag">01 — Problem Statement</div>
+      <h2>Why We're Building This</h2>
+      <div class="content-area">
+        <div class="grid-2" style="flex:1">
+          <div style="display:flex;flex-direction:column;gap:14px;">
+            <div class="card card-accent">
+              <h3>The Problem</h3>
+              <ul class="check-list" style="margin-top:4px;">
+                <li><strong>60 cameras</strong> — manual monitoring is humanly impossible</li>
+                <li><strong>No cross-camera identity</strong> — guards lose people mid-plant</li>
+                <li><strong>Zero audit trail</strong> — incident investigation requires tape review</li>
+                <li><strong>No access analytics</strong> — management can't see zone utilisation</li>
+                <li><strong>Unknown visitors</strong> — no automatic detection or alerting</li>
+              </ul>
+            </div>
+            <div class="card card-green">
+              <h3>Business Goals</h3>
+              <ul class="check-list" style="margin-top:4px;">
+                <li><strong>Security:</strong> Detect unknown persons within 500ms of entry</li>
+                <li><strong>Tracking:</strong> Maintain identity across all cameras seamlessly</li>
+                <li><strong>Compliance:</strong> Full audit trail stored in MSSQL for 90+ days</li>
+                <li><strong>Analytics:</strong> Zone dwell times, headcounts, shift reports</li>
+                <li><strong>Operational:</strong> Guard dashboard + management analytics view</li>
+              </ul>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px;">
+            <div class="grid-2" style="gap:12px;">
+              <div class="stat">
+                <div class="stat-num">500ms</div>
+                <div class="stat-label">Unknown Person Alert</div>
+              </div>
+              <div class="stat">
+                <div class="stat-num">30s</div>
+                <div class="stat-label">Lost Person Alert</div>
+              </div>
+              <div class="stat">
+                <div class="stat-num">&lt;200ms</div>
+                <div class="stat-label">Stale Frame Drop</div>
+              </div>
+              <div class="stat">
+                <div class="stat-num">5fps</div>
+                <div class="stat-label">Live Position Update</div>
+              </div>
+            </div>
+            <div class="card card-cyan">
+              <h3>Deployment Model</h3>
+              <ul class="check-list" style="margin-top:4px;">
+                <li><strong>Single GPU server</strong> — on-premises, no cloud dependency</li>
+                <li><strong>MSSQL Server</strong> — already hosted, familiar to IT team</li>
+                <li><strong>Start with webcam</strong> — validate pipeline before RTSP rollout</li>
+                <li><strong>5 implementation phases</strong> — incremental delivery, low risk</li>
+              </ul>
+            </div>
+            <div class="card" style="border-color:var(--purple)">
+              <h3>Three User Roles</h3>
+              <div style="display:flex;gap:8px;margin-top:6px;">
+                <span class="badge badge-danger" style="flex:1;text-align:center;padding:6px;">Guard<br><span
+                    style="font-size:9px;opacity:.7">Live view · Alerts</span></span>
+                <span class="badge badge-warn" style="flex:1;text-align:center;padding:6px;">Manager<br><span
+                    style="font-size:9px;opacity:.7">Analytics · Reports</span></span>
+                <span class="badge badge-blue" style="flex:1;text-align:center;padding:6px;">Admin<br><span
+                    style="font-size:9px;opacity:.7">Enroll · Configure</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 2: SYSTEM ARCHITECTURE -->
+    <div class="slide" id="slide-2">
+      <div class="topbar">
+        <div class="topbar-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+          </svg>
+          VMS Intelligence Platform
+        </div>
+        <div class="topbar-label">2 of 11 — System Architecture</div>
+      </div>
+      <div class="slide-tag">02 — Architecture</div>
+      <h2>Modular Pipeline Architecture</h2>
+      <div class="content-area">
+        <!-- Full pipeline -->
+        <div class="pipeline" style="gap:0">
+          <div class="pipeline-step ps-cam">
+            <div class="ps-icon">📷</div>
+            <div class="ps-name">Cameras</div>
+            <div class="ps-sub">RTSP / Webcam</div>
+          </div>
+          <div class="pipeline-arrow">→</div>
+          <div class="pipeline-step ps-ingest">
+            <div class="ps-icon">⚡</div>
+            <div class="ps-name">4 Ingestion Workers</div>
+            <div class="ps-sub">~13 cams each<br>Shared Memory write</div>
+          </div>
+          <div class="pipeline-arrow">→</div>
+          <div class="pipeline-step ps-redis">
+            <div class="ps-icon">🔴</div>
+            <div class="ps-name">Redis Streams</div>
+            <div class="ps-sub">24-byte ptr only<br>MAXLEN 500</div>
+          </div>
+          <div class="pipeline-arrow">→</div>
+          <div class="pipeline-step ps-gpu">
+            <div class="ps-icon">🎮</div>
+            <div class="ps-name">GPU Inference</div>
+            <div class="ps-sub">SCRFD + AdaFace<br>YOLOv8 + ByteTrack</div>
+          </div>
+          <div class="pipeline-arrow">→</div>
+          <div class="pipeline-step ps-id">
+            <div class="ps-icon">🧠</div>
+            <div class="ps-name">Identity &amp; Tracking</div>
+            <div class="ps-sub">FAISS Re-ID<br>Homography · Alerts</div>
+          </div>
+          <div class="pipeline-arrow">→</div>
+          <div class="pipeline-step ps-db">
+            <div class="ps-icon">🗄️</div>
+            <div class="ps-name">DB Writer</div>
+            <div class="ps-sub">MSSQL MERGE<br>500ms / 100 rows</div>
+          </div>
+          <div class="pipeline-arrow">→</div>
+          <div class="pipeline-step ps-api">
+            <div class="ps-icon">🔌</div>
+            <div class="ps-name">FastAPI</div>
+            <div class="ps-sub">REST + Socket.io<br>JWT · RBAC</div>
+          </div>
+          <div class="pipeline-arrow">→</div>
+          <div class="pipeline-step ps-ui">
+            <div class="ps-icon">💻</div>
+            <div class="ps-name">React Frontend</div>
+            <div class="ps-sub">Guard · Manager<br>Admin</div>
+          </div>
+        </div>
+
+        <!-- Architecture detail cards -->
+        <div class="grid-3" style="flex:1">
+          <div class="card card-cyan">
+            <h3>🔑 Key Design Decision</h3>
+            <ul class="tight-list">
+              <li><span class="dot-mark">•</span> Separate OS processes — Python GIL isolation</li>
+              <li><span class="dot-mark">•</span> Frames via <strong style="color:#67e8f9">Shared Memory</strong>, not
+                Redis</li>
+              <li><span class="dot-mark">•</span> Redis only carries <strong style="color:#67e8f9">24-byte metadata
+                  pointer</strong></li>
+              <li><span class="dot-mark">•</span> Zero-copy frame transport to GPU</li>
+              <li><span class="dot-mark">•</span> Each ingestion worker: independent failure domain</li>
+            </ul>
+          </div>
+          <div class="card" style="border-color:var(--purple)">
+            <h3>📡 Message Bus</h3>
+            <ul class="tight-list">
+              <li><span class="dot-mark">•</span> <span class="text-cyan">frames:groupA/B/C/D</span> — 4 ingestion
+                streams</li>
+              <li><span class="dot-mark">•</span> <span class="text-cyan">detections</span> — GPU output stream</li>
+              <li><span class="dot-mark">•</span> <span class="text-cyan">tracking</span> + <span
+                  class="text-cyan">alerts</span> — Identity output</li>
+              <li><span class="dot-mark">•</span> <span class="text-cyan">dead_letter</span> — poison message sink</li>
+              <li><span class="dot-mark">•</span> XAUTOCLAIM recovers unACKed after 10s</li>
+            </ul>
+          </div>
+          <div class="card card-green">
+            <h3>🛡️ Resilience</h3>
+            <ul class="tight-list">
+              <li><span class="dot-mark">•</span> Camera disconnect: exponential backoff 1→60s</li>
+              <li><span class="dot-mark">•</span> Worker crash: supervisor restart &lt;5s</li>
+              <li><span class="dot-mark">•</span> Redis outage: 200-frame in-memory buffer/cam</li>
+              <li><span class="dot-mark">•</span> DB failure: 50k row buffer → JSON overflow</li>
+              <li><span class="dot-mark">•</span> Stale frames (&gt;200ms old) silently dropped</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="card" style="padding:12px 16px;background:rgba(37,99,235,0.08);border-color:var(--accent)">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#60a5fa">Why
+              not microservices?</span>
+            <span style="font-size:12px;color:var(--muted)">Single GPU server → separate containers gain nothing.
+              Modular pipeline gives process isolation + restart semantics without the overhead. Kafka upgrade path is
+              documented for future multi-server scale.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 3: AI/ML PIPELINE -->
+    <div class="slide" id="slide-3">
+      <div class="topbar">
+        <div class="topbar-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+          </svg>
+          VMS Intelligence Platform
+        </div>
+        <div class="topbar-label">3 of 11 — AI / ML Pipeline</div>
+      </div>
+      <div class="slide-tag">03 — AI Models</div>
+      <h2>Four-Stage AI Inference Pipeline</h2>
+      <div class="content-area">
+        <div class="grid-2" style="flex:1;gap:16px">
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <!-- Model table -->
+            <div class="card">
+              <h3>Model Stack — Single GPU Process</h3>
+              <table style="margin-top:4px">
+                <thead>
+                  <tr>
+                    <th>Model</th>
+                    <th>Input</th>
+                    <th>Output</th>
+                    <th>Purpose</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="em">SCRFD 2.5g</td>
+                    <td class="mono">640×640</td>
+                    <td class="mono text-cyan">Face bbox + conf</td>
+                    <td class="text-muted">Face detection</td>
+                  </tr>
+                  <tr>
+                    <td class="em">AdaFace IR50</td>
+                    <td class="mono">112×112</td>
+                    <td class="mono text-cyan">512-dim embed</td>
+                    <td class="text-muted">Face identity</td>
+                  </tr>
+                  <tr>
+                    <td class="em">YOLOv8n</td>
+                    <td class="mono">640×640</td>
+                    <td class="mono text-cyan">Person bbox</td>
+                    <td class="text-muted">Body detection</td>
+                  </tr>
+                  <tr>
+                    <td class="em">ByteTrack</td>
+                    <td class="mono">Per-cam</td>
+                    <td class="mono text-cyan">local_track_id</td>
+                    <td class="text-muted">Stable tracking</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <!-- Thresholds -->
+            <div class="card card-cyan">
+              <h3>Tuned Inference Thresholds</h3>
+              <div class="thresh-grid" style="margin-top:8px">
+                <div class="thresh-item">
+                  <div class="thresh-val">0.60</div>
+                  <div class="thresh-name">SCRFD Confidence</div>
+                </div>
+                <div class="thresh-item">
+                  <div class="thresh-val">0.72</div>
+                  <div class="thresh-name">AdaFace Identity</div>
+                </div>
+                <div class="thresh-item">
+                  <div class="thresh-val">0.65</div>
+                  <div class="thresh-name">Re-ID Cross-Cam</div>
+                </div>
+                <div class="thresh-item">
+                  <div class="thresh-val">0.08</div>
+                  <div class="thresh-name">Match Margin</div>
+                </div>
+                <div class="thresh-item">
+                  <div class="thresh-val">25.0</div>
+                  <div class="thresh-name">Min Blur (Laplacian)</div>
+                </div>
+                <div class="thresh-item">
+                  <div class="thresh-val">40px</div>
+                  <div class="thresh-name">Min Face Size</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="card card-accent">
+              <h3>Per-Frame Processing Flow</h3>
+              <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+                <div
+                  style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:rgba(37,99,235,0.1);border-radius:6px">
+                  <span class="badge badge-blue" style="width:22px;text-align:center">1</span>
+                  <span style="font-size:12px;color:var(--muted)">Read SHM slot → validate seq_id &gt; last_seen AND age
+                    &lt;200ms</span>
+                </div>
+                <div
+                  style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:rgba(6,182,212,0.08);border-radius:6px">
+                  <span class="badge badge-cyan" style="width:22px;text-align:center">2</span>
+                  <span style="font-size:12px;color:var(--muted)">SCRFD detects all faces → discard &lt;40px or blur
+                    &lt;25</span>
+                </div>
+                <div
+                  style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:rgba(139,92,246,0.1);border-radius:6px">
+                  <span class="badge badge-purple" style="width:22px;text-align:center">3</span>
+                  <span style="font-size:12px;color:var(--muted)">YOLOv8n detects persons → ByteTrack assigns stable
+                    local_track_id</span>
+                </div>
+                <div
+                  style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:rgba(16,185,129,0.08);border-radius:6px">
+                  <span class="badge badge-green" style="width:22px;text-align:center">4</span>
+                  <span style="font-size:12px;color:var(--muted)">AdaFace embeds valid face crops → 512-dim
+                    L2-normalised vector</span>
+                </div>
+                <div
+                  style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:rgba(245,158,11,0.08);border-radius:6px">
+                  <span class="badge badge-warn" style="width:22px;text-align:center">5</span>
+                  <span style="font-size:12px;color:var(--muted)">Publish tracklet to <span
+                      class="text-cyan">detections</span> stream (no raw pixels)</span>
+                </div>
+              </div>
+            </div>
+            <div class="card" style="border-color:var(--green)">
+              <h3>GPU Efficiency</h3>
+              <ul class="check-list" style="margin-top:4px">
+                <li><strong>Batched inference</strong> — frames from multiple cameras in one SCRFD/YOLOv8 call</li>
+                <li><strong>ONNX + CUDA</strong> — all 4 models use CUDAExecutionProvider</li>
+                <li><strong>TensorRT optional</strong> — YOLOv8n can use TRT engine for 3× speedup</li>
+                <li><strong>CPU fallback</strong> — automatic when GPU is unavailable</li>
+                <li><strong>One ByteTracker per camera</strong> — independent state, no cross-contamination</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 4: CROSS-CAMERA RE-ID -->
+    <div class="slide" id="slide-4">
+      <div class="topbar">
+        <div class="topbar-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          VMS Intelligence Platform
+        </div>
+        <div class="topbar-label">4 of 11 — Cross-Camera Identity</div>
+      </div>
+      <div class="slide-tag">04 — Re-Identification Engine</div>
+      <h2>Cross-Camera Identity Matching</h2>
+      <div class="content-area">
+        <div class="grid-2" style="flex:1">
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div class="card card-cyan">
+              <h3>The Re-ID Problem</h3>
+              <p style="margin-bottom:10px">When a person moves from Camera A to Camera B, they get a new <span
+                  class="text-cyan">local_track_id</span>. The system must recognise it's the same person and assign the
+                same <span class="text-cyan">global_track_id</span>.</p>
+              <div class="divider"></div>
+              <div style="margin-top:10px;display:flex;align-items:center;gap:12px">
+                <div style="text-align:center;flex:1">
+                  <div style="font-size:28px;font-weight:800;color:#60a5fa">60</div>
+                  <div class="micro">Cameras</div>
+                </div>
+                <div style="color:var(--dim);font-size:20px">→</div>
+                <div style="text-align:center;flex:1">
+                  <div style="font-size:28px;font-weight:800;color:#ef4444">O(n²)</div>
+                  <div class="micro">Naive Problem</div>
+                </div>
+                <div style="color:var(--dim);font-size:20px">→</div>
+                <div style="text-align:center;flex:1">
+                  <div style="font-size:28px;font-weight:800;color:#10b981">O(k)</div>
+                  <div class="micro">With Pre-filter</div>
+                </div>
+              </div>
+            </div>
+            <div class="card card-accent">
+              <h3>Three-Layer Filtering Strategy</h3>
+              <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+                <div
+                  style="padding:8px 12px;background:rgba(245,158,11,0.1);border-left:3px solid var(--warn);border-radius:0 6px 6px 0">
+                  <div
+                    style="font-size:11px;font-weight:700;color:#fcd34d;text-transform:uppercase;letter-spacing:.06em">
+                    Layer 1 — Zone Adjacency</div>
+                  <div style="font-size:11px;color:var(--muted);margin-top:2px">Only compare against tracklets in same
+                    or adjacent zones. Cuts search space by ~80%.</div>
+                </div>
+                <div
+                  style="padding:8px 12px;background:rgba(6,182,212,0.1);border-left:3px solid var(--accent2);border-radius:0 6px 6px 0">
+                  <div
+                    style="font-size:11px;font-weight:700;color:#67e8f9;text-transform:uppercase;letter-spacing:.06em">
+                    Layer 2 — Time Window</div>
+                  <div style="font-size:11px;color:var(--muted);margin-top:2px">Only compare against tracklets seen in
+                    the last 5 minutes. Eliminates stale entries.</div>
+                </div>
+                <div
+                  style="padding:8px 12px;background:rgba(16,185,129,0.1);border-left:3px solid var(--green);border-radius:0 6px 6px 0">
+                  <div
+                    style="font-size:11px;font-weight:700;color:#6ee7b7;text-transform:uppercase;letter-spacing:.06em">
+                    Layer 3 — FAISS Cosine Search</div>
+                  <div style="font-size:11px;color:var(--muted);margin-top:2px">Flat IP index on 512-dim embeddings. sim
+                    ≥ 0.65 AND margin ≥ 0.08 → same person.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div class="card">
+              <h3>Match Decision Logic</h3>
+              <table style="margin-top:6px">
+                <thead>
+                  <tr>
+                    <th>Condition</th>
+                    <th>Decision</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>sim ≥ 0.72 AND margin ≥ 0.08</td>
+                    <td><span class="badge badge-green">Known Person</span></td>
+                    <td class="text-muted">Assign person_id</td>
+                  </tr>
+                  <tr>
+                    <td>sim ≥ 0.65 AND margin ≥ 0.08</td>
+                    <td><span class="badge badge-cyan">Re-ID Match</span></td>
+                    <td class="text-muted">Reuse global_track_id</td>
+                  </tr>
+                  <tr>
+                    <td>sim &lt; 0.65 OR margin &lt; 0.08</td>
+                    <td><span class="badge badge-warn">New Track</span></td>
+                    <td class="text-muted">New UUID assigned</td>
+                  </tr>
+                  <tr>
+                    <td>person_id IS NULL &gt; 500ms</td>
+                    <td><span class="badge badge-danger">UNKNOWN</span></td>
+                    <td class="text-muted">Alert fired</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="card card-green">
+              <h3>Guard Correction + Audit Trail</h3>
+              <ul class="check-list" style="margin-top:4px">
+                <li>Guard spots wrong identity → corrects via UI</li>
+                <li>Correction event → <span class="text-cyan">corrections</span> Redis stream</li>
+                <li>Identity Service cascades update to ALL tracking_events with that global_track_id</li>
+                <li>WebSocket broadcasts <span class="text-cyan">track_corrected</span> to all connected guards</li>
+                <li>Every match logged to <span class="text-cyan">reid_matches</span> table with confidence, cameras,
+                  source</li>
+              </ul>
+            </div>
+            <div class="card" style="border-color:var(--purple)">
+              <h3>Homography → Floor Position</h3>
+              <ul class="check-list" style="margin-top:4px">
+                <li>Pre-computed 3×3 H matrix per camera (stored as JSON in MSSQL)</li>
+                <li>Bounding-box centre projected → <span class="text-cyan">floor_x, floor_y</span></li>
+                <li>4-point calibration wizard with &lt;2px reprojection threshold</li>
+                <li>Null stored if camera not yet calibrated</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 5: DATABASE DESIGN -->
+    <div class="slide" id="slide-5">
+      <div class="topbar">
+        <div class="topbar-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <ellipse cx="12" cy="5" rx="9" ry="3" />
+            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+          </svg>
+          VMS Intelligence Platform
+        </div>
+        <div class="topbar-label">5 of 11 — Database Design</div>
+      </div>
+      <div class="slide-tag">05 — MSSQL Schema</div>
+      <h2>11-Table MSSQL Database</h2>
+      <div class="content-area">
+        <div class="grid-2" style="flex:1">
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="card">
+              <h3>Tables by Domain</h3>
+              <table style="margin-top:4px">
+                <thead>
+                  <tr>
+                    <th>Table</th>
+                    <th>Purpose</th>
+                    <th>Key Detail</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="mono em">persons</td>
+                    <td>Employee + visitor records</td>
+                    <td class="mono text-cyan">person_type ENUM</td>
+                  </tr>
+                  <tr>
+                    <td class="mono em">person_embeddings</td>
+                    <td>512-dim face vectors</td>
+                    <td class="mono text-cyan">FAISS source</td>
+                  </tr>
+                  <tr>
+                    <td class="mono em">cameras</td>
+                    <td>Camera registry + URLs</td>
+                    <td class="mono text-cyan">homography_matrix JSON</td>
+                  </tr>
+                  <tr>
+                    <td class="mono em">zones</td>
+                    <td>Plant areas + adjacency</td>
+                    <td class="mono text-cyan">fov_polygon, capacity</td>
+                  </tr>
+                  <tr>
+                    <td class="mono em">tracking_events</td>
+                    <td>High-write event log</td>
+                    <td class="mono text-cyan">Monthly partition</td>
+                  </tr>
+                  <tr>
+                    <td class="mono em">alerts</td>
+                    <td>Alert log with FSM state</td>
+                    <td class="mono text-cyan">Filtered index on active</td>
+                  </tr>
+                  <tr>
+                    <td class="mono em">reid_matches</td>
+                    <td>Cross-cam match audit</td>
+                    <td class="mono text-cyan">confidence, from/to cam</td>
+                  </tr>
+                  <tr>
+                    <td class="mono em">zone_presence</td>
+                    <td>Dwell-time records</td>
+                    <td class="mono text-cyan">Computed dwell_seconds</td>
+                  </tr>
+                  <tr>
+                    <td class="mono em">users</td>
+                    <td>System accounts</td>
+                    <td class="mono text-cyan">bcrypt password hash</td>
+                  </tr>
+                  <tr>
+                    <td class="mono em">user_zone_permissions</td>
+                    <td>Zone-level RBAC</td>
+                    <td class="mono text-cyan">Composite PK</td>
+                  </tr>
+                  <tr>
+                    <td class="mono em">user_camera_permissions</td>
+                    <td>Camera-level RBAC</td>
+                    <td class="mono text-cyan">Composite PK</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="card card-warn">
+              <h3>tracking_events — High-Volume Design</h3>
+              <ul class="check-list" style="margin-top:4px">
+                <li><strong>Monthly partitioning</strong> on <span class="text-cyan">event_ts</span> — fast range
+                  queries, easy archival</li>
+                <li><strong>UNIQUE constraint</strong> on <span class="text-cyan">(camera_id, local_track_id,
+                    event_ts)</span> — idempotent MERGE on retry</li>
+                <li><strong>local_track_id INT</strong> — stored explicitly for the idempotency key</li>
+                <li><strong>floor_x, floor_y</strong> — nullable FLOAT, populated post-homography</li>
+              </ul>
+            </div>
+            <div class="card card-cyan">
+              <h3>9 Named Indexes</h3>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+                <div style="background:var(--card2);padding:6px 10px;border-radius:6px;font-size:11px">
+                  <div class="text-cyan" style="font-family:Consolas">idx_track_time</div>
+                  <div class="text-muted">event_ts DESC</div>
+                </div>
+                <div style="background:var(--card2);padding:6px 10px;border-radius:6px;font-size:11px">
+                  <div class="text-cyan" style="font-family:Consolas">idx_track_person</div>
+                  <div class="text-muted">(person_id, event_ts DESC)</div>
+                </div>
+                <div style="background:var(--card2);padding:6px 10px;border-radius:6px;font-size:11px">
+                  <div class="text-cyan" style="font-family:Consolas">idx_track_camera</div>
+                  <div class="text-muted">(camera_id, event_ts DESC)</div>
+                </div>
+                <div style="background:var(--card2);padding:6px 10px;border-radius:6px;font-size:11px">
+                  <div class="text-cyan" style="font-family:Consolas">idx_global_track</div>
+                  <div class="text-muted">global_track_id</div>
+                </div>
+                <div style="background:var(--card2);padding:6px 10px;border-radius:6px;font-size:11px">
+                  <div class="text-cyan" style="font-family:Consolas">idx_alert_active</div>
+                  <div class="text-muted">Filtered: state = 'active'</div>
+                </div>
+                <div style="background:var(--card2);padding:6px 10px;border-radius:6px;font-size:11px">
+                  <div class="text-cyan" style="font-family:Consolas">idx_zone_time</div>
+                  <div class="text-muted">zone_presence time range</div>
+                </div>
+              </div>
+            </div>
+            <div class="card card-green">
+              <h3>Reliability</h3>
+              <ul class="tight-list" style="margin-top:4px">
+                <li><span class="dot-mark">•</span> SQLAlchemy 2.x + pyodbc with <strong
+                    style="color:#6ee7b7">fast_executemany</strong></li>
+                <li><span class="dot-mark">•</span> Alembic migrations — schema version controlled</li>
+                <li><span class="dot-mark">•</span> DB Writer: flush every 500ms or 100 rows</li>
+                <li><span class="dot-mark">•</span> MSSQL MERGE on retry — zero duplicate events</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 6: ALERT FSM -->
+    <div class="slide" id="slide-6">
+      <div class="topbar">
+        <div class="topbar-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          </svg>
+          VMS Intelligence Platform
+        </div>
+        <div class="topbar-label">6 of 11 — Alert Engine</div>
+      </div>
+      <div class="slide-tag">06 — Alert System</div>
+      <h2>Finite State Machine Alert Engine</h2>
+      <div class="content-area">
+        <div class="grid-2" style="flex:1">
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <!-- FSM table -->
+            <div class="card">
+              <h3>Three Alert Types — FSM Behaviour</h3>
+              <div style="margin-top:8px">
+                <div class="fsm-row header">
+                  <span>Alert Type</span><span>Entry</span><span>Sustain</span><span>Cooldown</span><span>Reset
+                    Condition</span>
+                </div>
+                <div class="fsm-row" style="border-color:rgba(239,68,68,0.3)">
+                  <span><span class="badge badge-danger">UNKNOWN_PERSON</span></span>
+                  <span style="font-size:11px;color:var(--muted)">No person_id</span>
+                  <span style="font-size:11px;color:var(--accent2)">&gt; 500ms</span>
+                  <span style="font-size:11px;color:var(--warn)">60s/zone</span>
+                  <span style="font-size:11px;color:var(--muted)">Identity confirmed</span>
+                </div>
+                <div class="fsm-row" style="border-color:rgba(245,158,11,0.3)">
+                  <span><span class="badge badge-warn">PERSON_LOST</span></span>
+                  <span style="font-size:11px;color:var(--muted)">Absent all cams</span>
+                  <span style="font-size:11px;color:var(--accent2)">&gt; 30s</span>
+                  <span style="font-size:11px;color:var(--warn)">120s</span>
+                  <span style="font-size:11px;color:var(--muted)">Re-detected anywhere</span>
+                </div>
+                <div class="fsm-row" style="border-bottom:none;border-color:rgba(16,185,129,0.3)">
+                  <span><span class="badge badge-green">CROWD_DENSITY</span></span>
+                  <span style="font-size:11px;color:var(--muted)">Count &gt; max_cap</span>
+                  <span style="font-size:11px;color:var(--accent2)">&gt; 10s</span>
+                  <span style="font-size:11px;color:var(--warn)">300s/zone</span>
+                  <span style="font-size:11px;color:var(--muted)">Count drops below</span>
+                </div>
+              </div>
+            </div>
+            <div class="card card-accent">
+              <h3>Event-Time Evaluation</h3>
+              <ul class="check-list" style="margin-top:4px">
+                <li>FSM evaluates on <span class="text-cyan">timestamp_ms</span> — frame capture time, NOT arrival order
+                </li>
+                <li>Out-of-order events handled correctly up to 5s late window</li>
+                <li>Events &gt;5s late are discarded to prevent phantom alerts</li>
+                <li>Dedup key: <span class="text-cyan">(alert_type, zone_id)</span> within 60s window</li>
+                <li>Max 10 active alerts per zone — frontend groups the rest</li>
+              </ul>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div class="card card-danger" style="border-color:var(--danger)">
+              <h3>Alert Lifecycle — Four States</h3>
+              <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+                <div
+                  style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(239,68,68,0.1);border-radius:6px">
+                  <span class="badge badge-danger">ACTIVE</span>
+                  <span style="font-size:11px;color:var(--muted)">Entry condition met and sustained → alert fired and
+                    pushed to guard</span>
+                </div>
+                <div style="text-align:center;font-size:16px;color:var(--dim)">↓</div>
+                <div
+                  style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(245,158,11,0.1);border-radius:6px">
+                  <span class="badge badge-warn">ACKNOWLEDGED</span>
+                  <span style="font-size:11px;color:var(--muted)">Guard sees and accepts the alert via PATCH
+                    /api/alerts/{id}/acknowledge</span>
+                </div>
+                <div style="text-align:center;font-size:16px;color:var(--dim)">↓</div>
+                <div
+                  style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(16,185,129,0.1);border-radius:6px">
+                  <span class="badge badge-green">RESOLVED</span>
+                  <span style="font-size:11px;color:var(--muted)">Reset condition met or guard manually resolves</span>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <h3>WebSocket Event Push</h3>
+              <ul class="check-list" style="margin-top:4px">
+                <li><span class="text-cyan">alert_fired</span> — pushed immediately, no throttle</li>
+                <li><span class="text-cyan">person_location</span> — throttled to 5fps, diff-only</li>
+                <li><span class="text-cyan">track_corrected</span> — immediate on identity fix</li>
+                <li><span class="text-cyan">camera_snapshot</span> — every 2s per subscribed camera</li>
+                <li>All events fan out via <span class="text-cyan">Redis pub/sub ws_events</span> across API replicas
+                </li>
+              </ul>
+            </div>
+            <div class="card card-cyan">
+              <h3>Client Reconnect Safety</h3>
+              <p>On WebSocket reconnect, client calls <span class="text-cyan">GET /api/state/snapshot</span> before
+                processing any diff events — guarantees consistent state even after long disconnects.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 7: FRONTEND -->
+    <div class="slide" id="slide-7">
+      <div class="topbar">
+        <div class="topbar-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2" />
+            <path d="M8 21h8m-4-4v4" />
+          </svg>
+          VMS Intelligence Platform
+        </div>
+        <div class="topbar-label">7 of 11 — Frontend</div>
+      </div>
+      <div class="slide-tag">07 — React Frontend</div>
+      <h2>Three-Role Frontend Application</h2>
+      <div class="content-area">
+        <div class="grid-3" style="gap:14px">
+          <!-- Guard view -->
+          <div class="card card-danger" style="border-color:var(--danger)">
+            <h3 style="color:#fca5a5">🛡️ Guard — Live View</h3>
+            <ul class="tight-list" style="margin-top:8px">
+              <li><span class="dot-mark">•</span> <strong style="color:#fff">Camera grid</strong> — JPEG snapshots, 2s
+                refresh</li>
+              <li><span class="dot-mark">•</span> Click tile → HLS stream (max 4 concurrent)</li>
+              <li><span class="dot-mark">•</span> Alert sidebar with severity badges</li>
+              <li><span class="dot-mark">•</span> "Follow Person" — highlight across cameras</li>
+              <li><span class="dot-mark">•</span> Real-time position overlay on floor plan</li>
+              <li><span class="dot-mark">•</span> One-click acknowledge / assign / resolve</li>
+            </ul>
+            <div
+              style="margin-top:12px;padding:8px;background:rgba(239,68,68,0.1);border-radius:6px;font-size:10px;color:#fca5a5">
+              JPEG-first strategy: browser never opens 60 HLS streams. Only focused tile gets full video. Prevents CPU
+              spike.
+            </div>
+          </div>
+          <!-- Manager view -->
+          <div class="card card-warn">
+            <h3 style="color:#fcd34d">📊 Manager — Analytics</h3>
+            <ul class="tight-list" style="margin-top:8px">
+              <li><span class="dot-mark">•</span> <strong style="color:#fff">Floor plan heatmap</strong> via Leaflet.js
+              </li>
+              <li><span class="dot-mark">•</span> Time scrubber — replay movement trails</li>
+              <li><span class="dot-mark">•</span> Person lookup with search and timeline</li>
+              <li><span class="dot-mark">•</span> Zone dwell-time charts (Recharts)</li>
+              <li><span class="dot-mark">•</span> Daily headcount, average dwell, uptime stats</li>
+              <li><span class="dot-mark">•</span> CSV export of zone presence data</li>
+            </ul>
+            <div
+              style="margin-top:12px;padding:8px;background:rgba(245,158,11,0.08);border-radius:6px;font-size:10px;color:#fcd34d">
+              TanStack Query manages cache freshness. Zustand handles global state. No prop-drilling across views.
+            </div>
+          </div>
+          <!-- Admin view -->
+          <div class="card card-accent">
+            <h3 style="color:#93c5fd">⚙️ Admin — Configuration</h3>
+            <ul class="tight-list" style="margin-top:8px">
+              <li><span class="dot-mark">•</span> <strong style="color:#fff">Enrollment wizard</strong> — 6 face samples
+                min</li>
+              <li><span class="dot-mark">•</span> Camera config + RTSP URL management</li>
+              <li><span class="dot-mark">•</span> Homography calibration UI (4-point)</li>
+              <li><span class="dot-mark">•</span> Zone editor — draw polygons, set capacity</li>
+              <li><span class="dot-mark">•</span> User permissions — zone + camera level</li>
+              <li><span class="dot-mark">•</span> Health panel — GPU, Redis, DB status</li>
+            </ul>
+            <div
+              style="margin-top:12px;padding:8px;background:rgba(37,99,235,0.1);border-radius:6px;font-size:10px;color:#93c5fd">
+              Calibration wizard blocks save if reprojection error ≥ 2px. Prevents bad homography from silently
+              corrupting floor positions.
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="padding:14px 18px">
+          <h3 style="margin-bottom:10px">Frontend Technology Stack</h3>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <span class="badge badge-blue">React 18 + TypeScript</span>
+            <span class="badge badge-cyan">Vite</span>
+            <span class="badge badge-warn">Tailwind CSS</span>
+            <span class="badge badge-purple">shadcn/ui</span>
+            <span class="badge badge-green">TanStack Query</span>
+            <span class="badge badge-blue">Zustand</span>
+            <span class="badge badge-cyan">Socket.io Client</span>
+            <span class="badge badge-green">Leaflet.js</span>
+            <span class="badge badge-warn">Recharts</span>
+            <span class="badge badge-danger">HLS.js</span>
+            <span class="badge badge-purple">React Hook Form + Zod</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 8: DATA FLOW -->
+    <div class="slide" id="slide-8">
+      <div class="topbar">
+        <div class="topbar-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+          </svg>
+          VMS Intelligence Platform
+        </div>
+        <div class="topbar-label">8 of 11 — Data Flow</div>
+      </div>
+      <div class="slide-tag">08 — End-to-End Data Flow</div>
+      <h2>Frame to Alert — 8-Step Journey</h2>
+      <div class="content-area">
+        <div class="grid-2" style="flex:1">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div
+              style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:var(--card);border:1px solid rgba(37,99,235,0.3);border-radius:8px">
+              <div
+                style="width:22px;height:22px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0">
+                1</div>
+              <div>
+                <div style="font-size:12px;font-weight:600;color:#fff">Camera Captures Frame</div>
+                <div style="font-size:11px;color:var(--muted)">Ingestion Worker decodes via OpenCV → raw BGR ndarray
+                </div>
+              </div>
+            </div>
+            <div
+              style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:var(--card);border:1px solid rgba(6,182,212,0.3);border-radius:8px">
+              <div
+                style="width:22px;height:22px;border-radius:50%;background:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0;color:#000">
+                2</div>
+              <div>
+                <div style="font-size:12px;font-weight:600;color:#fff">Write to Shared Memory</div>
+                <div style="font-size:11px;color:var(--muted)">16-byte header (seq_id + timestamp_ms) + raw frame bytes
+                  → SHM_Slot</div>
+              </div>
+            </div>
+            <div
+              style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:var(--card);border:1px solid rgba(239,68,68,0.3);border-radius:8px">
+              <div
+                style="width:22px;height:22px;border-radius:50%;background:var(--danger);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0">
+                3</div>
+              <div>
+                <div style="font-size:12px;font-weight:600;color:#fff">Publish Frame Pointer to Redis</div>
+                <div style="font-size:11px;color:var(--muted)">{cam_id, shm_name, seq_id, timestamp_ms} — 24 bytes only,
+                  no pixels in Redis</div>
+              </div>
+            </div>
+            <div
+              style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:var(--card);border:1px solid rgba(139,92,246,0.3);border-radius:8px">
+              <div
+                style="width:22px;height:22px;border-radius:50%;background:var(--purple);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0">
+                4</div>
+              <div>
+                <div style="font-size:12px;font-weight:600;color:#fff">GPU Inference</div>
+                <div style="font-size:11px;color:var(--muted)">SCRFD → YOLOv8 → ByteTrack → AdaFace embed. Stale
+                  &gt;200ms → drop + XACK</div>
+              </div>
+            </div>
+            <div
+              style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:var(--card);border:1px solid rgba(16,185,129,0.3);border-radius:8px">
+              <div
+                style="width:22px;height:22px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0;color:#000">
+                5</div>
+              <div>
+                <div style="font-size:12px;font-weight:600;color:#fff">Publish Tracklet to Detections Stream</div>
+                <div style="font-size:11px;color:var(--muted)">{cam_id, local_track_id, bbox, embedding, timestamp_ms}
+                  per confirmed track</div>
+              </div>
+            </div>
+            <div
+              style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:var(--card);border:1px solid rgba(16,185,129,0.3);border-radius:8px">
+              <div
+                style="width:22px;height:22px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0;color:#000">
+                6</div>
+              <div>
+                <div style="font-size:12px;font-weight:600;color:#fff">Identity Resolution</div>
+                <div style="font-size:11px;color:var(--muted)">Zone adjacency filter → FAISS cosine search →
+                  global_track_id + person_id assigned</div>
+              </div>
+            </div>
+            <div
+              style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:var(--card);border:1px solid rgba(245,158,11,0.3);border-radius:8px">
+              <div
+                style="width:22px;height:22px;border-radius:50%;background:var(--warn);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0;color:#000">
+                7</div>
+              <div>
+                <div style="font-size:12px;font-weight:600;color:#fff">Homography + Alert FSM</div>
+                <div style="font-size:11px;color:var(--muted)">Project to floor_x/y → FSM evaluates
+                  entry/sustain/cooldown conditions</div>
+              </div>
+            </div>
+            <div
+              style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:var(--card);border:1px solid rgba(37,99,235,0.3);border-radius:8px">
+              <div
+                style="width:22px;height:22px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0">
+                8</div>
+              <div>
+                <div style="font-size:12px;font-weight:600;color:#fff">DB Write + WebSocket Push</div>
+                <div style="font-size:11px;color:var(--muted)">DB Writer batches to MSSQL. FastAPI pushes via Redis
+                  pub/sub to all browser clients.</div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div class="card card-cyan">
+              <h3>Frame Transport Design Rationale</h3>
+              <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <div style="padding:10px;background:rgba(239,68,68,0.1);border-radius:6px;text-align:center">
+                  <div style="font-size:11px;font-weight:700;color:#fca5a5;text-transform:uppercase">❌ Naive Approach
+                  </div>
+                  <div style="font-size:22px;font-weight:800;color:#ef4444;margin:6px 0">~2 MB</div>
+                  <div style="font-size:10px;color:var(--muted)">per 1080p frame in Redis</div>
+                </div>
+                <div style="padding:10px;background:rgba(16,185,129,0.1);border-radius:6px;text-align:center">
+                  <div style="font-size:11px;font-weight:700;color:#6ee7b7;text-transform:uppercase">✅ Our Approach
+                  </div>
+                  <div style="font-size:22px;font-weight:800;color:#10b981;margin:6px 0">24 B</div>
+                  <div style="font-size:10px;color:var(--muted)">SHM pointer in Redis</div>
+                </div>
+              </div>
+              <p style="margin-top:10px;font-size:11px">Shared memory eliminates network serialisation entirely. The GPU
+                process reads directly from the memory segment — zero copy.</p>
+            </div>
+            <div class="card">
+              <h3>Event Envelope — All Streams</h3>
+              <div class="code">&#123;
+                "schema_version": "1",
+                "seq_id": 1247983,
+                "timestamp_ms": 1714048234521,
+                "cam_id": "cam_07",
+                "shm_name": "vms_cam07_frm",
+                ...payload...
+                &#125;</div>
+            </div>
+            <div class="card card-warn">
+              <h3>Backpressure Strategy</h3>
+              <ul class="tight-list" style="margin-top:4px">
+                <li><span class="dot-mark">•</span> Each cam slot holds <strong style="color:#fcd34d">1 frame at a
+                    time</strong> — latest wins</li>
+                <li><span class="dot-mark">•</span> Stale frames (&gt;200ms) dropped before GPU touch</li>
+                <li><span class="dot-mark">•</span> Redis streams capped at MAXLEN 500</li>
+                <li><span class="dot-mark">•</span> Lag &gt;500 → admin alert fires automatically</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 9: RESILIENCE -->
+    <div class="slide" id="slide-9">
+      <div class="topbar">
+        <div class="topbar-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+          VMS Intelligence Platform
+        </div>
+        <div class="topbar-label">9 of 11 — Reliability &amp; Error Handling</div>
+      </div>
+      <div class="slide-tag">09 — Reliability</div>
+      <h2>Production-Grade Error Handling</h2>
+      <div class="content-area">
+        <div class="grid-2" style="flex:1">
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div class="card">
+              <h3>Failure Recovery Matrix</h3>
+              <table style="margin-top:4px">
+                <thead>
+                  <tr>
+                    <th>Failure</th>
+                    <th>Recovery</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="em">Camera RTSP disconnect</td>
+                    <td class="text-muted" style="font-size:11px">Backoff 1→2→4→8→60s; 3 fails → mark is_active=false
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="em">Ingestion worker crash</td>
+                    <td class="text-muted" style="font-size:11px">Supervisor restart &lt;5s; XAUTOCLAIM recovers after
+                      10s</td>
+                  </tr>
+                  <tr>
+                    <td class="em">GPU out-of-memory</td>
+                    <td class="text-muted" style="font-size:11px">Catch OOM → halve batch size → retry; on crash:
+                      restart</td>
+                  </tr>
+                  <tr>
+                    <td class="em">Redis unavailable</td>
+                    <td class="text-muted" style="font-size:11px">200-frame buffer/cam; retry every 2s; drain on
+                      recovery</td>
+                  </tr>
+                  <tr>
+                    <td class="em">MSSQL write failure</td>
+                    <td class="text-muted" style="font-size:11px">3 retries → 50k-row ring buffer → JSON file overflow
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="em">Re-ID false match</td>
+                    <td class="text-muted" style="font-size:11px">Guard corrects via UI → cascade DB update + WS
+                      broadcast</td>
+                  </tr>
+                  <tr>
+                    <td class="em">Poison message (3× unACKed)</td>
+                    <td class="text-muted" style="font-size:11px">Moved to dead_letter stream; original XACK'd</td>
+                  </tr>
+                  <tr>
+                    <td class="em">WebSocket disconnect</td>
+                    <td class="text-muted" style="font-size:11px">Socket.io auto-reconnect + GET /api/state/snapshot
+                      rehydrate</td>
+                  </tr>
+                  <tr>
+                    <td class="em">Bad homography calibration</td>
+                    <td class="text-muted" style="font-size:11px">Wizard rejects save if reprojection error ≥ 2px</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div class="card" style="border-color:var(--warn)">
+              <h3>⚠️ Degraded Mode — Redis Outage</h3>
+              <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
+                <div
+                  style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:rgba(239,68,68,0.08);border-radius:6px">
+                  <span style="font-size:14px">📷</span>
+                  <span style="font-size:11px;color:var(--muted)">Ingestion: buffer 200 frames/cam in-memory, retry
+                    every 2s</span>
+                </div>
+                <div
+                  style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:rgba(245,158,11,0.08);border-radius:6px">
+                  <span style="font-size:14px">🎮</span>
+                  <span style="font-size:11px;color:var(--muted)">GPU: runs locally, ephemeral UUIDs, <strong
+                      style="color:#fcd34d">Re-ID disabled</strong></span>
+                </div>
+                <div
+                  style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:rgba(239,68,68,0.08);border-radius:6px">
+                  <span style="font-size:14px">🗄️</span>
+                  <span style="font-size:11px;color:var(--muted)">DB Writer: JSON file (100MB cap, oldest
+                    dropped)</span>
+                </div>
+                <div
+                  style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:rgba(37,99,235,0.08);border-radius:6px">
+                  <span style="font-size:14px">💻</span>
+                  <span style="font-size:11px;color:var(--accent2)">Frontend: displays "System degraded — Re-ID offline"
+                    banner</span>
+                </div>
+              </div>
+            </div>
+            <div class="card card-green">
+              <h3>📊 Observability Stack</h3>
+              <ul class="check-list" style="margin-top:4px">
+                <li>Prometheus metrics per process: <strong>latency p50/p95/p99, frames_dropped, stream lag, DB queue,
+                    GPU util</strong></li>
+                <li>Worker heartbeat: Redis key <span class="text-cyan">heartbeat:{worker_id}</span> with 15s TTL,
+                  refreshed every 10s</li>
+                <li>Heartbeat expiry → admin alert within 15 seconds</li>
+                <li>Grafana dashboard: GPU, Redis lag, MSSQL queue depth</li>
+                <li><span class="text-cyan">GET /api/health</span> exposes all worker status, Redis, MSSQL</li>
+              </ul>
+            </div>
+            <div class="card card-cyan">
+              <h3>🔐 Security</h3>
+              <ul class="tight-list" style="margin-top:4px">
+                <li><span class="dot-mark">•</span> JWT auth, 8-hour expiry — all endpoints except /health</li>
+                <li><span class="dot-mark">•</span> Role guards: guard / manager / admin</li>
+                <li><span class="dot-mark">•</span> Zone + camera access per user (row-level)</li>
+                <li><span class="dot-mark">•</span> Expired token → HTTP 401; insufficient role → HTTP 403</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 10: TECH STACK -->
+    <div class="slide" id="slide-10">
+      <div class="topbar">
+        <div class="topbar-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+          </svg>
+          VMS Intelligence Platform
+        </div>
+        <div class="topbar-label">10 of 11 — Technology Stack</div>
+      </div>
+      <div class="slide-tag">10 — Technology Stack</div>
+      <h2>Complete Technology Stack</h2>
+      <div class="content-area">
+        <div class="grid-2" style="flex:1">
+          <div class="card">
+            <h3>Backend &amp; AI</h3>
+            <table style="margin-top:4px">
+              <thead>
+                <tr>
+                  <th>Layer</th>
+                  <th>Technology</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Face detection</td>
+                  <td class="mono text-cyan">SCRFD 2.5g (ONNX + CUDA)</td>
+                </tr>
+                <tr>
+                  <td>Face embedding</td>
+                  <td class="mono text-cyan">AdaFace IR50 (ONNX + CUDA)</td>
+                </tr>
+                <tr>
+                  <td>Person detection</td>
+                  <td class="mono text-cyan">YOLOv8n (ONNX / TensorRT)</td>
+                </tr>
+                <tr>
+                  <td>Per-camera tracking</td>
+                  <td class="mono text-cyan">ByteTrack (ultralytics)</td>
+                </tr>
+                <tr>
+                  <td>Cross-camera Re-ID</td>
+                  <td class="mono text-cyan">FAISS flat IP index</td>
+                </tr>
+                <tr>
+                  <td>Message bus</td>
+                  <td class="mono text-cyan">Redis Streams</td>
+                </tr>
+                <tr>
+                  <td>Frame IPC</td>
+                  <td class="mono text-cyan">multiprocessing.shared_memory</td>
+                </tr>
+                <tr>
+                  <td>Database</td>
+                  <td class="mono text-cyan">MSSQL Server + SQLAlchemy 2.x</td>
+                </tr>
+                <tr>
+                  <td>DB migrations</td>
+                  <td class="mono text-cyan">Alembic</td>
+                </tr>
+                <tr>
+                  <td>API framework</td>
+                  <td class="mono text-cyan">FastAPI + Uvicorn</td>
+                </tr>
+                <tr>
+                  <td>WebSocket</td>
+                  <td class="mono text-cyan">Socket.io</td>
+                </tr>
+                <tr>
+                  <td>Config</td>
+                  <td class="mono text-cyan">pydantic-settings 2.x</td>
+                </tr>
+                <tr>
+                  <td>Auth</td>
+                  <td class="mono text-cyan">python-jose (JWT) + bcrypt</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="card">
+              <h3>Frontend</h3>
+              <table style="margin-top:4px">
+                <thead>
+                  <tr>
+                    <th>Layer</th>
+                    <th>Technology</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Framework</td>
+                    <td class="mono text-cyan">React 18 + TypeScript + Vite</td>
+                  </tr>
+                  <tr>
+                    <td>Styling</td>
+                    <td class="mono text-cyan">Tailwind CSS + shadcn/ui</td>
+                  </tr>
+                  <tr>
+                    <td>State management</td>
+                    <td class="mono text-cyan">Zustand</td>
+                  </tr>
+                  <tr>
+                    <td>Data fetching</td>
+                    <td class="mono text-cyan">TanStack Query</td>
+                  </tr>
+                  <tr>
+                    <td>Maps</td>
+                    <td class="mono text-cyan">Leaflet.js</td>
+                  </tr>
+                  <tr>
+                    <td>Charts</td>
+                    <td class="mono text-cyan">Recharts</td>
+                  </tr>
+                  <tr>
+                    <td>Video</td>
+                    <td class="mono text-cyan">HLS.js</td>
+                  </tr>
+                  <tr>
+                    <td>Forms</td>
+                    <td class="mono text-cyan">React Hook Form + Zod</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="card card-cyan">
+              <h3>Operations</h3>
+              <table style="margin-top:4px">
+                <thead>
+                  <tr>
+                    <th>Layer</th>
+                    <th>Technology</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Process supervisor</td>
+                    <td class="mono text-cyan">Systemd (Linux) / NSSM (Windows)</td>
+                  </tr>
+                  <tr>
+                    <td>Metrics</td>
+                    <td class="mono text-cyan">Prometheus + Grafana</td>
+                  </tr>
+                  <tr>
+                    <td>Testing</td>
+                    <td class="mono text-cyan">pytest + pytest-asyncio + httpx</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="card card-green">
+              <h3>Development Approach</h3>
+              <ul class="tight-list" style="margin-top:4px">
+                <li><span class="dot-mark">•</span> Test-Driven Development (RED → GREEN → COMMIT)</li>
+                <li><span class="dot-mark">•</span> Start on <strong style="color:#6ee7b7">webcam</strong>, then roll
+                  out RTSP cameras</li>
+                <li><span class="dot-mark">•</span> Alembic migrations — no manual schema changes</li>
+                <li><span class="dot-mark">•</span> All thresholds in environment config — no hardcoding</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 11: ROADMAP -->
+    <div class="slide" id="slide-11">
+      <div class="topbar">
+        <div class="topbar-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          VMS Intelligence Platform
+        </div>
+        <div class="topbar-label">11 of 11 — Implementation Roadmap</div>
+      </div>
+      <div class="slide-tag">11 — Roadmap</div>
+      <h2>Five-Phase Implementation Plan</h2>
+      <div class="content-area">
+        <div class="grid-2" style="flex:1">
+          <div style="display:flex;flex-direction:column;gap:0">
+            <div class="phase-row">
+              <div class="phase-num" style="background:rgba(37,99,235,0.3);color:#93c5fd">1</div>
+              <div>
+                <div class="phase-name">Foundation</div>
+                <div class="phase-items">MSSQL schema · Alembic · Ingestion worker · GPU inference engine (SCRFD +
+                  AdaFace + ByteTrack) · Basic FastAPI (enrollment + health) · TDD test suite</div>
+              </div>
+              <span class="badge badge-blue" style="flex-shrink:0">Current</span>
+            </div>
+            <div class="phase-row">
+              <div class="phase-num" style="background:rgba(6,182,212,0.2);color:#67e8f9">2</div>
+              <div>
+                <div class="phase-name">Identity &amp; Tracking</div>
+                <div class="phase-items">Cross-camera Re-ID (FAISS) · Homography engine · Alert FSM · reid_matches audit
+                  trail · Corrections stream</div>
+              </div>
+            </div>
+            <div class="phase-row">
+              <div class="phase-num" style="background:rgba(139,92,246,0.2);color:#c4b5fd">3</div>
+              <div>
+                <div class="phase-name">Frontend</div>
+                <div class="phase-items">React scaffold · Guard / Management / Admin views · Socket.io live updates ·
+                  Floor plan Leaflet map · HLS video tile</div>
+              </div>
+            </div>
+            <div class="phase-row">
+              <div class="phase-num" style="background:rgba(16,185,129,0.2);color:#6ee7b7">4</div>
+              <div>
+                <div class="phase-name">Production Hardening</div>
+                <div class="phase-items">SHM crash cleanup · Redis lag monitoring · DB idempotency testing ·
+                  Prometheus/Grafana dashboards · Load testing 60 cameras</div>
+              </div>
+            </div>
+            <div class="phase-row" style="border-bottom:none">
+              <div class="phase-num" style="background:rgba(245,158,11,0.2);color:#fcd34d">5</div>
+              <div>
+                <div class="phase-name">Camera Rollout</div>
+                <div class="phase-items">RTSP integration for all 60 cameras · Homography calibration per camera · Zone
+                  mapping · Security review · Go-live</div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div class="card card-blue" style="border-color:var(--accent)">
+              <h3>Phase 1 — 14 Defined Tasks (TDD)</h3>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">
+                <div style="font-size:11px;color:var(--muted);padding:4px 0;border-bottom:1px solid rgba(30,58,95,0.4)">
+                  1. Project scaffold + config</div>
+                <div style="font-size:11px;color:var(--muted);padding:4px 0;border-bottom:1px solid rgba(30,58,95,0.4)">
+                  2. Redis client</div>
+                <div style="font-size:11px;color:var(--muted);padding:4px 0;border-bottom:1px solid rgba(30,58,95,0.4)">
+                  3. SQLAlchemy models</div>
+                <div style="font-size:11px;color:var(--muted);padding:4px 0;border-bottom:1px solid rgba(30,58,95,0.4)">
+                  4. Alembic migrations</div>
+                <div style="font-size:11px;color:var(--muted);padding:4px 0;border-bottom:1px solid rgba(30,58,95,0.4)">
+                  5. Shared memory (SHM)</div>
+                <div style="font-size:11px;color:var(--muted);padding:4px 0;border-bottom:1px solid rgba(30,58,95,0.4)">
+                  6. SCRFD detector</div>
+                <div style="font-size:11px;color:var(--muted);padding:4px 0;border-bottom:1px solid rgba(30,58,95,0.4)">
+                  7. AdaFace embedder</div>
+                <div style="font-size:11px;color:var(--muted);padding:4px 0;border-bottom:1px solid rgba(30,58,95,0.4)">
+                  8. ByteTrack wrapper</div>
+                <div style="font-size:11px;color:var(--muted);padding:4px 0;border-bottom:1px solid rgba(30,58,95,0.4)">
+                  9. Inference engine</div>
+                <div style="font-size:11px;color:var(--muted);padding:4px 0;border-bottom:1px solid rgba(30,58,95,0.4)">
+                  10. Ingestion worker</div>
+                <div style="font-size:11px;color:var(--muted);padding:4px 0;border-bottom:1px solid rgba(30,58,95,0.4)">
+                  11. DB writer</div>
+                <div style="font-size:11px;color:var(--muted);padding:4px 0;border-bottom:1px solid rgba(30,58,95,0.4)">
+                  12. FastAPI + JWT auth</div>
+                <div style="font-size:11px;color:var(--muted);padding:4px 0;border-bottom:1px solid rgba(30,58,95,0.4)">
+                  13. Enrollment API</div>
+                <div style="font-size:11px;color:var(--accent2);font-weight:600;padding:4px 0">14. Webcam smoke test
+                </div>
+              </div>
+            </div>
+            <div class="grid-2" style="gap:12px">
+              <div class="stat">
+                <div class="stat-num">14</div>
+                <div class="stat-label">Phase 1 Tasks</div>
+              </div>
+              <div class="stat">
+                <div class="stat-num">15</div>
+                <div class="stat-label">Requirements</div>
+              </div>
+              <div class="stat">
+                <div class="stat-num">11</div>
+                <div class="stat-label">DB Tables</div>
+              </div>
+              <div class="stat">
+                <div class="stat-num">80%+</div>
+                <div class="stat-label">Test Coverage Target</div>
+              </div>
+            </div>
+            <div class="card" style="background:rgba(37,99,235,0.08);border-color:var(--accent)">
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="font-size:20px">🚀</span>
+                <div>
+                  <div style="font-size:13px;font-weight:600;color:#fff">Phase 1 delivers a working webcam pipeline
+                  </div>
+                  <div style="font-size:11px;color:var(--muted);margin-top:2px">End-to-end: webcam → SHM → Redis → GPU →
+                    MSSQL. Face enrollment and recognition working on a single camera before RTSP rollout begins.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- NAVIGATION -->
+  <div id="nav">
+    <button class="nav-btn" id="btn-prev" onclick="navigate(-1)" disabled>&#8592;</button>
+    <div id="dots"></div>
+    <span id="slide-counter">1 / 12</span>
+    <button class="nav-btn" id="btn-next" onclick="navigate(1)">&#8594;</button>
+  </div>
+
+  <script>
+    const slides = Array.from(document.querySelectorAll('.slide'));
+    const TOTAL = slides.length;
+    let current = 0;
+
+    const progress = document.getElementById('progress');
+    const counter = document.getElementById('slide-counter');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    const dotsEl = document.getElementById('dots');
+
+    // Build dot indicators
+    for (let i = 0; i < TOTAL; i++) {
+      const d = document.createElement('div');
+      d.className = 'dot' + (i === 0 ? ' active' : '');
+      d.onclick = () => goTo(i);
+      dotsEl.appendChild(d);
+    }
+
+    function updateUI() {
+      progress.style.width = ((current + 1) / TOTAL * 100) + '%';
+      counter.textContent = (current + 1) + ' / ' + TOTAL;
+      btnPrev.disabled = current === 0;
+      btnNext.disabled = current === TOTAL - 1;
+      document.querySelectorAll('.dot').forEach((d, i) =>
+        d.classList.toggle('active', i === current)
+      );
+    }
+
+    function goTo(idx) {
+      if (idx === current || idx < 0 || idx >= TOTAL) return;
+      slides[current].classList.remove('active');
+      current = idx;
+      slides[current].classList.add('active');
+      updateUI();
+    }
+
+    function navigate(dir) { goTo(current + dir); }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
+        e.preventDefault(); navigate(1);
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault(); navigate(-1);
+      } else if (e.key === 'Home') { goTo(0); }
+      else if (e.key === 'End') { goTo(TOTAL - 1); }
+    });
+
+    updateUI();
+  </script>
+</body>
+
+</html>

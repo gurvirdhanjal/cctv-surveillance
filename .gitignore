@@ -35,7 +35,6 @@ employees/
 # Internal tooling
 .superpowers/
 .claude/
-.kiro/
 
 # Logs and temp
 *.log
