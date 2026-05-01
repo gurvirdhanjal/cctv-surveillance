@@ -21,6 +21,7 @@
 | Capacity planning | "Multi-node upgrade path" mentioned | Concrete per-GPU-SKU capacity table + 3-step scaling runbook (single-GPU → two-node → Kafka) |
 | Production hardening | Implicit | 12 explicit failure modes covered (clock skew, embedding drift, GDPR erasure, anti-spoofing hook, model rollback, privacy-at-rest, etc.) |
 | Theft / harassment / mobile app / SaaS / PPE / shift emails / klaxon / CAD heatmap / tampering detection | — | All explicitly **deferred to v2.x** to keep v1 shippable |
+| Model lifecycle | Models bundled with code | **Models downloaded on first run** from a manifest (HF Hub or customer mirror, SHA-256 verified). Fine-tunable on customer data via reference recipes. Per-camera version + threshold overrides. CLI: `vms-models download / verify / pin / swap` |
 
 ---
 
@@ -499,7 +500,7 @@ The shared-memory frame transport is the architecture's "secret weapon." Redis c
 | H8 | Anti-spoofing (printed photo / video replay) | Not mentioned | v1 explicitly **out-of-scope** (documented). Pluggable `LivenessDetector` interface added now to the face pipeline (no-op default). Sets up future MoFA / CDCN integration without architecture change |
 | H9 | Camera credentials rotated externally | Not mentioned | Worker logs RTSP auth failure → marks camera state `auth_failed` → distinct admin badge. Distinguished from network outage so operator knows to update credentials |
 | H10 | Worker scale-up while running | Not mentioned | Production runbook: add new worker process → it joins the consumer group via `XGROUP CREATECONSUMER`. Existing workers' `XAUTOCLAIM` rebalances naturally. No service restart |
-| H11 | Model upgrade rollback | Not mentioned | Each ML model has a version in config + `models/v{N}/` directory layout. Canary procedure: enable new model on 1 camera → observe 24h → global enable. Rollback = config swap + worker restart |
+| H11 | Model upgrade rollback | Not mentioned | Each ML model has a version in config + `models/v{N}/` directory layout. Canary procedure: enable new model on 1 camera → observe 24h → global enable. Rollback = config swap + worker restart. Full model lifecycle (download / fine-tune / per-camera override) covered in §L |
 | H12 | Privacy: face images on disk | `thumbnail_path` exists, no encryption note | Thumbnails encrypted at rest with Fernet (Windows: key in DPAPI; Linux: key in `secrets.json` mode 0400). Decryption only when API serves to authorised user |
 
 ---
@@ -600,6 +601,131 @@ React: Guard view, Management view, Admin view (incl. maintenance calendar + cam
 - Per-camera homography calibration + capability profiling on real RTSP
 - Zone polygon mapping on customer's CAD floor plan
 - Security review (auth, RTSP credential encryption, role permissions)
+
+---
+
+## §L. Model lifecycle — download, fine-tune, configure *(NEW)*
+
+The codebase ships *without* model binaries. Models are downloaded from a declared manifest on first run, with SHA-256 verification. Fine-tuned variants are first-class — operators can produce, upload, canary-test, and swap them per camera.
+
+### L.1 Models are not bundled — they are downloaded
+
+Repo carries `models/manifest.json` declaring every required model + version + source + checksum:
+
+```json
+{
+  "schema_version": "1",
+  "default_source_kind": "huggingface",        // 'huggingface' | 'https' | 'local'
+  "default_mirror": "https://models.apltechno.com/vms/v1/",  // air-gapped customer mirror
+  "models": {
+    "scrfd_2.5g": {
+      "version": "1.0.0",
+      "source": "huggingface://repo-name/scrfd_2.5g.onnx",
+      "sha256": "<digest>",
+      "size_bytes": 12345678,
+      "purpose": "face_detection",
+      "input_shape": [1, 3, 640, 640],
+      "fine_tunable": false
+    },
+    "adaface_ir50": {
+      "version": "1.0.0",
+      "source": "huggingface://repo-name/adaface_ir50.onnx",
+      "sha256": "<digest>",
+      "purpose": "face_embedding",
+      "fine_tunable": true,
+      "training_recipe": "scripts/finetune/adaface.md"
+    },
+    "yolov8n_person":      { "fine_tunable": true,  "training_recipe": "scripts/finetune/yolov8.md" },
+    "movinet_a0_violence": { "fine_tunable": true,  "training_recipe": "scripts/finetune/violence.md" },
+    "clip_vit_b32":        { "fine_tunable": false }
+  }
+}
+```
+
+CLI (`vms-models` console-script entry-point):
+
+```
+vms-models download                 # fetch all + verify SHA-256, exits non-zero on mismatch
+vms-models verify                   # re-verify checksums on disk
+vms-models list                     # show installed versions and active per-camera overrides
+vms-models pin <name> <version>     # lock a specific version (writes to manifest.lock)
+vms-models swap <name> <path.onnx>  # register a fine-tuned ONNX (signs + copies to models/v{N}/)
+```
+
+Service refuses to start if any required model fails verification.
+
+### L.2 Fine-tuning workflow
+
+For models marked `fine_tunable: true`:
+
+1. **Dataset export** — `vms-models export-dataset --model adaface --since 2026-01-01 --out customer_faces.tar`
+   - Pulls high-quality face crops from `person_embeddings` + raw frames within retention window.
+   - Includes labels from `persons` (employee_id, person_type).
+   - Optional flag `--include-unknowns` packs recurring unknown tracklets as candidate negatives.
+
+2. **Train (offline)** — operator (or APL Techno's services team) runs the reference recipe:
+   - `scripts/finetune/adaface.py` — fine-tunes the AdaFace head on customer's employee distribution.
+   - `scripts/finetune/yolov8.py` — fine-tunes person detector for customer-specific clothing (uniforms, PPE) using Ultralytics CLI.
+   - `scripts/finetune/violence.py` — fine-tunes MoViNet on customer-flagged false positives + true positives.
+   - Each recipe is a documented Markdown + Python pair; the recipe is the contract, not the code.
+
+3. **Export to ONNX with embedded metadata** (via `onnx.helper.set_model_props`):
+
+   | Key | Purpose |
+   |---|---|
+   | `vms.base_model` | Which stock model this was fine-tuned from |
+   | `vms.base_version` | Stock model version |
+   | `vms.trained_at` | ISO-8601 timestamp |
+   | `vms.customer_id` | Tenant identifier |
+   | `vms.dataset_size` | Number of training samples |
+   | `vms.eval_metrics` | JSON: precision, recall, F1 on held-out test set |
+
+4. **Upload + canary** — `POST /api/models/upload` (multipart):
+   - Server verifies HMAC signature against deployment secret.
+   - Reads embedded metadata; rejects if `vms.base_model` doesn't match the slot the operator is uploading into.
+   - Stores in `models/v{N}/` with new version string; records audit log entry.
+   - Operator runs canary: assigns the new model to **one camera** via per-camera override, observes ≥24h, then promotes to global default if eval is good.
+
+### L.3 Per-camera model + threshold overrides
+
+Customers may want different models per camera (fine-tuned face model in HR area, stock model elsewhere; stricter thresholds at the gate, looser inside). Add a single JSON column for both model + threshold overrides:
+
+```sql
+ALTER TABLE cameras ADD model_overrides NVARCHAR(MAX) NULL;
+-- JSON example:
+--   {
+--     "models":     { "face_embedder": "adaface_ir50_acme_v2", "violence": null },
+--     "thresholds": { "adaface_min_sim": 0.78, "scrfd_conf": 0.55 }
+--   }
+-- model name = use that specific version from models/ directory
+-- null      = inherit system default for that slot
+-- absent    = inherit system default
+```
+
+`InferenceEngine` resolves overrides at camera-config-load time and routes that camera's frames to the appropriate model instance. Models are loaded once and shared across cameras that use them — no per-camera GPU memory blowup.
+
+### L.4 Configuration storage hierarchy
+
+```
+1. Per-camera override                (cameras.model_overrides — both models and thresholds)
+2. Per-detector global config         (anomaly_detectors.config_json + .model_version)
+3. Global env vars / settings.toml    (VMS_ADAFACE_MIN_SIM, VMS_SCRFD_CONF, ...)
+4. Hard-coded defaults                (vms/config.py)
+```
+
+First match wins. Admin UI shows the **resolved value + which level it came from** — operators always see what the system is actually using. "Reset to defaults" button on every override.
+
+### L.5 Versioning, rollback, audit
+
+- `models/v{N}/` directory layout (already in §H11) keeps prior versions.
+- Rollback = update `anomaly_detectors.model_version` (global) or `cameras.model_overrides` (per-camera), restart the affected inference worker.
+- Every model swap, threshold change, or per-camera override mutation is recorded in the `audit_log` (§F.3) with `{actor, camera_id, from_version, to_version, reason}`.
+- Routine: weekly cron emits a report of all active model versions across cameras, surfacing drift between intended and actual configuration.
+
+### L.6 Phase placement (updates §K)
+
+- **Phase 3** adds: `models/manifest.json` + `vms-models download/verify/list/pin` CLI + per-camera override columns + threshold-override admin UI.
+- **Phase 5** adds: fine-tuning recipes (`scripts/finetune/*`) + dataset export tool + `POST /api/models/upload` + canary flow + signed-model verification.
 
 ---
 
