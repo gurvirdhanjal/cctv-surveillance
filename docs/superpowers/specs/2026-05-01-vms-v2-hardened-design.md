@@ -22,6 +22,8 @@
 | Production hardening | Implicit | 12 explicit failure modes covered (clock skew, embedding drift, GDPR erasure, anti-spoofing hook, model rollback, privacy-at-rest, etc.) |
 | Theft / harassment / mobile app / SaaS / PPE / shift emails / klaxon / CAD heatmap / tampering detection | — | All explicitly **deferred to v2.x** to keep v1 shippable |
 | Model lifecycle | Models bundled with code | **Models downloaded on first run** from a manifest (HF Hub or customer mirror, SHA-256 verified). Fine-tunable on customer data via reference recipes. Per-camera version + threshold overrides. CLI: `vms-models download / verify / pin / swap` |
+| Scheduled jobs | Implicit, scattered | **§M centralises** all 12 production cron jobs under `vms.scheduler` with idempotency, audit logging, and timeout/failure handling |
+| Real-time state | Frontend referenced `/api/state/snapshot` and `head_count` WebSocket event with no spec backing | **§N defines** `HeadCountAggregator` component, full snapshot response schema, and adds `head_count`, `alert_state_changed`, `degraded_mode` to the event matrix |
 
 ---
 
@@ -726,6 +728,181 @@ First match wins. Admin UI shows the **resolved value + which level it came from
 
 - **Phase 3** adds: `models/manifest.json` + `vms-models download/verify/list/pin` CLI + per-camera override columns + threshold-override admin UI.
 - **Phase 5** adds: fine-tuning recipes (`scripts/finetune/*`) + dataset export tool + `POST /api/models/upload` + canary flow + signed-model verification.
+
+---
+
+## §M. Scheduled jobs and cron orchestrator *(NEW — closes gap surfaced 2026-05-01)*
+
+The system has multiple background jobs running on schedules. These were specified piecemeal across the v2 spec, edge-cases spec, and §L; this section lists them in one place so deployment automation can register them all.
+
+### Cron orchestrator
+
+A single Python process `vms.scheduler` runs in production (systemd unit `vms-scheduler.service`, Windows: `vms-scheduler` NSSM service). It reads `vms/scheduler/jobs.py` declaratively:
+
+```python
+@dataclass(frozen=True)
+class ScheduledJob:
+    name: str
+    cron: str                                # standard 5-field cron
+    handler: Callable[[], None]              # idempotent
+    timeout_s: int                           # kill if it runs longer
+    on_failure: Literal["log", "alert"]
+    audit_event_type: str                    # written to audit_log on each run
+```
+
+All jobs are idempotent: a missed run can be safely re-executed. Every successful or failed execution writes an `audit_log` row.
+
+### Job registry (v1 in scope)
+
+| Job | Cadence | Purpose | Spec ref |
+|---|---|---|---|
+| `partition_create_next_month` | 25th of each month, 02:00 | Create next month's `tracking_events` partition before rollover | edge-cases §4 |
+| `archive_old_partitions` | Daily 03:00 | Switch out partitions > 12 months → Parquet on object storage → drop | edge-cases §4 |
+| `index_optimize` | Daily 04:00 | Ola Hallengren `IndexOptimize` proc — reorganise > 10%, online rebuild > 30% | edge-cases §12 |
+| `update_statistics` | Daily 04:30 | After index work, refresh stats on hot tables | edge-cases §12 |
+| `audit_chain_verify` | Daily 05:00 | Walk full `audit_log` chain; fire CRITICAL on broken link | edge-cases §14 |
+| `faiss_drift_check` | Daily 05:30 | Compare DB embedding count vs FAISS vector count; rebuild if drift > 5 | edge-cases §15 |
+| `model_version_report` | Weekly Monday 06:00 | Report active model versions per camera; flag drift between intended + actual | §L.5 |
+| `alert_dispatch_dead_letter_drain` | Hourly | Retry failed dispatches in `dead_letter_dispatches`; drop after age > 24h with admin alert | §E |
+| `worker_heartbeat_check` | Every 10s | Verify each worker's `heartbeat:{worker_id}` Redis key; admin-alert on >2 consecutive misses | v1 §16 |
+| `maintenance_calendar_refresh` | Every 30s | Reload active windows into `MaintenanceCalendar` in-memory cache | §D |
+| `clip_retention_purge` | Daily 02:30 | Delete `person_clip_embeddings` rows older than 30 days; drop snapshot files | §F.2 |
+| `dr_drill_reminder` | Quarterly | Open a ticket reminding ops to run the disaster-recovery drill | edge-cases §9 |
+
+### Failure handling
+
+- A job that exceeds `timeout_s` is killed; admin alert emitted.
+- A job whose handler raises is logged; `on_failure='alert'` jobs also trigger an admin webhook.
+- The scheduler itself emits a heartbeat to Redis `scheduler:heartbeat`; if absent for >2× the shortest cron, monitoring fires CRITICAL.
+
+### Phase placement
+
+`vms.scheduler` ships in **Phase 3** alongside the dispatcher and audit log. Earlier phases run jobs manually; the scheduler is what "production-ises" them.
+
+---
+
+## §N. Real-time state aggregator and snapshot API *(NEW — closes gap surfaced 2026-05-01)*
+
+### N.1 HeadCountAggregator
+
+A new component in the **Identity Service** process. Subscribes to `tracking` Redis Stream events and maintains an in-memory map `{zone_id: set[global_track_id]}` updated on every event.
+
+Outputs:
+
+| Output | Where | Cadence |
+|---|---|---|
+| `head_count` Socket.io event | WebSocket fanout | every 1s |
+| `head_count_zone_<id>` Redis Stream entry | Audit and analytics | every 1s |
+| HTTP response field on `/api/state/snapshot` | API | on demand |
+
+Pseudo-implementation:
+
+```python
+class HeadCountAggregator:
+    def __init__(self) -> None:
+        self._by_zone: dict[int, set[str]] = defaultdict(set)
+        self._last_seen: dict[str, tuple[int, datetime]] = {}  # gtid -> (zone, ts)
+
+    def on_tracking_event(self, ev: TrackingEvent) -> None:
+        if ev.zone_id is None:
+            return
+        prev = self._last_seen.get(ev.global_track_id)
+        if prev is not None and prev[0] != ev.zone_id:
+            self._by_zone[prev[0]].discard(ev.global_track_id)
+        self._by_zone[ev.zone_id].add(ev.global_track_id)
+        self._last_seen[ev.global_track_id] = (ev.zone_id, ev.event_ts)
+
+    def evict_stale(self, now: datetime, ttl_s: int = 30) -> None:
+        """Remove tracks that haven't been seen for ttl_s; called every second."""
+        cutoff = now - timedelta(seconds=ttl_s)
+        for gtid, (zid, ts) in list(self._last_seen.items()):
+            if ts < cutoff:
+                self._by_zone[zid].discard(gtid)
+                del self._last_seen[gtid]
+
+    def snapshot(self) -> HeadCountSnapshot:
+        total = sum(len(s) for s in self._by_zone.values())
+        return HeadCountSnapshot(
+            plant_total=total,
+            by_zone={zid: len(tracks) for zid, tracks in self._by_zone.items()},
+            ts=datetime.utcnow(),
+        )
+```
+
+Eviction runs every second; the aggregator emits its snapshot at the same cadence.
+
+### N.2 Updated WebSocket event matrix (extends v1 §11)
+
+| Event | Direction | Payload | Throttling |
+|---|---|---|---|
+| `head_count` | server → client | `{plant_total, by_zone: {[zone_id]: count}, ts, schema_version}` | every 1s |
+| `alert_state_changed` | server → client | `{alert_id, new_state, actor_user_id, ts, schema_version}` | immediate |
+| `degraded_mode` | server → client | `{enabled: bool, reason: str, ts, schema_version}` | immediate |
+| `subscribe_camera` | client → server | `{camera_id}` | ad-hoc |
+| `unsubscribe_camera` | client → server | `{camera_id}` | ad-hoc |
+| `subscribe_track` | client → server | `{global_track_id}` | follow mode |
+
+(These are additions; `person_location`, `alert_fired`, `track_corrected`, `camera_snapshot`, `worker_health` from v1 §11 remain as specified.)
+
+### N.3 `/api/state/snapshot` — response schema
+
+Used by the frontend on initial load and after WebSocket reconnect to rehydrate the entire live state. Must complete in <500ms p95.
+
+```json
+{
+  "ts": "2026-05-01T14:32:11.123Z",
+  "schema_version": "1",
+  "head_count": {
+    "plant_total": 23,
+    "by_zone": { "1": 5, "2": 0, "3": 12, "4": 6 }
+  },
+  "active_tracks": [
+    {
+      "global_track_id": "8f42...",
+      "person_id": 7,
+      "camera_id": 4,
+      "zone_id": 3,
+      "bbox": [120, 200, 220, 480],
+      "floor_x": 12.5,
+      "floor_y": 8.3,
+      "ts": "2026-05-01T14:32:10.987Z"
+    }
+  ],
+  "active_alerts": [
+    {
+      "alert_id": 12345,
+      "alert_type": "VIOLENCE",
+      "severity": "CRITICAL",
+      "state": "active",
+      "camera_id": 7,
+      "zone_id": 3,
+      "global_track_id": "...",
+      "triggered_at": "2026-05-01T14:31:55.000Z",
+      "snapshot_url": "/api/alerts/12345/snapshot.jpg"
+    }
+  ],
+  "cameras": [
+    {
+      "camera_id": 1, "name": "Loading Bay 1", "status": "online",
+      "capability_tier": "FULL", "in_maintenance": false
+    }
+  ],
+  "workers": [
+    { "worker_id": "ingest-A", "status": "healthy", "cam_count": 13, "ts": "..." }
+  ],
+  "degraded": null
+}
+```
+
+When the system is in degraded mode, `degraded` is non-null:
+
+```json
+"degraded": { "redis": "unreachable", "since": "2026-05-01T14:30:00Z" }
+```
+
+### N.4 Implementation note
+
+`HeadCountAggregator` lives in **Phase 2** (alongside the alert FSM); the `/api/state/snapshot` endpoint ships in **Phase 1B** initially with a stub head_count, upgraded to real values in Phase 2.
 
 ---
 
