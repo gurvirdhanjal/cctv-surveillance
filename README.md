@@ -321,14 +321,14 @@ flowchart TD
     Decide -- "720p-1080p OR 8-12fps OR focus 15-30" --> MidTier[MID tier]
     Decide -- "<720p OR <8fps OR analog OR focus<15" --> LowTier[LOW tier]
 
-    FullTier --> FullFeats[All features<br/>face + anomaly + headcount + intrusion + violence + loitering<br/>SLA: 99% precision · less than 1.5s alert latency]
-    MidTier --> MidFeats[Anomaly + headcount + intrusion + violence (best-effort)<br/>face recognition disabled per camera<br/>SLA: 90% recall · less than 3s alert latency]
-    LowTier --> LowFeats[Headcount + intrusion only (zone rules)<br/>no deep-model features<br/>SLA: presence detection only]
+    FullTier --> FullFeats["All features<br/>face + anomaly + headcount + intrusion + violence + loitering<br/>SLA: 99% precision · less than 1.5s alert latency"]
+    MidTier --> MidFeats["Anomaly + headcount + intrusion + violence (best-effort)<br/>face recognition disabled per camera<br/>SLA: 90% recall · less than 3s alert latency"]
+    LowTier --> LowFeats["Headcount + intrusion only (zone rules)<br/>no deep-model features<br/>SLA: presence detection only"]
 
-    FullFeats --> Save[(cameras.capability_tier<br/>+ profile_data JSON)]
+    FullFeats --> Save[("cameras.capability_tier<br/>+ profile_data JSON")]
     MidFeats --> Save
     LowFeats --> Save
-    Save --> PDF[Generate Site Readiness Report PDF<br/>Customer signs as contractual baseline]
+    Save --> PDF["Generate Site Readiness Report PDF<br/>Customer signs as contractual baseline"]
 ```
 
 ---
