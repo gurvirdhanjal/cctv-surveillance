@@ -91,7 +91,7 @@ flowchart LR
     end
 
     subgraph Identity["Identity Service"]
-        FAISS[(FAISS<br/>face + CLIP)]
+        FAISS[("FAISS<br/>face + CLIP")]
         REID[Cross-cam<br/>Re-ID]
         FSM[Alert FSM]
         HEAD[HeadCount<br/>Aggregator]
@@ -116,7 +116,7 @@ flowchart LR
     Identity --> DB
     DB <--> SCHED
     AS --> DISP
-    DISP -->|email/slack/telegram/webhook| Channels[(External<br/>channels)]
+    DISP -->|email/slack/telegram/webhook| Channels[("External<br/>channels")]
     DB --> API
     API <-->|WebSocket| FE
     FE -->|corrections| API
@@ -514,11 +514,11 @@ Each phase ships an independently testable deliverable. Phase 1A (current target
 
 ```mermaid
 flowchart TB
-    App[App + Router + Providers] --> Login[/login]
-    App --> Live[/live]
-    App --> Analytics[/analytics]
-    App --> Forensic[/forensic]
-    App --> Admin[/admin]
+    App[App + Router + Providers] --> Login["/login"]
+    App --> Live["/live"]
+    App --> Analytics["/analytics"]
+    App --> Forensic["/forensic"]
+    App --> Admin["/admin"]
 
     Live --> CG[CameraGrid]
     Live --> FC[FocusedCamera<br/>HLS + bbox overlay]
@@ -726,9 +726,9 @@ flowchart LR
     V2 --> FE[Frontend spec]
     V2 --> P1A[Phase 1A plan<br/>current target]
 
-    EC -.constrains.-> P1A
-    FE -.constrains.-> P4[Phase 4 plans<br/>future]
-    V2 -.constrains.-> P1B[Phase 1B+ plans<br/>future]
+    EC -. constrains .-> P1A
+    FE -. constrains .-> P4[Phase 4 plans<br/>future]
+    V2 -. constrains .-> P1B[Phase 1B+ plans<br/>future]
 
     style V2 fill:#fef3c7,stroke:#92400e
     style P1A fill:#dbeafe,stroke:#1e40af
