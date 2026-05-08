@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from typing import Any
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from vms.config import get_settings
@@ -19,6 +20,16 @@ engine = create_engine(
     future=True,
     connect_args=({"check_same_thread": False} if _settings.db_url.startswith("sqlite") else {}),
 )
+
+
+@event.listens_for(engine, "connect")
+def _set_sqlite_pragma(dbapi_connection: Any, _: Any) -> None:
+    """Enable FK enforcement for the SQLite test backend."""
+    if _settings.db_url.startswith("sqlite"):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
 
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, future=True)
 
