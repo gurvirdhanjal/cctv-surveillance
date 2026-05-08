@@ -1,15 +1,11 @@
-"""ORM models for all VMS v2 database tables.
-
-Embedding columns (person_embeddings, person_clip_embeddings) use LargeBinary
-here for SQLite test compatibility. The Alembic migration promotes them to
-vector(512) on PostgreSQL to enable pgvector similarity search.
-"""
+"""ORM models for all VMS v2 database tables."""
 
 from __future__ import annotations
 
 import uuid
 from datetime import datetime
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
     Boolean,
@@ -19,7 +15,6 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
-    LargeBinary,
     String,
     Text,
     UniqueConstraint,
@@ -125,13 +120,11 @@ class PersonEmbedding(Base):
         Index("ix_person_embeddings_person_id", "person_id"),
     )
 
-    # Integer PK for SQLite compat; Alembic migration uses BIGSERIAL on PostgreSQL
-    embedding_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    embedding_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     person_id: Mapped[int] = mapped_column(
         ForeignKey("persons.person_id", ondelete="CASCADE"), nullable=False
     )
-    # LargeBinary in tests; Alembic migration sets vector(512) on PostgreSQL
-    embedding: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(Vector(512), nullable=False)
     quality_score: Mapped[float] = mapped_column(Float, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
@@ -251,7 +244,7 @@ class AlertDispatch(Base):
     __tablename__ = "alert_dispatches"
     __table_args__ = (Index("idx_dispatches_alert", "alert_id"),)
 
-    dispatch_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    dispatch_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     alert_id: Mapped[int] = mapped_column(
         ForeignKey("alerts.alert_id", ondelete="CASCADE"), nullable=False
     )
@@ -284,8 +277,7 @@ class TrackingEvent(Base):
         Index("ix_tracking_events_event_ts", "event_ts"),
     )
 
-    # Integer PK for SQLite compat; Alembic migration uses BIGSERIAL on PostgreSQL
-    event_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    event_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     camera_id: Mapped[int] = mapped_column(
         ForeignKey("cameras.camera_id", ondelete="NO ACTION"), nullable=False
     )
@@ -316,7 +308,7 @@ class ReidMatch(Base):
         Index("ix_reid_person", "person_id"),
     )
 
-    reid_match_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    reid_match_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     global_track_id_1: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
     global_track_id_2: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
     person_id: Mapped[int | None] = mapped_column(
@@ -338,7 +330,7 @@ class ZonePresence(Base):
         Index("ix_zp_global_track", "global_track_id"),
     )
 
-    presence_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    presence_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     zone_id: Mapped[int] = mapped_column(
         ForeignKey("zones.zone_id", ondelete="NO ACTION"), nullable=False
     )
@@ -378,14 +370,13 @@ class PersonClipEmbedding(Base):
         Index("ix_clip_global_track", "global_track_id"),
     )
 
-    clip_emb_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    clip_emb_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     global_track_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
     camera_id: Mapped[int] = mapped_column(
         ForeignKey("cameras.camera_id", ondelete="NO ACTION"), nullable=False
     )
     event_ts: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    # LargeBinary in tests; Alembic migration sets vector(512) on PostgreSQL
-    embedding: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(Vector(512), nullable=False)
     snapshot_path: Mapped[str] = mapped_column(String(500), nullable=False)
 
 
@@ -420,8 +411,7 @@ class AuditLog(Base):
         Index("idx_audit_target", "target_type", "target_id"),
     )
 
-    # Integer PK for SQLite compat; Alembic migration uses BIGSERIAL on PostgreSQL
-    audit_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    audit_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     event_type: Mapped[str] = mapped_column(String(50), nullable=False)
     actor_user_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True

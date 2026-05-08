@@ -257,7 +257,7 @@ Never push directly to `main` without explicit user instruction. Create a featur
 - **Test ordering:** must not depend on order. Use `@pytest.fixture(autouse=True)` for setup; never share mutable state across tests.
 - **Mark integration tests:** `@pytest.mark.integration`. CI runs unit tests on every commit, integration tests on `main` branch only.
 - **One assertion per concept.** Multiple `assert` lines OK if they verify one logical claim.
-- **No mocked DB in DB-layer tests.** Use SQLite in-memory engine or a real MSSQL test instance. Mocking the ORM defeats the purpose of testing it.
+- **No mocked DB in DB-layer tests.** Use a real PostgreSQL test instance (`pgvector/pgvector:pg16` on port 5433). Mocking the ORM defeats the purpose of testing it.
 - **Frontend test patterns** are in the frontend design spec §18.
 
 ---

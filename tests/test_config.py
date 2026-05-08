@@ -12,7 +12,7 @@ from vms.config import Settings, get_settings
 
 def test_settings_load_from_env() -> None:
     s = Settings()
-    assert s.db_url == "sqlite:///:memory:"
+    assert "postgresql" in s.db_url
     assert s.redis_url == "redis://localhost:6379/0"
     assert s.jwt_secret == "test-secret-do-not-use"
 

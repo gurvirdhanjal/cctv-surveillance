@@ -13,7 +13,7 @@ from vms.db.models import Camera, PersonClipEmbedding
 
 _TS = datetime(2026, 5, 1, 10, 0, 0)
 _TS2 = datetime(2026, 5, 1, 10, 0, 1)
-_DUMMY_EMB = b"\x00" * (512 * 4)
+_DUMMY_EMB = [0.0] * 512
 
 
 def _cam(db_session: Session) -> Camera:

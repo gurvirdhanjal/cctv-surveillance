@@ -9,7 +9,7 @@ from vms.db.session import Base, SessionLocal, engine, get_db
 
 def test_engine_is_configured() -> None:
     assert engine is not None
-    assert "sqlite" in str(engine.url)
+    assert "postgresql" in str(engine.url)
 
 
 def test_base_has_metadata() -> None:

@@ -35,8 +35,7 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     from vms.db.session import engine as _app_engine
 
-    # Use the app's engine so SQLite :memory: tests share the same DB connection.
-    # On PostgreSQL this makes no difference — both point to the same server.
+    # Reuse the app's engine so migrations and tests share the same connection pool.
     with _app_engine.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():

@@ -8,6 +8,7 @@ Create Date: 2026-05-08
 from __future__ import annotations
 
 import sqlalchemy as sa
+from pgvector.sqlalchemy import Vector
 
 from alembic import op
 
@@ -18,11 +19,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    dialect = op.get_bind().dialect.name
-
-    # ── pgvector extension (PostgreSQL only) ───────────────────────────
-    if dialect == "postgresql":
-        op.execute("CREATE EXTENSION IF NOT EXISTS pgvector")
+    op.execute("CREATE EXTENSION IF NOT EXISTS vector")
 
     # ── cameras ───────────────────────────────────────────────────────
     op.create_table(
@@ -30,7 +27,7 @@ def upgrade() -> None:
         sa.Column("camera_id", sa.Integer(), primary_key=True, autoincrement=True),
         sa.Column("name", sa.String(200), nullable=False),
         sa.Column("rtsp_url", sa.String(500), nullable=False),
-        sa.Column("is_active", sa.Boolean(), nullable=False, server_default="1"),
+        sa.Column("is_active", sa.Boolean(), nullable=False, server_default="true"),
         sa.Column("capability_tier", sa.String(10), nullable=False, server_default="FULL"),
         sa.Column("profile_data", sa.Text(), nullable=True),
         sa.Column("profiled_at", sa.DateTime(), nullable=True),
@@ -44,7 +41,7 @@ def upgrade() -> None:
         "zones",
         sa.Column("zone_id", sa.Integer(), primary_key=True, autoincrement=True),
         sa.Column("name", sa.String(200), nullable=False),
-        sa.Column("is_restricted", sa.Boolean(), nullable=False, server_default="0"),
+        sa.Column("is_restricted", sa.Boolean(), nullable=False, server_default="false"),
         sa.Column("max_capacity", sa.Integer(), nullable=True),
         sa.Column("allowed_hours", sa.Text(), nullable=True),
         sa.Column("loiter_threshold_s", sa.Integer(), nullable=False, server_default="180"),
@@ -58,7 +55,7 @@ def upgrade() -> None:
         sa.Column("username", sa.String(100), nullable=False),
         sa.Column("password_hash", sa.String(255), nullable=False),
         sa.Column("role", sa.String(20), nullable=False, server_default="guard"),
-        sa.Column("is_active", sa.Boolean(), nullable=False, server_default="1"),
+        sa.Column("is_active", sa.Boolean(), nullable=False, server_default="true"),
         sa.UniqueConstraint("username", name="uq_users_username"),
         sa.CheckConstraint("role IN ('guard', 'manager', 'admin')", name="chk_user_role"),
     )
@@ -88,72 +85,36 @@ def upgrade() -> None:
         sa.Column("person_id", sa.Integer(), primary_key=True, autoincrement=True),
         sa.Column("employee_id", sa.String(50), nullable=False),
         sa.Column("name", sa.String(200), nullable=False),
-        sa.Column("is_active", sa.Boolean(), nullable=False, server_default="1"),
+        sa.Column("is_active", sa.Boolean(), nullable=False, server_default="true"),
         sa.Column("thumbnail_path", sa.String(500), nullable=True),
         sa.Column("purged_at", sa.DateTime(), nullable=True),
-        sa.Column(
-            "created_at",
-            sa.DateTime(),
-            nullable=False,
-            server_default=sa.text(
-                "now()" if op.get_bind().dialect.name == "postgresql" else "CURRENT_TIMESTAMP"
-            ),
-        ),
+        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.text("now()")),
         sa.UniqueConstraint("employee_id", name="uq_persons_employee_id"),
     )
 
     # ── person_embeddings ──────────────────────────────────────────────
-    # embedding: vector(512) on PostgreSQL, BLOB on SQLite
-    if dialect == "postgresql":
-        op.create_table(
-            "person_embeddings",
-            sa.Column("embedding_id", sa.BigInteger(), primary_key=True, autoincrement=True),
-            sa.Column(
-                "person_id",
-                sa.Integer(),
-                sa.ForeignKey("persons.person_id", ondelete="CASCADE"),
-                nullable=False,
-            ),
-            sa.Column("embedding", sa.Text(), nullable=False),  # overridden below
-            sa.Column("quality_score", sa.Float(), nullable=False),
-            sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.text("now()")),
-            sa.CheckConstraint(
-                "quality_score >= 0.0 AND quality_score <= 1.0",
-                name="chk_embedding_quality",
-            ),
-        )
-        op.execute(
-            "ALTER TABLE person_embeddings ALTER COLUMN embedding TYPE vector(512) USING embedding::vector(512)"
-        )
-    else:
-        op.create_table(
-            "person_embeddings",
-            sa.Column("embedding_id", sa.Integer(), primary_key=True, autoincrement=True),
-            sa.Column(
-                "person_id",
-                sa.Integer(),
-                sa.ForeignKey("persons.person_id", ondelete="CASCADE"),
-                nullable=False,
-            ),
-            sa.Column("embedding", sa.LargeBinary(), nullable=False),
-            sa.Column("quality_score", sa.Float(), nullable=False),
-            sa.Column(
-                "created_at",
-                sa.DateTime(),
-                nullable=False,
-                server_default=sa.text("CURRENT_TIMESTAMP"),
-            ),
-            sa.CheckConstraint(
-                "quality_score >= 0.0 AND quality_score <= 1.0",
-                name="chk_embedding_quality",
-            ),
-        )
+    op.create_table(
+        "person_embeddings",
+        sa.Column("embedding_id", sa.BigInteger(), primary_key=True, autoincrement=True),
+        sa.Column(
+            "person_id",
+            sa.Integer(),
+            sa.ForeignKey("persons.person_id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column("embedding", Vector(512), nullable=False),
+        sa.Column("quality_score", sa.Float(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.text("now()")),
+        sa.CheckConstraint(
+            "quality_score >= 0.0 AND quality_score <= 1.0",
+            name="chk_embedding_quality",
+        ),
+    )
     op.create_index("ix_person_embeddings_person_id", "person_embeddings", ["person_id"])
-    if dialect == "postgresql":
-        op.execute(
-            "CREATE INDEX ix_person_embeddings_hnsw ON person_embeddings "
-            "USING hnsw (embedding vector_cosine_ops)"
-        )
+    op.execute(
+        "CREATE INDEX ix_person_embeddings_hnsw ON person_embeddings "
+        "USING hnsw (embedding vector_cosine_ops)"
+    )
 
     # ── maintenance_windows ────────────────────────────────────────────
     op.create_table(
@@ -168,7 +129,7 @@ def upgrade() -> None:
         sa.Column("cron_expr", sa.String(100), nullable=True),
         sa.Column("duration_minutes", sa.Integer(), nullable=True),
         sa.Column("suppress_alert_types", sa.Text(), nullable=True),
-        sa.Column("is_active", sa.Boolean(), nullable=False, server_default="1"),
+        sa.Column("is_active", sa.Boolean(), nullable=False, server_default="true"),
         sa.Column("reason", sa.String(500), nullable=True),
         sa.Column(
             "created_by",
@@ -176,12 +137,7 @@ def upgrade() -> None:
             sa.ForeignKey("users.user_id", ondelete="NO ACTION"),
             nullable=False,
         ),
-        sa.Column(
-            "created_at",
-            sa.DateTime(),
-            nullable=False,
-            server_default=sa.text("now()" if dialect == "postgresql" else "CURRENT_TIMESTAMP"),
-        ),
+        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.text("now()")),
         sa.CheckConstraint("scope_type IN ('CAMERA', 'ZONE')", name="chk_mw_scope"),
         sa.CheckConstraint("schedule_type IN ('ONE_TIME', 'RECURRING')", name="chk_mw_sched"),
         sa.CheckConstraint(
@@ -251,7 +207,7 @@ def upgrade() -> None:
         sa.Column("zone_id", sa.Integer(), nullable=True),
         sa.Column("channel", sa.String(20), nullable=False),
         sa.Column("target", sa.String(500), nullable=False),
-        sa.Column("is_active", sa.Boolean(), nullable=False, server_default="1"),
+        sa.Column("is_active", sa.Boolean(), nullable=False, server_default="true"),
         sa.CheckConstraint(
             "channel IN ('EMAIL', 'SLACK', 'TELEGRAM', 'WEBHOOK', 'WEBSOCKET')",
             name="chk_routing_channel",
@@ -259,10 +215,9 @@ def upgrade() -> None:
     )
 
     # ── alert_dispatches ───────────────────────────────────────────────
-    _bigint = sa.BigInteger() if dialect == "postgresql" else sa.Integer()
     op.create_table(
         "alert_dispatches",
-        sa.Column("dispatch_id", _bigint, primary_key=True, autoincrement=True),
+        sa.Column("dispatch_id", sa.BigInteger(), primary_key=True, autoincrement=True),
         sa.Column(
             "alert_id",
             sa.Integer(),
@@ -276,7 +231,7 @@ def upgrade() -> None:
             "dispatched_at",
             sa.DateTime(),
             nullable=False,
-            server_default=sa.text("now()" if dialect == "postgresql" else "CURRENT_TIMESTAMP"),
+            server_default=sa.text("now()"),
         ),
         sa.Column("success", sa.Boolean(), nullable=False),
         sa.Column("error", sa.Text(), nullable=True),
@@ -285,13 +240,9 @@ def upgrade() -> None:
     op.create_index("idx_dispatches_alert", "alert_dispatches", ["alert_id"])
 
     # ── tracking_events ────────────────────────────────────────────────
-    # Monthly-partitioned on PostgreSQL; plain table on SQLite.
-    # Partition management (CREATE PARTITION FUNCTION equivalent) is handled
-    # by the vms.scheduler cron job "create_partition" which runs on the 25th.
-    _bigint2 = sa.BigInteger() if dialect == "postgresql" else sa.Integer()
     op.create_table(
         "tracking_events",
-        sa.Column("event_id", _bigint2, primary_key=True, autoincrement=True),
+        sa.Column("event_id", sa.BigInteger(), primary_key=True, autoincrement=True),
         sa.Column(
             "camera_id",
             sa.Integer(),
@@ -325,10 +276,9 @@ def upgrade() -> None:
     op.create_index("ix_tracking_events_event_ts", "tracking_events", ["event_ts"])
 
     # ── reid_matches ───────────────────────────────────────────────────
-    _bigint3 = sa.BigInteger() if dialect == "postgresql" else sa.Integer()
     op.create_table(
         "reid_matches",
-        sa.Column("reid_match_id", _bigint3, primary_key=True, autoincrement=True),
+        sa.Column("reid_match_id", sa.BigInteger(), primary_key=True, autoincrement=True),
         sa.Column("global_track_id_1", sa.Uuid(), nullable=False),
         sa.Column("global_track_id_2", sa.Uuid(), nullable=False),
         sa.Column(
@@ -345,10 +295,9 @@ def upgrade() -> None:
     op.create_index("ix_reid_person", "reid_matches", ["person_id"])
 
     # ── zone_presence ──────────────────────────────────────────────────
-    _bigint4 = sa.BigInteger() if dialect == "postgresql" else sa.Integer()
     op.create_table(
         "zone_presence",
-        sa.Column("presence_id", _bigint4, primary_key=True, autoincrement=True),
+        sa.Column("presence_id", sa.BigInteger(), primary_key=True, autoincrement=True),
         sa.Column(
             "zone_id",
             sa.Integer(),
@@ -373,60 +322,30 @@ def upgrade() -> None:
         sa.Column("detector_id", sa.Integer(), primary_key=True, autoincrement=True),
         sa.Column("alert_type", sa.String(30), nullable=False),
         sa.Column("class_path", sa.String(200), nullable=False),
-        sa.Column("is_enabled", sa.Boolean(), nullable=False, server_default="1"),
+        sa.Column("is_enabled", sa.Boolean(), nullable=False, server_default="true"),
         sa.Column("config_json", sa.Text(), nullable=True),
         sa.Column("model_version", sa.String(50), nullable=True),
-        sa.Column(
-            "created_at",
-            sa.DateTime(),
-            nullable=False,
-            server_default=sa.text("now()" if dialect == "postgresql" else "CURRENT_TIMESTAMP"),
-        ),
-        sa.Column(
-            "updated_at",
-            sa.DateTime(),
-            nullable=False,
-            server_default=sa.text("now()" if dialect == "postgresql" else "CURRENT_TIMESTAMP"),
-        ),
+        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.text("now()")),
+        sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.text("now()")),
         sa.UniqueConstraint("alert_type", name="uq_anomaly_alert_type"),
     )
 
     # ── person_clip_embeddings ─────────────────────────────────────────
-    if dialect == "postgresql":
-        op.create_table(
-            "person_clip_embeddings",
-            sa.Column("clip_emb_id", sa.BigInteger(), primary_key=True, autoincrement=True),
-            sa.Column("global_track_id", sa.Uuid(), nullable=False),
-            sa.Column(
-                "camera_id",
-                sa.Integer(),
-                sa.ForeignKey("cameras.camera_id", ondelete="NO ACTION"),
-                nullable=False,
-            ),
-            sa.Column("event_ts", sa.DateTime(), nullable=False),
-            sa.Column("embedding", sa.Text(), nullable=False),
-            sa.Column("snapshot_path", sa.String(500), nullable=False),
-            sa.UniqueConstraint("global_track_id", "event_ts", name="uq_clip_track_ts"),
-        )
-        op.execute(
-            "ALTER TABLE person_clip_embeddings ALTER COLUMN embedding TYPE vector(512) USING embedding::vector(512)"
-        )
-    else:
-        op.create_table(
-            "person_clip_embeddings",
-            sa.Column("clip_emb_id", sa.Integer(), primary_key=True, autoincrement=True),
-            sa.Column("global_track_id", sa.Uuid(), nullable=False),
-            sa.Column(
-                "camera_id",
-                sa.Integer(),
-                sa.ForeignKey("cameras.camera_id", ondelete="NO ACTION"),
-                nullable=False,
-            ),
-            sa.Column("event_ts", sa.DateTime(), nullable=False),
-            sa.Column("embedding", sa.LargeBinary(), nullable=False),
-            sa.Column("snapshot_path", sa.String(500), nullable=False),
-            sa.UniqueConstraint("global_track_id", "event_ts", name="uq_clip_track_ts"),
-        )
+    op.create_table(
+        "person_clip_embeddings",
+        sa.Column("clip_emb_id", sa.BigInteger(), primary_key=True, autoincrement=True),
+        sa.Column("global_track_id", sa.Uuid(), nullable=False),
+        sa.Column(
+            "camera_id",
+            sa.Integer(),
+            sa.ForeignKey("cameras.camera_id", ondelete="NO ACTION"),
+            nullable=False,
+        ),
+        sa.Column("event_ts", sa.DateTime(), nullable=False),
+        sa.Column("embedding", Vector(512), nullable=False),
+        sa.Column("snapshot_path", sa.String(500), nullable=False),
+        sa.UniqueConstraint("global_track_id", "event_ts", name="uq_clip_track_ts"),
+    )
     op.create_index("ix_clip_ts", "person_clip_embeddings", ["event_ts"])
     op.create_index("ix_clip_global_track", "person_clip_embeddings", ["global_track_id"])
 
@@ -439,21 +358,15 @@ def upgrade() -> None:
         sa.Column("file_path", sa.String(500), nullable=False),
         sa.Column("sha256", sa.String(64), nullable=False),
         sa.Column("purpose", sa.String(50), nullable=False),
-        sa.Column("fine_tunable", sa.Boolean(), nullable=False, server_default="0"),
+        sa.Column("fine_tunable", sa.Boolean(), nullable=False, server_default="false"),
         sa.Column("metadata_json", sa.Text(), nullable=True),
-        sa.Column(
-            "created_at",
-            sa.DateTime(),
-            nullable=False,
-            server_default=sa.text("now()" if dialect == "postgresql" else "CURRENT_TIMESTAMP"),
-        ),
+        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.text("now()")),
     )
 
     # ── audit_log ──────────────────────────────────────────────────────
-    _bigint5 = sa.BigInteger() if dialect == "postgresql" else sa.Integer()
     op.create_table(
         "audit_log",
-        sa.Column("audit_id", _bigint5, primary_key=True, autoincrement=True),
+        sa.Column("audit_id", sa.BigInteger(), primary_key=True, autoincrement=True),
         sa.Column("event_type", sa.String(50), nullable=False),
         sa.Column(
             "actor_user_id",
@@ -466,12 +379,7 @@ def upgrade() -> None:
         sa.Column("payload", sa.Text(), nullable=True),
         sa.Column("prev_hash", sa.String(64), nullable=False),
         sa.Column("row_hash", sa.String(64), nullable=False),
-        sa.Column(
-            "event_ts",
-            sa.DateTime(),
-            nullable=False,
-            server_default=sa.text("now()" if dialect == "postgresql" else "CURRENT_TIMESTAMP"),
-        ),
+        sa.Column("event_ts", sa.DateTime(), nullable=False, server_default=sa.text("now()")),
     )
     op.create_index("idx_audit_ts", "audit_log", ["event_ts"])
     op.create_index("idx_audit_target", "audit_log", ["target_type", "target_id"])
@@ -495,3 +403,4 @@ def downgrade() -> None:
     op.drop_table("users")
     op.drop_table("zones")
     op.drop_table("cameras")
+    op.execute("DROP EXTENSION IF EXISTS vector")

@@ -2,7 +2,7 @@
 
 Production-grade video management system for industrial sites. Combines facial recognition, cross-camera tracking, head counting, and multi-model anomaly detection (intrusion, violence, loitering) into a single on-premises deployment that runs on **existing IP cameras** — smart cameras are an optional upgrade.
 
-[![Phase](https://img.shields.io/badge/phase-1A%20foundation-blue)]() [![Stack](https://img.shields.io/badge/stack-Python%203.11%20%C2%B7%20FastAPI%20%C2%B7%20React%2018%20%C2%B7%20MSSQL-1f4e79)]() [![Status](https://img.shields.io/badge/status-design%20hardened-green)]()
+[![Phase](https://img.shields.io/badge/phase-1A%20foundation-blue)]() [![Stack](https://img.shields.io/badge/stack-Python%203.10%20%C2%B7%20FastAPI%20%C2%B7%20React%2018%20%C2%B7%20PostgreSQL%2B%20pgvector-1f4e79)]() [![Status](https://img.shields.io/badge/status-design%20hardened-green)]()
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
@@ -98,7 +98,7 @@ flowchart LR
         HOMO[Homography]
     end
 
-    DB[(MSSQL Server)]
+    DB[(PostgreSQL + pgvector)]
     DISP[Alert Dispatcher]
     SCHED[vms.scheduler]
     API[FastAPI + Socket.io]
@@ -150,7 +150,7 @@ sequenceDiagram
     participant R as Redis Streams
     participant Inf as Inference Engine
     participant Id as Identity Service
-    participant DB as MSSQL
+    participant DB as PostgreSQL
     participant Dis as Dispatcher
     participant FE as Frontend
 
@@ -228,7 +228,7 @@ flowchart TB
     Dedup -- pass --> Fire[state='active']
     Dedup -- block --> Drop[discard]
 
-    Suppress --> DB[(MSSQL alerts)]
+    Suppress --> DB[(PostgreSQL alerts)]
     Fire --> DB
     Fire --> RStream[Redis alerts stream]
 ```
@@ -431,7 +431,7 @@ erDiagram
 - `audit_log.row_hash[N] == sha256(row_hash[N-1] || …fields…)` (app-enforced; verifiable via `GET /api/audit/verify`)
 - FAISS active-vector count == DB active-embedding count (modulo 5; nightly drift check)
 
-`tracking_events` is partitioned monthly via `pf_monthly` on MSSQL. Partitions older than 12 months are switched out to Parquet on object storage and dropped (see Scheduled Jobs §M).
+`tracking_events` is partitioned monthly on PostgreSQL. Partitions older than 12 months are switched out to Parquet on object storage and dropped (see Scheduled Jobs §M).
 
 ---
 
@@ -443,7 +443,7 @@ The architecture supports horizontal scaling without a logic rewrite:
 flowchart TB
     subgraph Single["Single GPU node — up to ~80 cameras"]
         S1[Cameras] --> S2[Ingestion + Inference + Identity + DB on one host]
-        S2 --> S3[(MSSQL local)]
+        S2 --> S3[(PostgreSQL local)]
     end
 
     subgraph TwoNode["Two-node — ~80 to 200 cameras"]
@@ -452,7 +452,7 @@ flowchart TB
         TI1 --> TR[(Redis Streams<br/>dedicated host)]
         TI2 --> TR
         TR --> TID[Identity Service]
-        TID --> TD[(MSSQL)]
+        TID --> TD[(PostgreSQL)]
     end
 
     subgraph MultiSite["Multi-site / >200 cameras — v2.x"]
@@ -572,7 +572,7 @@ Full frontend spec: `docs/superpowers/specs/2026-05-01-vms-frontend-design.md`. 
 | Forensic embedding | CLIP-ViT-B/32 | downloaded via manifest |
 | Message bus | Redis Streams (Kafka upgrade path at scale) | 5.x |
 | IPC frames | `multiprocessing.shared_memory` | stdlib |
-| Database | MSSQL Server (SQLAlchemy 2 + pyodbc) | 2019+ |
+| Database | PostgreSQL 16 + pgvector (SQLAlchemy 2 + psycopg2) | 16 |
 | Migrations | Alembic | 1.13 |
 | Backend API | FastAPI + Uvicorn | 0.111 / 0.29 |
 | Real-time | Socket.io (server + client) | 4 |
@@ -592,8 +592,8 @@ Full frontend spec: `docs/superpowers/specs/2026-05-01-vms-frontend-design.md`. 
 
 ### Prerequisites
 
-- Python 3.11
-- MSSQL Server 2019+ (Express works for dev) — connection string with ODBC Driver 17
+- Python 3.10.11
+- PostgreSQL 16 with pgvector extension — run via Docker: `docker run -d --name vms-db -e POSTGRES_PASSWORD=vms -e POSTGRES_DB=vms_dev -e POSTGRES_USER=vms -p 5432:5432 pgvector/pgvector:pg16`
 - Redis 5+ (for Phase 1B onward)
 - NVIDIA GPU with CUDA 12 (for Phase 1B+ inference; CPU fallback supported)
 
@@ -612,7 +612,7 @@ pip install -r requirements.txt -r requirements-dev.txt
 Create `.env` at repo root (gitignored):
 
 ```
-VMS_DB_URL=mssql+pyodbc://USER:PASS@HOST/vms_dev?driver=ODBC+Driver+17+for+SQL+Server
+VMS_DB_URL=postgresql://vms:vms@localhost:5432/vms_dev
 VMS_REDIS_URL=redis://localhost:6379/0
 VMS_JWT_SECRET=<generate with: python -c "import secrets; print(secrets.token_urlsafe(32))">
 VMS_AT_REST_KEY=<generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())">
@@ -672,7 +672,7 @@ vms-models list
 ├── alembic/
 │   ├── env.py
 │   └── versions/
-│       └── 0001_initial_schema.py        # full v2 schema, dialect-gated MSSQL extras
+│       └── 0001_initial_schema.py        # full v2 schema, PostgreSQL + pgvector
 │
 ├── frontend/                             # Phase 4 — React SPA
 │   ├── src/
@@ -765,7 +765,7 @@ The project enforces TDD on every task. Tests are co-located by feature and run 
 | Unit | Vitest / pytest | every commit | (default) |
 | Integration | pytest | on `main` branch | `@pytest.mark.integration` |
 | E2E (frontend) | Playwright | on `main` branch | n/a |
-| Migration round-trip | pytest + alembic | every commit (SQLite) + on `main` (MSSQL) | n/a |
+| Migration round-trip | pytest + alembic | every commit (PostgreSQL Docker) | n/a |
 | Accessibility | axe-core | every commit | n/a |
 | Performance budget | Lighthouse + bundle analyser | every commit | n/a |
 
@@ -839,4 +839,4 @@ Proprietary — APL Techno. Internal product.
 
 ---
 
-*Built for plant security and operations management. Stack: Python 3.11 · FastAPI · React 18 · MSSQL · Redis · ONNX · FAISS.*
+*Built for plant security and operations management. Stack: Python 3.10 · FastAPI · React 18 · PostgreSQL + pgvector · Redis · ONNX · FAISS.*

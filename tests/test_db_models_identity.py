@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from vms.db.models import Camera, Person, PersonEmbedding, User, UserCameraPermission
 
-_DUMMY_EMBEDDING = b"\x00" * (512 * 4)  # 512 float32 zeros
+_DUMMY_EMBEDDING = [0.0] * 512
 
 
 def test_user_insert_and_defaults(db_session: Session) -> None:

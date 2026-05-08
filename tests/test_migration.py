@@ -1,4 +1,4 @@
-"""Tests for Alembic migration: upgrade head + downgrade base on SQLite."""
+"""Tests for Alembic migration: upgrade head + downgrade base on PostgreSQL."""
 
 from __future__ import annotations
 
@@ -10,7 +10,6 @@ from vms.db.session import engine
 
 
 def _alembic_cfg() -> Config:
-    # env.py reads VMS_DB_URL from the environment; conftest sets it to SQLite.
     return Config("alembic.ini")
 
 
