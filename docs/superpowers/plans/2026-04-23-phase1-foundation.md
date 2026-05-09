@@ -1,12 +1,14 @@
 # VMS Phase 1 — Foundation Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **SUPERSEDED.** This plan was the original pre-v2 foundation plan. It was replaced by `2026-05-01-vms-v2-phase1a-db-schema.md` (completed) and the upcoming `2026-05-02-vms-v2-phase1b-ingestion-and-inference.md`. **Do not execute this plan.** It references MSSQL, SQLite, and an older schema — none of which are current. Retained for historical context only.
 
-**Goal:** Wire the existing SCRFD + AdaFace + ByteTrack prototype into a production pipeline — webcam → shared memory → Redis Streams → GPU inference → MSSQL — with a basic FastAPI for enrollment and health checks.
+---
 
-**Architecture:** Four Python processes share a Redis Streams bus. Ingestion worker decodes webcam/RTSP frames into shared memory and publishes frame-pointer events. Inference engine (GPU) reads frame pointers, runs SCRFD + AdaFace + ByteTrack, and publishes confirmed tracklets. DB writer batches tracklets into MSSQL `tracking_events`. FastAPI serves enrollment and health. All processes are configured via a single `vms/config.py`.
+**Goal:** Wire the existing SCRFD + AdaFace + ByteTrack prototype into a production pipeline — webcam → shared memory → Redis Streams → GPU inference → PostgreSQL — with a basic FastAPI for enrollment and health checks.
 
-**Tech Stack:** Python 3.11 · FastAPI 0.111 · SQLAlchemy 2.x + pyodbc (MSSQL Server) · Alembic · redis-py 5.x (Streams) · onnxruntime-gpu · ultralytics (ByteTracker) · pydantic-settings 2.x · python-jose (JWT) · bcrypt · pytest · pytest-asyncio
+**Architecture (original, superseded):** Four Python processes share a Redis Streams bus. Ingestion worker decodes webcam/RTSP frames into shared memory and publishes frame-pointer events. Inference engine (GPU) reads frame pointers, runs SCRFD + AdaFace + ByteTrack, and publishes confirmed tracklets. DB writer batches tracklets into MSSQL `tracking_events`. FastAPI serves enrollment and health. All processes are configured via a single `vms/config.py`.
+
+**Tech Stack (original, superseded):** Python 3.11 · FastAPI 0.111 · SQLAlchemy 2.x + pyodbc (MSSQL Server) · Alembic · redis-py 5.x (Streams) · onnxruntime-gpu · ultralytics (ByteTracker) · pydantic-settings 2.x · python-jose (JWT) · bcrypt · pytest · pytest-asyncio
 
 ---
 

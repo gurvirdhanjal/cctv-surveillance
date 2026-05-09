@@ -2,11 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Lay the project's structural foundation — a versioned MSSQL schema covering every v2 table, a Pydantic-Settings configuration module, an SQLAlchemy session factory, and a CI-ready pytest scaffold. After this plan, the database is migrate-able and the package is importable; no inference or ingestion code is built yet.
+**Status: COMPLETE** — all 57 tests pass as of commit `4a4bc49`. See git log for delivered state.
 
-**Architecture:** Single Python package `vms/` with a `db/` sub-package holding ORM models and the session factory. Alembic manages forward/backward schema migrations. SQLite (in-memory) is the test backend; MSSQL is the production backend — schema differences are bridged via SQLAlchemy generic types and dialect-conditional DDL in the migration file. All v2 tables ship in the **first** migration to avoid migration debt later.
+**Goal:** Lay the project's structural foundation — a versioned PostgreSQL + pgvector schema covering every v2 table, a Pydantic-Settings configuration module, an SQLAlchemy session factory, and a CI-ready pytest scaffold. After this plan, the database is migrate-able and the package is importable; no inference or ingestion code is built yet.
 
-**Tech Stack:** Python 3.11 · SQLAlchemy 2.x · Alembic 1.13 · pyodbc 5.x (MSSQL) · pydantic-settings 2.x · pytest 8.x · pytest-asyncio 0.23 · black 24 · ruff 0.4 · mypy 1.10
+**Architecture:** Single Python package `vms/` with a `db/` sub-package holding ORM models and the session factory. Alembic manages forward/backward schema migrations. PostgreSQL 16 + pgvector is the only backend — both tests and production. The test database runs in Docker (`pgvector/pgvector:pg16`, port 5434). All v2 tables ship in the **first** migration to avoid migration debt later.
+
+**Tech Stack:** Python 3.10.11 · SQLAlchemy 2.x · Alembic 1.13 · psycopg2-binary 2.9.9 · pgvector 0.2.5 · pydantic-settings 2.x · pytest 8.x · pytest-asyncio 0.23 · black 24 · ruff 0.4 · mypy 1.10
 
 **Spec reference:** `docs/superpowers/specs/2026-05-01-vms-v2-hardened-design.md` §10 (v1 schema), §B (camera tier columns), §C (anomaly_detectors + zone schedule), §D (maintenance_windows), §E (alert_dispatches + alert_routing), §F.2 (person_clip_embeddings), §F.3 (audit_log), §I (consolidated DDL summary).
 
@@ -32,7 +34,7 @@ alembic/
 
 tests/
 ├── __init__.py
-├── conftest.py                     # env fixtures, in-memory SQLite engine
+├── conftest.py                     # env fixtures, PostgreSQL Docker engine (port 5434)
 ├── test_config.py                  # Settings load + defaults
 ├── test_db_session.py              # SessionLocal opens + closes
 ├── test_db_models_identity.py      # persons, person_embeddings, users, perms
@@ -58,17 +60,23 @@ pyproject.toml                      # NEW (tool configs for black, ruff, mypy, p
 
 ## Pre-flight checks
 
-- [ ] **Step 0.1: Verify Python 3.11**
+- [x] **Step 0.1: Verify Python 3.10.11**
 
 Run:
 ```powershell
 python --version
 ```
-Expected: `Python 3.11.x`. If not 3.11, install before proceeding — pydantic-settings 2.x requires ≥3.10 and project standardises on 3.11.
+Expected: `Python 3.10.11`. pydantic-settings 2.x requires ≥3.10.
 
-- [ ] **Step 0.2: Confirm MSSQL connectivity is reachable from this dev box**
+- [x] **Step 0.2: Confirm PostgreSQL Docker test container is running**
 
-Skipped for unit tests (SQLite). Required only when running Task 14's optional MSSQL integration step. If your MSSQL is `vms_dev` on `localhost\SQLEXPRESS`, confirm `sqlcmd -S localhost\SQLEXPRESS -d vms_dev -E -Q "SELECT 1"` returns `1`. If unreachable, defer Task 14 to when DB credentials are sorted; SQLite tests in Tasks 1–13 are fully sufficient for this plan.
+```powershell
+docker run -d --name vms-test-db --restart=unless-stopped `
+    -e POSTGRES_PASSWORD=vms -e POSTGRES_DB=vms_test -e POSTGRES_USER=vms `
+    -p 5434:5432 pgvector/pgvector:pg16
+docker exec vms-test-db pg_isready -U vms -d vms_test
+```
+Expected: `/var/run/postgresql:5432 - accepting connections`. The container is configured with `--restart=unless-stopped` so it survives Docker Desktop restarts.
 
 ---
 
@@ -86,7 +94,8 @@ Replace the entire current contents (5 lines) with:
 fastapi==0.111.0
 uvicorn[standard]==0.29.0
 sqlalchemy==2.0.30
-pyodbc==5.1.0
+psycopg2-binary==2.9.9
+pgvector==0.2.5
 alembic==1.13.1
 pydantic-settings==2.2.1
 python-jose[cryptography]==3.3.0
@@ -125,22 +134,22 @@ build-backend = "setuptools.build_meta"
 name = "vms"
 version = "0.1.0"
 description = "Video Management System with facial recognition and anomaly detection"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 
 [tool.black]
 line-length = 100
-target-version = ["py311"]
+target-version = ["py310"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
 ignore = ["E501"]  # black handles line length
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.10"
 strict = true
 plugins = ["sqlalchemy.ext.mypy.plugin"]
 
@@ -149,7 +158,7 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 markers = [
     "unit: fast in-process tests (default)",
-    "integration: requires real MSSQL/Redis",
+    "integration: requires real PostgreSQL/Redis",
 ]
 addopts = "-ra --strict-markers"
 ```
@@ -210,7 +219,7 @@ def _vms_env() -> Iterator[None]:
     with patch.dict(
         os.environ,
         {
-            "VMS_DB_URL": "sqlite:///:memory:",
+            "VMS_DB_URL": "postgresql://vms:vms@localhost:5434/vms_test",
             "VMS_REDIS_URL": "redis://localhost:6379/0",
             "VMS_JWT_SECRET": "test-secret-do-not-use",
             "VMS_SCRFD_MODEL": "models/scrfd_2.5g.onnx",
@@ -274,7 +283,7 @@ from vms.config import Settings, get_settings
 
 def test_settings_load_from_env() -> None:
     s = Settings()
-    assert s.db_url == "sqlite:///:memory:"
+    assert "postgresql" in s.db_url
     assert s.redis_url == "redis://localhost:6379/0"
     assert s.jwt_secret == "test-secret-do-not-use"
 
@@ -418,7 +427,7 @@ from vms.db.session import Base, SessionLocal, engine, get_db
 
 def test_engine_is_configured() -> None:
     assert engine is not None
-    assert "sqlite" in str(engine.url)
+    assert "postgresql" in str(engine.url)
 
 
 def test_base_has_metadata() -> None:
@@ -463,15 +472,10 @@ from vms.config import get_settings
 
 _settings = get_settings()
 
-# `connect_args` allows multi-thread access for SQLite (test backend);
-# MSSQL/pyodbc ignores it.
 engine = create_engine(
     _settings.db_url,
     pool_pre_ping=True,
     future=True,
-    connect_args=(
-        {"check_same_thread": False} if _settings.db_url.startswith("sqlite") else {}
-    ),
 )
 
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, future=True)
@@ -616,7 +620,7 @@ Start the file with the imports and Base re-export, then add the identity domain
 """ORM models for every VMS table.
 
 Layout follows spec §10 (v1) and §B/§C/§D/§E/§F.2/§F.3 (v2 additions).
-All identity columns use INTEGER for SQLite test-compat; MSSQL maps to INT IDENTITY.
+High-volume PKs (embedding_id, event_id, reid_match_id, presence_id, dispatch_id, clip_emb_id, audit_id) use BigInteger (BIGSERIAL on PostgreSQL). Embedding columns use pgvector Vector(512).
 """
 from __future__ import annotations
 
@@ -2052,21 +2056,20 @@ else:
 
 We write the migration by hand rather than autogenerating, because:
 1. The first migration includes 17 tables — autogen output is verbose and we want clean ordering.
-2. MSSQL-specific extras (partition function on `tracking_events`) need raw SQL gated on dialect.
+2. pgvector `Vector(512)` columns and `HNSW` index require explicit DDL that autogen doesn't emit.
 3. Hand-written first migrations are easier to review and audit.
 
 Create `alembic/versions/0001_initial_schema.py`:
 
 ```python
-"""initial v2 schema
+"""Initial VMS v2 schema — all tables, indexes, constraints, pgvector types.
 
 Revision ID: 0001
 Revises:
-Create Date: 2026-05-01
+Create Date: 2026-05-08
 
 Ships every v2 table in one migration to avoid migration debt during
-foundation development. MSSQL-specific extras (partitioning) are gated
-on dialect.
+foundation development. PostgreSQL + pgvector only — no dialect branching.
 """
 from __future__ import annotations
 
@@ -2402,30 +2405,11 @@ def upgrade() -> None:
     op.create_index("ix_audit_event_ts", "audit_log", ["event_ts"])
     op.create_index("ix_audit_target", "audit_log", ["target_type", "target_id", "event_ts"])
 
-    # ----- MSSQL-only: tracking_events partition function -----
-    bind = op.get_bind()
-    if bind.dialect.name == "mssql":
-        op.execute(
-            """
-            CREATE PARTITION FUNCTION pf_monthly (DATETIME2)
-                AS RANGE RIGHT FOR VALUES
-                ('2026-01-01','2026-02-01','2026-03-01','2026-04-01',
-                 '2026-05-01','2026-06-01','2026-07-01','2026-08-01',
-                 '2026-09-01','2026-10-01','2026-11-01','2026-12-01');
-            """
-        )
-        op.execute(
-            "CREATE PARTITION SCHEME ps_monthly AS PARTITION pf_monthly ALL TO ([PRIMARY]);"
-        )
-        # tracking_events partition is applied via index recreation in a follow-up
-        # migration once the table is populated; left as a hook for Phase 5.
+    # PostgreSQL declarative partitioning for tracking_events is added in a
+    # Phase 5 migration once query patterns are observable (PARTITION BY RANGE (event_ts)).
 
 
 def downgrade() -> None:
-    bind = op.get_bind()
-    if bind.dialect.name == "mssql":
-        op.execute("DROP PARTITION SCHEME ps_monthly;")
-        op.execute("DROP PARTITION FUNCTION pf_monthly;")
 
     op.drop_index("ix_audit_target", table_name="audit_log")
     op.drop_index("ix_audit_event_ts", table_name="audit_log")
@@ -2474,16 +2458,16 @@ def downgrade() -> None:
     op.drop_table("users")
 ```
 
-- [ ] **Step 13.5: Verify migration is detected**
+- [x] **Step 13.5: Verify migration is detected**
 
 ```powershell
-$env:VMS_DB_URL="sqlite:///./vms_dev.sqlite"
+$env:VMS_DB_URL="postgresql://vms:vms@localhost:5434/vms_test"
 $env:VMS_JWT_SECRET="dev-secret"
 alembic current
 ```
-Expected: `(empty)` — no revision has been applied yet.
+Expected: revision `0001 (head)` (conftest already ran `upgrade head`).
 
-- [ ] **Step 13.6: Apply the migration to a temp SQLite DB**
+- [x] **Step 13.6: Apply the migration against PostgreSQL Docker**
 
 ```powershell
 alembic upgrade head
@@ -2491,7 +2475,7 @@ alembic current
 ```
 Expected: `0001 (head)`
 
-- [ ] **Step 13.7: Roll back**
+- [x] **Step 13.7: Roll back**
 
 ```powershell
 alembic downgrade base
@@ -2499,74 +2483,45 @@ alembic current
 ```
 Expected: `(empty)`
 
-- [ ] **Step 13.8: Round-trip test — `tests/test_migration.py`**
+- [x] **Step 13.8: Round-trip test — `tests/test_migration.py`**
 
 ```python
-"""End-to-end migration test: upgrade head + downgrade base round-trip."""
+"""Tests for Alembic migration: upgrade head + downgrade base on PostgreSQL."""
 from __future__ import annotations
 
-import os
-import subprocess
-from pathlib import Path
+from sqlalchemy import inspect
 
-import pytest
-
-
-@pytest.fixture
-def temp_db(tmp_path: Path) -> str:
-    db_path = tmp_path / "round_trip.sqlite"
-    os.environ["VMS_DB_URL"] = f"sqlite:///{db_path}"
-    os.environ["VMS_JWT_SECRET"] = "test-secret"
-    yield f"sqlite:///{db_path}"
-    if db_path.exists():
-        db_path.unlink()
+from alembic import command
+from alembic.config import Config
+from vms.db.session import engine
 
 
-def _alembic(*args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["alembic", *args], check=True, capture_output=True, text=True
-    )
+def _alembic_cfg() -> Config:
+    return Config("alembic.ini")
 
 
-def test_upgrade_then_downgrade_round_trips(temp_db: str) -> None:
-    _alembic("upgrade", "head")
-    out_after_up = _alembic("current").stdout
-    assert "0001" in out_after_up
-
-    _alembic("downgrade", "base")
-    out_after_down = _alembic("current").stdout
-    assert "0001" not in out_after_down
-
-
-def test_all_tables_present_after_upgrade(temp_db: str) -> None:
-    _alembic("upgrade", "head")
-    from sqlalchemy import create_engine, inspect
-
-    engine = create_engine(temp_db)
-    insp = inspect(engine)
+def test_upgrade_creates_all_tables() -> None:
+    command.upgrade(_alembic_cfg(), "head")
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
     expected = {
-        "users",
-        "persons",
-        "person_embeddings",
-        "user_zone_permissions",
-        "user_camera_permissions",
-        "cameras",
-        "zones",
-        "tracking_events",
-        "reid_matches",
-        "zone_presence",
-        "maintenance_windows",
-        "alerts",
-        "alert_routing",
-        "alert_dispatches",
-        "anomaly_detectors",
-        "person_clip_embeddings",
-        "audit_log",
+        "cameras", "zones", "users", "user_camera_permissions",
+        "persons", "person_embeddings", "maintenance_windows",
+        "alerts", "alert_routing", "alert_dispatches",
+        "tracking_events", "reid_matches", "zone_presence",
+        "anomaly_detectors", "person_clip_embeddings",
+        "model_registry", "audit_log",
     }
-    actual = set(insp.get_table_names())
-    missing = expected - actual
-    assert not missing, f"missing tables after upgrade: {missing}"
-    _alembic("downgrade", "base")
+    missing = expected - tables
+    assert not missing, f"Tables missing after upgrade: {missing}"
+
+
+def test_downgrade_removes_all_tables() -> None:
+    command.upgrade(_alembic_cfg(), "head")
+    command.downgrade(_alembic_cfg(), "base")
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names()) - {"alembic_version"}
+    assert not tables, f"Tables still present after downgrade: {tables}"
 ```
 
 - [ ] **Step 13.9: Run the migration test**
@@ -2587,57 +2542,11 @@ git commit -m "feat(db): alembic env + initial migration for full v2 schema"
 
 ---
 
-## Task 14 (optional): MSSQL integration test
+## Task 14: ~~MSSQL integration test~~ — superseded
 
-Run only if MSSQL credentials are available. This validates that the migration applies cleanly to MSSQL — including the partition function — and would otherwise be deferred until DB access is sorted.
-
-- [ ] **Step 14.1: Provision a clean MSSQL database**
-
-```sql
--- run as a sysadmin on your MSSQL instance:
-CREATE DATABASE vms_dev_test;
-```
-
-- [ ] **Step 14.2: Configure connection string**
-
-```powershell
-$env:VMS_DB_URL="mssql+pyodbc://USER:PASS@HOST/vms_dev_test?driver=ODBC+Driver+17+for+SQL+Server"
-$env:VMS_JWT_SECRET="dev"
-```
-
-- [ ] **Step 14.3: Apply migration**
-
-```powershell
-alembic upgrade head
-```
-Expected: `INFO  [alembic.runtime.migration] Running upgrade  -> 0001`
-
-- [ ] **Step 14.4: Verify partition function exists**
-
-```sql
-SELECT name FROM sys.partition_functions WHERE name = 'pf_monthly';
-```
-Expected: 1 row.
-
-- [ ] **Step 14.5: Roll back + verify clean drop**
-
-```powershell
-alembic downgrade base
-```
-
-```sql
--- expect 0 rows for both:
-SELECT name FROM sys.partition_functions WHERE name = 'pf_monthly';
-SELECT name FROM sys.tables WHERE name IN ('users','persons','cameras','zones','alerts');
-```
-
-- [ ] **Step 14.6: Drop the test database**
-
-```sql
-DROP DATABASE vms_dev_test;
-```
-
-No commit needed — this task is verification-only.
+> **Superseded.** The database is PostgreSQL + pgvector exclusively. There is no MSSQL target. The equivalent validation is `pytest tests/test_migration.py -v` against the Docker container, which is already covered in Task 13.
+>
+> `tracking_events` monthly partitioning will be implemented via PostgreSQL declarative partitioning (`PARTITION BY RANGE (event_ts)`) in a Phase 5 migration, not via MSSQL partition functions.
 
 ---
 
@@ -2674,8 +2583,8 @@ After all 14 tasks:
 - `vms.db.session` exposes a configured engine, declarative `Base`, `SessionLocal`, and FastAPI `get_db` dependency
 - `vms.db.models` declares 17 ORM models — all v1 + all v2 tables — with check constraints and indexes
 - `vms.db.audit.write_audit_event` writes hash-chain-linked rows to `audit_log`
-- Alembic migration `0001_initial_schema.py` applies cleanly to SQLite (test) and MSSQL (production), with MSSQL-specific partition function gated on dialect
-- ~32 passing tests, ≥85% coverage on the `vms/db` and `vms/config` modules
+- Alembic migration `0001_initial_schema.py` applies cleanly to PostgreSQL 16 + pgvector (clean DDL, no dialect branching, `Vector(512)` embeddings, `BIGSERIAL` high-volume PKs)
+- 57 passing tests, covering `vms/db` and `vms/config` modules
 - Round-trip migration test proves up + down work end-to-end
 
 ## What this plan deliberately does NOT deliver
