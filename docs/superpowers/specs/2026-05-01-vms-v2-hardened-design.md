@@ -460,7 +460,7 @@ The 52-camera plant fits **one A4000-class GPU** comfortably with headroom for v
 
 #### G.4 DB writes — negligible at v1 scale
 
-52 cams × 15 fps × ~3 detections/frame = ~2,300 rows/sec → well within MSSQL's batched-write capacity (500ms/100-row flush already specced).
+52 cams × 15 fps × ~3 detections/frame = ~2,300 rows/sec → well within PostgreSQL's batched-write capacity (500ms/100-row flush already specced).
 
 ### Scaling runbook — "add 50 more cameras"
 
@@ -523,9 +523,9 @@ All v2 schema changes summarised. Canonical DDL lives in the referenced sections
 | `CREATE TABLE person_clip_embeddings` | §F.2 |
 | `CREATE TABLE audit_log` | §F.3 |
 
-All new tables follow the v1 conventions (BIGINT IDENTITY PK on high-write tables, INT IDENTITY elsewhere, DATETIME2 for timestamps, NVARCHAR for strings, JSON payloads validated against Pydantic schemas before write).
+All new tables follow the v2 conventions (BIGSERIAL PK on high-write tables, SERIAL elsewhere, TIMESTAMPTZ for timestamps, TEXT/VARCHAR for strings, JSON payloads validated against Pydantic schemas before write).
 
-**FAISS index rebuild rule** — both AdaFace and CLIP FAISS indices are rebuilt from their respective MSSQL tables at service startup; MSSQL remains the source of truth. The CLIP index uses a sliding 30-day window matching the forensic search retention.
+**FAISS index rebuild rule** — both AdaFace and CLIP FAISS indices are rebuilt from their respective PostgreSQL tables at service startup; PostgreSQL remains the source of truth. The CLIP index uses a sliding 30-day window matching the forensic search retention.
 
 ---
 
@@ -573,7 +573,7 @@ WebSocket events unchanged from v1 §11.
 ## §K. Updated phase plan
 
 ### Phase 1 — Foundation *(unchanged from v1)*
-Webcam → Redis Streams → SCRFD/AdaFace/ByteTrack → MSSQL → FastAPI enrolment + health.
+Webcam → Redis Streams → SCRFD/AdaFace/ByteTrack → PostgreSQL → FastAPI enrolment + health.
 
 ### Phase 2 — Identity, anomaly framework, maintenance
 - Cross-camera Re-ID (FAISS + zone adjacency)

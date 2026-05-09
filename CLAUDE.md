@@ -142,17 +142,13 @@ pytest tests/             # confirm tests still pass
 - Each migration must define a working `downgrade()`. Test the round-trip locally before committing.
 - For changes to populated tables (especially `tracking_events`), see `docs/.../db-edge-cases.md §11` for the maintenance-window protocol.
 - Never re-edit a published migration. If a migration shipped to production is wrong, write a new one that fixes it.
-- MSSQL-specific DDL (partition functions, online index rebuild) is gated on dialect:
-  ```python
-  if op.get_bind().dialect.name == "mssql":
-      op.execute("CREATE PARTITION FUNCTION ...")
-  ```
+- PostgreSQL-specific DDL (declarative partitioning, online index rebuild) uses `CREATE INDEX CONCURRENTLY` and `ATTACH PARTITION` syntax. Gate on phase if adding partitioning in Phase 5.
 
 ### 6.3 Idempotency is a writer-side responsibility
 
 Every Redis-Streams consumer can be replayed. Database writers must:
 - Use the unique constraint defined in the schema as the idempotency key (e.g., `tracking_events.uq_tracking_idem`)
-- Use `MERGE` (MSSQL) / upsert semantics on retry
+- Use `INSERT ... ON CONFLICT DO NOTHING` (PostgreSQL) for idempotent retry
 - Never assume a row was inserted by THIS attempt — it may have been by a previous, retried attempt
 
 ### 6.4 The audit log has special rules
@@ -257,7 +253,7 @@ Never push directly to `main` without explicit user instruction. Create a featur
 - **Test ordering:** must not depend on order. Use `@pytest.fixture(autouse=True)` for setup; never share mutable state across tests.
 - **Mark integration tests:** `@pytest.mark.integration`. CI runs unit tests on every commit, integration tests on `main` branch only.
 - **One assertion per concept.** Multiple `assert` lines OK if they verify one logical claim.
-- **No mocked DB in DB-layer tests.** Use a real PostgreSQL test instance (`pgvector/pgvector:pg16` on port 5433). Mocking the ORM defeats the purpose of testing it.
+- **No mocked DB in DB-layer tests.** Use a real PostgreSQL test instance (`pgvector/pgvector:pg16` on port 5434, container `vms-test-db`). Mocking the ORM defeats the purpose of testing it.
 - **Frontend test patterns** are in the frontend design spec §18.
 
 ---

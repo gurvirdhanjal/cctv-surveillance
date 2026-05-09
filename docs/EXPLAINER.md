@@ -164,7 +164,7 @@ Each alarm has a **cooldown** so it doesn't spam the guard every second. Once an
 
 ---
 
-### 🗄️ Database — MSSQL Server
+### 🗄️ Database — PostgreSQL + pgvector
 
 This is the **memory of the entire system**. Everything gets saved here.
 
@@ -264,7 +264,7 @@ This system is designed to handle failures gracefully — not crash and burn.
 | Person tracking | ByteTrack | Works even when people overlap or are briefly hidden. Used in top CCTV systems. |
 | Cross-cam matching | FAISS | Can search millions of face fingerprints in milliseconds. Made by Facebook AI. |
 | Message passing | Redis Streams | Like Kafka but simpler. Persistent. Can replay messages. Already runs on most servers. |
-| Database | MSSQL Server | Already hosted by the company. Team knows it. No new infrastructure. |
+| Database | PostgreSQL 16 + pgvector | Open-source, no licensing cost. pgvector enables native 512-dim embedding storage and HNSW similarity search. |
 | Backend | FastAPI | Modern Python. Fast. Auto-generates API docs. Easy to test. |
 | Frontend | React + TypeScript | Industry standard. Huge ecosystem. shadcn/ui gives us professional components for free. |
 
@@ -281,7 +281,7 @@ By the end of Phase 1 you can:
 - Open a webcam
 - See faces being detected in real time
 - Enroll an employee (take 6 photos, system learns their face)
-- See tracking events being saved to MSSQL
+- See tracking events being saved to PostgreSQL
 
 This uses 14 tasks, all built with tests written first (TDD — Test Driven Development, meaning we write a test that fails, then write code to make it pass).
 
@@ -336,8 +336,8 @@ D:\facial_recognistion\
 │   │   ├── tracker.py      ← ByteTrack per-camera tracker
 │   │   └── engine.py       ← Puts it all together
 │   ├── db\                 ← Database models and connection
-│   │   ├── models.py       ← The 11 database tables
-│   │   └── session.py      ← How to connect to MSSQL
+│   │   ├── models.py       ← The 17 database tables
+│   │   └── session.py      ← How to connect to PostgreSQL
 │   ├── writer\             ← Saves events to the database
 │   │   └── db_writer.py    ← Batches and flushes rows
 │   └── api\                ← The receptionist (FastAPI)
@@ -410,7 +410,7 @@ This opens your browser at `http://localhost:7420`. Use **arrow keys** or the do
 | **FSM** | Finite State Machine — a set of if/then rules for the alarm system |
 | **JWT** | JSON Web Token — a digital key card for logging in to the API |
 | **WebSocket** | A permanent connection so the server can push live updates to the browser |
-| **MSSQL** | Microsoft SQL Server — the database where everything is stored |
+| **PostgreSQL** | Open-source relational database where everything is stored; pgvector extension adds native vector similarity search |
 | **Alembic** | A tool that manages database changes safely (like version control for the DB) |
 | **FastAPI** | The Python framework we use to build the API server |
 | **React** | The JavaScript framework we use to build the browser UI |
@@ -420,5 +420,5 @@ This opens your browser at `http://localhost:7420`. Use **arrow keys** or the do
 
 *Built for: Plant Security & Operations Management*
 *Started: April 2026*
-*Stack: Python · FastAPI · React · MSSQL · Redis · ONNX · FAISS*
+*Stack: Python · FastAPI · React · PostgreSQL · Redis · ONNX · FAISS*
 # cctv-surveillance

@@ -1,13 +1,13 @@
 # Implementation Plan — Phase 1: Foundation
 
 > Scope: Wire the existing SCRFD + AdaFace + ByteTrack prototype into a production pipeline.
-> webcam → shared memory → Redis Streams → GPU inference → MSSQL, with a basic FastAPI for enrollment and health.
+> webcam → shared memory → Redis Streams → GPU inference → PostgreSQL, with a basic FastAPI for enrollment and health.
 > All tasks follow Red → Green → Commit TDD discipline.
 
 ## Tasks
 
 - [ ] 1. Dependencies + Project Scaffold
-  - [ ] 1.1 Update `requirements.txt` with pinned versions (fastapi, uvicorn, opencv-python-headless, ultralytics, numpy, onnxruntime-gpu, redis, sqlalchemy, pyodbc, alembic, pydantic-settings, python-jose, bcrypt, pytest, pytest-asyncio, httpx, faiss-cpu)
+  - [ ] 1.1 Update `requirements.txt` with pinned versions (fastapi, uvicorn, opencv-python-headless, ultralytics, numpy, onnxruntime-gpu, redis, sqlalchemy, psycopg2-binary, pgvector, alembic, pydantic-settings, python-jose, bcrypt, pytest, pytest-asyncio, httpx, faiss-cpu)
   - [ ] 1.2 Create `vms/__init__.py` (empty)
   - [ ] 1.3 Create `tests/conftest.py` with `env_vars` autouse fixture patching all required `VMS_*` environment variables
   - [ ] 1.4 Write failing test `tests/test_config.py` asserting `Settings` loads from env and default thresholds are correct
@@ -22,11 +22,11 @@
   - [ ] 2.5 Run `pytest tests/test_redis_client.py -v` and confirm 2 PASS
 
 - [ ] 3. SQLAlchemy Models
-  - [ ] 3.1 Write failing tests in `tests/test_db_models.py` asserting all 11 tables are created and basic ORM round-trips work
+  - [ ] 3.1 Write failing tests in `tests/test_db_models.py` asserting all 17 tables are created and basic ORM round-trips work
   - [ ] 3.2 Create `vms/db/__init__.py` (empty)
-  - [ ] 3.3 Create `vms/db/models.py` with all 11 ORM classes: `Person`, `PersonEmbedding`, `Camera`, `Zone`, `TrackingEvent`, `Alert`, `ReidMatch`, `ZonePresence`, `User`, `UserZonePermission`, `UserCameraPermission`
+  - [ ] 3.3 Create `vms/db/models.py` with all 17 ORM classes: `Camera`, `Zone`, `User`, `UserCameraPermission`, `Person`, `PersonEmbedding`, `MaintenanceWindow`, `Alert`, `AlertRouting`, `AlertDispatch`, `TrackingEvent`, `ReidMatch`, `ZonePresence`, `AnomalyDetector`, `PersonClipEmbedding`, `ModelRegistry`, `AuditLog`
   - [ ] 3.4 `TrackingEvent` MUST have `UniqueConstraint("camera_id", "local_track_id", "event_ts")`
-  - [ ] 3.5 Create `vms/db/session.py` with `get_engine()` and `get_session()` singletons; enable `fast_executemany` for MSSQL connections
+  - [ ] 3.5 Create `vms/db/session.py` with PostgreSQL engine using `psycopg2` driver; use `pool_pre_ping=True` for connection health checks
   - [ ] 3.6 Run `pytest tests/test_db_models.py -v` and confirm 3 PASS
 
 - [ ] 4. Alembic Migrations
@@ -34,7 +34,7 @@
   - [ ] 4.2 Replace `alembic/env.py` to import `Base.metadata` from `vms.db.models` and honour `VMS_DB_URL` env var override
   - [ ] 4.3 Run `alembic revision --autogenerate -m "initial_schema"` to generate the first migration
   - [ ] 4.4 Add explicit `op.create_index` calls to the generated migration for all indexes defined in the design doc (`idx_track_time`, `idx_track_person`, `idx_track_camera`, `idx_global_track`, `idx_zone_time`, `idx_person_pres`, `idx_alert_type`)
-  - [ ] 4.5 Run `alembic upgrade head` against a local MSSQL instance and verify all 11 tables exist
+  - [ ] 4.5 Run `alembic upgrade head` against the local PostgreSQL Docker container (`pgvector/pgvector:pg16` on port 5434) and verify all 17 tables exist
 
 - [ ] 5. Shared Memory Slot
   - [ ] 5.1 Write failing tests in `tests/test_shm.py` covering header size constant, write-then-read round-trip, and stale timestamp detection
@@ -91,7 +91,7 @@
   - [ ] 11.3 Create `vms/writer/db_writer.py` with `DBWriter` class
   - [ ] 11.4 `DBWriter` MUST read from the `tracking` Redis_Stream and accumulate rows in a buffer
   - [ ] 11.5 `DBWriter` MUST flush when buffer reaches 100 rows OR 500ms has elapsed since last flush
-  - [ ] 11.6 `DBWriter` MUST use SQLAlchemy `executemany` bulk insert; on MSSQL use `MERGE` on `(camera_id, local_track_id, event_ts)` for idempotency
+  - [ ] 11.6 `DBWriter` MUST use SQLAlchemy `executemany` bulk insert; use `INSERT ... ON CONFLICT DO NOTHING` on `(camera_id, local_track_id, event_ts)` for idempotency
   - [ ] 11.7 WHEN a flush fails after 3 retries, THE `DBWriter` SHALL buffer rows in a circular in-memory deque (50k rows max) and write overflow to a local JSON file
   - [ ] 11.8 Run `pytest tests/test_db_writer.py -v` and confirm all PASS
 
@@ -114,6 +114,6 @@
 
 - [ ] 14. Full Test Suite + Webcam Smoke Test
   - [ ] 14.1 Run `pytest tests/ -v` and confirm all tests pass with no errors
-  - [ ] 14.2 Start all four processes manually (ingestion worker on webcam index 0, inference engine, DB writer, FastAPI) and verify the pipeline produces `tracking_events` rows in MSSQL within 30 seconds
+  - [ ] 14.2 Start all four processes manually (ingestion worker on webcam index 0, inference engine, DB writer, FastAPI) and verify the pipeline produces `tracking_events` rows in PostgreSQL within 30 seconds
   - [ ] 14.3 Enroll one person via `POST /api/persons` + `POST /api/persons/{id}/embeddings` (6 samples) and verify the person is recognised in subsequent frames
   - [ ] 14.4 Verify `GET /api/health` returns `redis_ok: true` and `db_ok: true`

@@ -178,7 +178,7 @@ sequenceDiagram
         Id->>DB: write alerts row state='active'
         Id->>R: XADD alerts {alert_id, type, severity, ts}
     end
-    Id->>DB: batched tracking_events (MERGE on uq_tracking_idem)
+    Id->>DB: batched tracking_events (INSERT ... ON CONFLICT DO NOTHING)
     Dis->>R: XREADGROUP alerts
     Dis->>Dis: lookup alert_routing rules
     par fanout

@@ -10,7 +10,7 @@ A plant-floor Video Management System (VMS) supporting 52–53 IP cameras with i
 - **Ingestion_Worker**: An OS process that decodes RTSP/webcam streams, writes frames to shared memory, and publishes frame-pointer events to Redis Streams.
 - **Inference_Engine**: A GPU OS process that reads frame pointers, runs SCRFD + AdaFace + ByteTrack, and publishes confirmed tracklets.
 - **Identity_Service**: An OS process that performs cross-camera re-identification, homography projection, alert FSM evaluation, and DB writes.
-- **DB_Writer**: An async process that batch-inserts tracking events into MSSQL.
+- **DB_Writer**: An async process that batch-inserts tracking events into PostgreSQL.
 - **API_Server**: The FastAPI application serving REST and WebSocket endpoints.
 - **SCRFD_Detector**: The SCRFD 2.5g ONNX model used for face detection.
 - **AdaFace_Embedder**: The AdaFace IR50 ONNX model producing 512-dim face embeddings.
@@ -175,15 +175,15 @@ A plant-floor Video Management System (VMS) supporting 52–53 IP cameras with i
 
 ### Requirement 11: Database Persistence
 
-**User Story:** As a system operator, I want all tracking events persisted reliably to MSSQL, so that the investigation and analytics features have a complete audit trail.
+**User Story:** As a system operator, I want all tracking events persisted reliably to PostgreSQL, so that the investigation and analytics features have a complete audit trail.
 
 #### Acceptance Criteria
 
 1. THE DB_Writer SHALL batch-insert `tracking_events` rows using SQLAlchemy `executemany`, flushing every 500ms or every 100 rows, whichever comes first.
-2. THE DB_Writer SHALL use a MSSQL `MERGE` (upsert) on the unique constraint `(camera_id, local_track_id, event_ts)` to prevent duplicate writes on retry.
-3. WHEN a MSSQL write fails, THE DB_Writer SHALL retry 3 times with exponential backoff before buffering rows in a circular in-memory buffer of 50,000 rows.
+2. THE DB_Writer SHALL use `INSERT ... ON CONFLICT DO NOTHING` on the unique constraint `(camera_id, local_track_id, event_ts)` to prevent duplicate writes on retry.
+3. WHEN a PostgreSQL write fails, THE DB_Writer SHALL retry 3 times with exponential backoff before buffering rows in a circular in-memory buffer of 50,000 rows.
 4. WHEN the in-memory buffer is full, THE DB_Writer SHALL write overflow rows to a local JSON file for manual replay.
-5. THE `tracking_events` table SHALL be partitioned by month using a MSSQL partition function.
+5. THE `tracking_events` table SHALL be partitioned by month using PostgreSQL declarative range partitioning (Phase 5).
 
 ---
 
@@ -225,8 +225,8 @@ A plant-floor Video Management System (VMS) supporting 52–53 IP cameras with i
 1. THE VMS SHALL expose a Prometheus metrics endpoint per process reporting: inference latency (p50/p95/p99), frames dropped, Redis stream lag, DB write queue depth, and GPU utilisation.
 2. THE VMS SHALL emit a structured JSON heartbeat to Redis key `heartbeat:{worker_id}` with a 15-second TTL, refreshed every 10 seconds.
 3. WHEN a worker heartbeat expires, THE VMS SHALL emit an admin alert within 15 seconds.
-4. THE API_Server SHALL expose `GET /api/health` returning the status of all workers, Redis connectivity, and MSSQL connectivity.
-5. THE Frontend SHALL display per-worker status, GPU utilisation, MSSQL write queue depth, and Redis stream lag in the Admin health panel.
+4. THE API_Server SHALL expose `GET /api/health` returning the status of all workers, Redis connectivity, and PostgreSQL connectivity.
+5. THE Frontend SHALL display per-worker status, GPU utilisation, PostgreSQL write queue depth, and Redis stream lag in the Admin health panel.
 
 ---
 

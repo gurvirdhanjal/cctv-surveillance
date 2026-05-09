@@ -34,7 +34,7 @@ Identity & Tracking Service (Python process)
     │  Redis Streams: tracking · alerts
     ▼
 DB Writer (async batch)          FastAPI (REST + WebSocket)
-    │  MSSQL Server                    │  Socket.io → browser
+    │  PostgreSQL + pgvector           │  Socket.io → browser
     │  flush 500ms / 100 rows          │  throttled 5fps · diff-only
     ▼                                  ▼
                           React Frontend
@@ -124,7 +124,7 @@ Dedup key: `(alert_type, zone_id)` within 60s window. Max 10 active alerts per z
 - Reads from `tracking` stream
 - Batches rows using SQLAlchemy `executemany`
 - Flushes every 500ms or 100 rows
-- Uses MSSQL `MERGE` on `(camera_id, local_track_id, event_ts)` for idempotency
+- Uses `INSERT ... ON CONFLICT DO NOTHING` on `(camera_id, local_track_id, event_ts)` for idempotency
 - On failure: 3 retries with backoff → circular in-memory buffer (50k rows) → JSON file overflow
 
 ### Event Versioning
@@ -146,21 +146,27 @@ FSM and Re-ID evaluate on `timestamp_ms`, not arrival order. Events > 5s late ar
 
 ---
 
-## Database Schema (MSSQL)
+## Database Schema (PostgreSQL + pgvector)
 
-11 tables:
+17 tables:
 
-- **persons**: registered employees and unknown visitor records
-- **person_embeddings**: multiple 512-dim embeddings per person (FAISS source of truth)
-- **cameras**: camera registry, RTSP URLs, homography matrices, FOV polygons
+- **cameras**: camera registry, RTSP URLs, homography matrices, FOV polygons, capability tier
 - **zones**: named plant areas with polygons, capacity, adjacency, and access flags
-- **tracking_events**: high-write event log, partitioned by month on `event_ts`
-- **alerts**: alert log with FSM state (active / acknowledged / resolved)
-- **reid_matches**: cross-camera identity match audit trail
-- **zone_presence**: dwell-time records with computed `dwell_seconds`
 - **users**: system users with bcrypt password hashes
-- **user_zone_permissions**: zone-level access control (composite PK)
 - **user_camera_permissions**: camera-level access control (composite PK)
+- **persons**: registered employees and unknown visitor records
+- **person_embeddings**: multiple 512-dim `Vector(512)` embeddings per person (FAISS source of truth)
+- **maintenance_windows**: scheduled alert-suppression windows (one-time or recurring)
+- **alerts**: alert log with FSM state (active / suppressed / acknowledged / resolved)
+- **alert_routing**: rules mapping alert type + zone to notification channels
+- **alert_dispatches**: per-attempt delivery log for each alert channel
+- **tracking_events**: high-write event log, partitioned by month on `event_ts` (Phase 5)
+- **reid_matches**: cross-camera identity match audit trail
+- **zone_presence**: dwell-time records with `entered_at` / `exited_at`
+- **anomaly_detectors**: per-type detector configuration rows
+- **person_clip_embeddings**: 512-dim CLIP embeddings for forensic text search
+- **model_registry**: ML model version catalogue with SHA-256 checksums
+- **audit_log**: immutable hash-chain event log
 
 Key indexes on `tracking_events`: `event_ts DESC`, `(person_id, event_ts DESC)`, `(camera_id, event_ts DESC)`, `global_track_id`. Partial index on `alerts` for `state = 'active'`.
 
@@ -210,7 +216,7 @@ Three views:
 | Cross-camera Re-ID | FAISS flat IP index |
 | Message bus | Redis Streams |
 | IPC frames | Python multiprocessing.shared_memory |
-| Database | MSSQL Server (SQLAlchemy 2.x + pyodbc) |
+| Database | PostgreSQL 16 + pgvector (SQLAlchemy 2.x + psycopg2-binary) |
 | Migrations | Alembic |
 | Backend API | FastAPI + Uvicorn |
 | WebSocket | Socket.io |
@@ -234,7 +240,7 @@ Three views:
 | Ingestion worker crash | Systemd restart < 5s; XAUTOCLAIM recovers after 10s |
 | GPU OOM | Catch OOM → halve batch size → retry; on crash: supervisor restart |
 | Redis unavailable | In-memory buffer 200 frames/cam; retry every 2s; drain on recovery |
-| MSSQL write failure | 3 retries; circular buffer 50k rows; JSON file overflow |
+| PostgreSQL write failure | 3 retries; circular buffer 50k rows; JSON file overflow |
 | Re-ID false match | Guard corrects via UI → corrections stream → cascade DB update |
 | Poison message | After 3 unACKed deliveries → dead_letter stream |
 | WebSocket disconnect | Socket.io auto-reconnect + snapshot rehydration |
@@ -244,7 +250,7 @@ Three views:
 
 ## Development Phases
 
-- **Phase 1 — Foundation**: MSSQL schema, ingestion worker, inference engine (SCRFD + AdaFace + ByteTrack), basic FastAPI (enrollment + health). ← current scope
+- **Phase 1 — Foundation**: PostgreSQL schema, ingestion worker, inference engine (SCRFD + AdaFace + ByteTrack), basic FastAPI (enrollment + health). ← current scope
 - **Phase 2 — Identity & Tracking**: Cross-camera Re-ID, homography engine, Alert FSM, reid_matches audit trail
 - **Phase 3 — Frontend**: React scaffold, Guard/Management/Admin views, WebSocket integration
 - **Phase 4 — Production Hardening**: SHM safety, Redis lag monitoring, DB idempotency, Prometheus/Grafana, load testing

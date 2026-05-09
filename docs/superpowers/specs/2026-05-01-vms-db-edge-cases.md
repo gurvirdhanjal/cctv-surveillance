@@ -33,7 +33,7 @@ This document enumerates every production failure mode and edge case the v2 sche
 
 | ID | Scenario | Failure mode if unhandled | Mitigation |
 |---|---|---|---|
-| C1 | Two ingestion workers publish frames for the same camera in overlapping windows | Duplicate `(camera_id, local_track_id, event_ts)` violates `uq_tracking_idem` → entire batch INSERT fails | DB writer uses `MERGE` (MSSQL) / `INSERT ... ON CONFLICT DO NOTHING` (SQLite test) keyed on the unique constraint. Per-row failure does not abort the batch |
+| C1 | Two ingestion workers publish frames for the same camera in overlapping windows | Duplicate `(camera_id, local_track_id, event_ts)` violates `uq_tracking_idem` → entire batch INSERT fails | DB writer uses `INSERT ... ON CONFLICT DO NOTHING` keyed on the unique constraint. Per-row failure does not abort the batch |
 | C2 | Alert FSM evaluates the same `(global_track_id, alert_type)` from two different inference replicas | Two `alert_fired` rows for what should be one alert | Dedup at FSM level: Redis Hash `alert_fsm:{type}:{zone_id}` with key = `global_track_id`, atomic `SET NX` to claim the alert before INSERT. TTL = cooldown |
 | C3 | `zone_presence` open and close arrive out of order (network reorder or worker restart) | `exited_at < entered_at` row → analytics yield negative dwell | Identity service serialises presence transitions per `(zone_id, global_track_id)` via Redis lock. DB writer rejects rows where `exited_at < entered_at` (CHECK constraint) |
 | C4 | `acknowledge` and `resolve` API calls race on the same alert | Lost acknowledged_by / acknowledged_at | Use `UPDATE alerts SET state='acknowledged', acknowledged_at=:now, acknowledged_by=:uid WHERE alert_id=:id AND state='active'`. If 0 rows affected, return 409 to caller |
@@ -78,7 +78,7 @@ Every writer in the system can be replayed (Redis XAUTOCLAIM after crash, networ
 
 | Table | Idempotency key | Strategy |
 |---|---|---|
-| `tracking_events` | `(camera_id, local_track_id, event_ts)` | UNIQUE constraint `uq_tracking_idem`; writer uses MERGE |
+| `tracking_events` | `(camera_id, local_track_id, event_ts)` | UNIQUE constraint `uq_tracking_idem`; writer uses `INSERT ... ON CONFLICT DO NOTHING` |
 | `alerts` | Application-level dedup key: `(alert_type, zone_id, dedup_window)` | FSM owns dedup; DB has no UNIQUE here (severity may upgrade an existing alert) |
 | `alert_dispatches` | `(alert_id, channel, target, attempt_n)` | Implicit — `attempt_n` increments per retry; no UNIQUE because retries ARE distinct rows |
 | `zone_presence` | `(zone_id, global_track_id, entered_at)` | UNIQUE (add this in v2.1 once we observe dedup pressure; v1 relies on identity-service serialisation) |
@@ -193,16 +193,16 @@ ALTER TABLE zone_presence     ADD CONSTRAINT fk_zp_zone FOREIGN KEY (zone_id)
 
 ## §6. Time, clock skew, timezones
 
-**Storage convention:** all `DATETIME2` columns are **UTC**. The application converts to local time at the presentation layer. Database server timezone is irrelevant — `SYSUTCDATETIME()` is the canonical default.
+**Storage convention:** all `TIMESTAMPTZ` columns are **UTC**. The application converts to local time at the presentation layer. Database server timezone is irrelevant — `NOW() AT TIME ZONE 'UTC'` is the canonical default.
 
 | Edge case | Handling |
 |---|---|
 | Camera's NTP server is wrong | `event_ts` reflects camera's wall clock. Identity service compares `event_ts` to `ingest_ts` (worker clock). Skew >30s → drop event + admin alert |
 | DST transition (spring forward / fall back) | UTC storage — no impact. Frontend renders in customer's local TZ via `date-fns-tz` with a configurable site timezone |
-| Leap second | ignored — Windows / pyodbc / MSSQL handle as a 60→59 collapse. No correctness impact at the second-precision we use |
+| Leap second | ignored — PostgreSQL handles as a 60→59 collapse. No correctness impact at the second-precision we use |
 | Clock goes backwards on a worker (NTP step) | Writer detects: if `event_ts < last_seen_event_ts - 60s`, log warning + still insert (event_ts is camera time, not worker time). Idempotency constraint catches duplicates |
-| "Now" in different processes | Use `func.current_timestamp()` (DB-side, MSSQL `SYSUTCDATETIME()`) for `created_at`; use Python `datetime.utcnow()` only when audit chain hash needs determinism (see §14) |
-| `event_ts` granularity | `DATETIME2(3)` — millisecond. Sub-millisecond races handled by application-level monotonic `seq_id` (per-worker u64) |
+| "Now" in different processes | Use `func.now()` (DB-side, PostgreSQL `NOW()`) for `created_at`; use Python `datetime.utcnow()` only when audit chain hash needs determinism (see §14) |
+| `event_ts` granularity | `TIMESTAMPTZ` — millisecond precision. Sub-millisecond races handled by application-level monotonic `seq_id` (per-worker u64) |
 
 ### Required: timezone documentation in the API
 
@@ -297,21 +297,21 @@ def purge_person(session: Session, person_id: int, requester_id: int, reason: st
 
 | Tier | RPO | RTO | Backup mechanism |
 |---|---|---|---|
-| Production single-site | 15 min | 1 hour | MSSQL full backup nightly + tlog backup every 15 min to local + offsite |
-| Critical incident period | 5 min | 30 min | (manual) tlog backups every 5 min during high-risk operational windows |
+| Production single-site | 15 min | 1 hour | `pg_basebackup` nightly + WAL archiving every 15 min to local + offsite |
+| Critical incident period | 5 min | 30 min | (manual) WAL shipping every 5 min during high-risk operational windows |
 
 ### What's NOT in the backup
 
 - FAISS index (rebuilt from `person_embeddings` on restart; never persisted to disk)
-- Redis state (regenerable from MSSQL + camera streams; degraded mode handles outage)
+- Redis state (regenerable from PostgreSQL + camera streams; degraded mode handles outage)
 - Snapshot files (separate object-storage backup; PIT recovery via storage versioning)
 - Model files (`models/v{N}/`; restored via `vms-models download` + manifest checksum verify)
 
 ### Restore drill — must run quarterly
 
 ```
-1. Spin up a parallel MSSQL instance.
-2. Restore latest full backup + all tlog files up to target PIT.
+1. Spin up a parallel PostgreSQL instance.
+2. Restore latest base backup + replay WAL files up to target PIT (pg_restore / pg_basebackup + WAL replay).
 3. Run `alembic current` — confirm head matches production.
 4. Run `vms-models download` against the customer's mirror.
 5. Start identity service → confirm FAISS rebuild from restored persons table.
@@ -325,17 +325,17 @@ Each drill recorded in `audit_log` with `event_type='DR_DRILL'`.
 
 - **Backup taken mid-batch-flush** — tlog captures a transactionally consistent point; safe.
 - **Restore to an earlier point than current `audit_log` head** — hash chain integrity remains, but operators see "events from the future" in audit if they replay logs. Document: restore is a discrete action; the `audit_log` records the restore event with a special hash-link explanation.
-- **Sysprep / SQL Server reinstall loses encryption key** — see §13.
+- **OS reinstall loses PostgreSQL encryption key** — see §13.
 
 ---
 
 ## §10. Read replicas & consistency model
 
-v1 is single-node MSSQL. The schema is designed so that adding read replicas in v2.1 is non-breaking:
+v1 is single-node PostgreSQL. The schema is designed so that adding read replicas in v2.1 is non-breaking:
 
-- All API reads can use `READ COMMITTED SNAPSHOT ISOLATION` (RCSI) — turn this on at DB level: `ALTER DATABASE vms_dev SET READ_COMMITTED_SNAPSHOT ON;`. Avoids reader/writer blocking entirely.
+- PostgreSQL uses MVCC by default with `READ COMMITTED` isolation — no special `ALTER DATABASE` needed. Reader/writer blocking is avoided by design.
 - Every endpoint that requires read-after-write consistency (e.g., enrolment) routes to primary explicitly via a session flag.
-- Eventually-consistent reads (timeline, analytics, search) can use replica.
+- Eventually-consistent reads (timeline, analytics, search) can use a streaming replica.
 
 Edge cases when replicas are added:
 
@@ -352,10 +352,10 @@ Edge cases when replicas are added:
 | `ADD COLUMN` (nullable, no default) | Yes | Routine; runs in seconds even on huge tables |
 | `ADD COLUMN NOT NULL DEFAULT` | No (without care) | Use two-step: ADD nullable → backfill in batches → ALTER to NOT NULL |
 | `DROP COLUMN` | Yes (if no app reference) | Routine. Confirm via `mypy + grep` first |
-| `ADD INDEX` (online) | Yes (MSSQL Enterprise) / Maintenance window (Standard) | Use `CREATE INDEX ... WITH (ONLINE=ON)` on Enterprise; offline elsewhere |
+| `ADD INDEX` (online) | Yes | Use `CREATE INDEX CONCURRENTLY` — non-blocking in PostgreSQL |
 | `ALTER COLUMN` (type change) | Maintenance window only | Especially risky on `tracking_events` due to size |
 | Foreign key add / drop | Maintenance window | Brief table lock |
-| New CHECK constraint on populated table | Maintenance window | DB scans full table; use `WITH NOCHECK` then validate offline |
+| New CHECK constraint on populated table | Maintenance window | DB scans full table; use `NOT VALID` then `VALIDATE CONSTRAINT` offline (PostgreSQL) |
 | New table | Yes | Routine |
 | Partition function alter | Maintenance window | Concurrency with DB writer paused |
 
@@ -394,7 +394,7 @@ ix_clip_global_track, ix_clip_event_ts
 ix_audit_event_ts, ix_audit_target
 ```
 
-### Filtered indexes — added in Phase 5 (MSSQL only, not in initial migration)
+### Partial indexes — added in Phase 5 (PostgreSQL native, not in initial migration)
 
 These match query patterns we expect to see when the API is built:
 
@@ -409,26 +409,23 @@ CREATE INDEX ix_alerts_active ON alerts (state, triggered_at DESC)
 
 -- "currently-active maintenance windows"
 CREATE INDEX ix_mw_active_scope ON maintenance_windows (scope_type, scope_id)
-    WHERE is_active = 1;
+    WHERE is_active = TRUE;
 ```
 
-These filtered indexes are MSSQL-specific (SQLite supports them too but SQLAlchemy autogen doesn't always emit). Add via raw SQL in a Phase 5 migration when query patterns are observable.
+PostgreSQL partial indexes are first-class; SQLAlchemy autogen emits them correctly via `postgresql_where`. Add via raw SQL in a Phase 5 migration when query patterns are observable.
 
-### Fragmentation maintenance
+### Index maintenance (autovacuum)
 
-Schedule a SQL Agent job nightly:
+PostgreSQL handles index bloat automatically via `autovacuum`. For the high-write `tracking_events` table, tune autovacuum per-table:
 
 ```sql
--- on each user table, rebuild indexes with fragmentation > 30%, reorganise > 10%
--- Use Ola Hallengren's IndexOptimize stored procedure (industry standard)
-EXEC dbo.IndexOptimize @Databases = 'vms_dev',
-    @FragmentationLow = NULL,
-    @FragmentationMedium = 'INDEX_REORGANIZE',
-    @FragmentationHigh = 'INDEX_REBUILD_ONLINE',
-    @FragmentationLevel1 = 5,
-    @FragmentationLevel2 = 30,
-    @UpdateStatistics = 'ALL';
+ALTER TABLE tracking_events SET (
+    autovacuum_vacuum_scale_factor = 0.01,
+    autovacuum_analyze_scale_factor = 0.005
+);
 ```
+
+Manual `VACUUM ANALYZE tracking_events;` can be run during a maintenance window if bloat is observed via `pg_stat_user_tables`.
 
 ### Edge cases
 
@@ -506,7 +503,7 @@ If any row's `prev_hash` doesn't match the previous row's `row_hash`, returns th
 ### Edge cases
 
 - **Power loss between INSERT and chain advance in another writer** — hash chain serialised through a single audit-writer process; only one outstanding INSERT at a time. Power loss at most loses the in-flight event.
-- **Two processes write audit rows concurrently** — must NOT happen. Code path: every audit write goes through `vms.db.audit.write_audit_event` which acquires a `SELECT ... FOR UPDATE` on the latest `audit_log` row inside the same transaction. MSSQL: `WITH (UPDLOCK, HOLDLOCK)` on the SELECT.
+- **Two processes write audit rows concurrently** — must NOT happen. Code path: every audit write goes through `vms.db.audit.write_audit_event` which acquires a `SELECT ... FOR UPDATE` on the latest `audit_log` row inside the same transaction. PostgreSQL's `FOR UPDATE` provides the required row-level exclusive lock.
 - **Schema migration that adds a column to `audit_log`** — hash computation is over a fixed set of fields (defined in `compute_row_hash`); adding a column doesn't break existing hashes. New column not part of hash unless we explicitly version-bump the hash function (and even then, document a chain-link breakpoint).
 - **Restore from backup mid-day** — the restore creates a "fork" in the chain. Add an `event_type='RESTORE_FORK'` row that records the restore operation, with `prev_hash` = the latest pre-restore hash. Verify endpoint flags this as expected, not broken.
 - **Hash function future change** — version field (`row_hash_version`) added in v2.x for forward compat. Default `v1`.

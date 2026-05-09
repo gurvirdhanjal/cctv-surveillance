@@ -1,6 +1,8 @@
 # Video Management System — Facial Recognition & Cross-Camera Tracking
 **Design Specification** · 2026-04-23  
-**Status:** Approved · Ready for implementation planning
+**Status:** Superseded for database/tech-stack sections — see `2026-05-01-vms-v2-hardened-design.md`
+
+> **DATABASE NOTE:** This v1 spec used MSSQL Server + pyodbc. The project now uses **PostgreSQL 16 + pgvector** exclusively. All MSSQL references in this file are historical. The authoritative schema is `vms/db/models.py` + `alembic/versions/0001_initial_schema.py`.
 
 ---
 
@@ -69,7 +71,7 @@ Identity & Tracking Service (Python process)
     │  Redis Streams: tracking · alerts
     ▼
 DB Writer (async batch)          FastAPI (REST + WebSocket)
-    │  MSSQL Server                    │  Socket.io → browser
+    │  PostgreSQL + pgvector           │  Socket.io → browser
     │  batched flush 500ms/100 rows    │  throttled 5fps · diff-only positions
     ▼                                  ▼
                           React Frontend
@@ -186,7 +188,7 @@ Each alert type is an independent FSM keyed by `(global_track_id, alert_type)`. 
 
 ---
 
-## 10. Database Schema (MSSQL Server)
+## 10. Database Schema *(SUPERSEDED — see v2 spec + `vms/db/models.py`)*
 
 ### Tables
 
@@ -195,7 +197,7 @@ Each alert type is an independent FSM keyed by `(global_track_id, alert_type)`. 
 
 **person_embeddings** — multiple face embeddings per person  
 `embedding_id INT IDENTITY PK · person_id INT FK · embedding VARBINARY(2048) · quality_score FLOAT · source NVARCHAR(20) · created_at DATETIME2`  
-*FAISS index rebuilt from this table at service startup. MSSQL is source of truth.*
+*FAISS index rebuilt from this table at service startup. PostgreSQL is source of truth.*
 
 **cameras** — camera registry and precomputed homography  
 `camera_id INT IDENTITY PK · name NVARCHAR(100) · rtsp_url NVARCHAR(500) · worker_group NCHAR(1) · homography_matrix NVARCHAR(MAX) · fov_polygon NVARCHAR(MAX) · resolution_w INT · resolution_h INT · is_active BIT`
@@ -246,11 +248,11 @@ CREATE INDEX idx_alert_active   ON alerts (state, triggered_at DESC)
 CREATE INDEX idx_alert_type     ON alerts (alert_type, triggered_at DESC)
 ```
 
-### MSSQL-specific Notes
-- `tracking_events` partitioned by month using `PARTITION FUNCTION pf_monthly(DATETIME2)`. New partition added monthly via scheduled job.
+### Implementation Notes *(v2 updates)*
+- `tracking_events` partitioned by month using PostgreSQL declarative range partitioning (Phase 5).
 - All JSON fields (`polygon`, `homography_matrix`, `adjacent_zone_ids`) validated against Pydantic schemas before write.
 - DB writer uses SQLAlchemy `executemany` bulk insert, flushed every 500ms or 100 rows — never row-by-row.
-- Idempotency: UNIQUE constraint on `(camera_id, local_track_id, event_ts)` in `tracking_events`; writer uses MSSQL `MERGE` (upsert) on retry — zero double-writes.
+- Idempotency: UNIQUE constraint on `(camera_id, local_track_id, event_ts)` in `tracking_events`; writer uses `INSERT ... ON CONFLICT DO NOTHING` on retry — zero double-writes.
 
 ---
 
@@ -331,7 +333,7 @@ worker_health    {worker_id, status, cam_count, ts}
 - Camera config: RTSP URL, worker group, homography calibration wizard (4-step, validates reprojection error < 2px, undo last point)
 - Zone editor: polygon draw on floor plan, 4-step wizard (draw → configure → assign cameras → set permissions), undo stack
 - Permissions: toggle zone/camera access per user
-- System health: per-worker status, GPU utilisation, MSSQL write queue depth, Redis stream lag
+- System health: per-worker status, GPU utilisation, PostgreSQL write queue depth, Redis stream lag
 
 ---
 
@@ -343,7 +345,7 @@ worker_health    {worker_id, status, cam_count, ts}
 | Ingestion worker crash | HIGH | Systemd restart < 5s. XAUTOCLAIM recovers unACKed messages after 10s. | Health panel warning within 15s |
 | GPU inference OOM / crash | CRITICAL | Catch OOM → halve batch size → retry. On crash: supervisor restart. CPU fallback for 1 priority group. | Admin alert + health panel |
 | Redis unavailable | CRITICAL | Workers buffer 200 frames/cam in-memory deque. Retry every 2s. Drain on recovery. Drop frames > 5s old. | Degraded mode banner (see §14) |
-| MSSQL write failure | HIGH | 3 retries with backoff. On persistent fail: circular memory buffer 50k rows + JSON file log for manual replay. | Health panel + write error metric |
+| PostgreSQL write failure | HIGH | 3 retries with backoff. On persistent fail: circular memory buffer 50k rows + JSON file log for manual replay. | Health panel + write error metric |
 | Re-ID false match | MEDIUM | Guard corrects via UI → `corrections` stream → cascade DB update + `track_corrected` WS event. | Wrong name shown, correctable |
 | Alert storm | MEDIUM | Server dedup 60s window per `(type+zone)`. Max 10 active per zone. Client groups same-track alerts. | "+ N similar" grouping |
 | Shared memory stale/corrupt | MEDIUM | Header validation (seq_id + timestamp) before every read. Stale: skip + XACK. Crash cleanup via `shm_registry` in Redis. | Logged; invisible to guard |
@@ -409,7 +411,7 @@ Rolling shutter is acceptable with ByteTrack (motion blur handled at tracking le
 ## 18. Development Phases
 
 ### Phase 1 — Foundation (webcam first)
-- MSSQL schema + migrations (Alembic)
+- PostgreSQL schema + migrations (Alembic)
 - Ingestion worker (webcam → shared memory → Redis Streams)
 - Inference engine (SCRFD + AdaFace + ByteTrack) wired to pipeline
 - Basic FastAPI: enrollment, recognition, health endpoints
@@ -454,7 +456,7 @@ Rolling shutter is acceptable with ByteTrack (motion blur handled at tracking le
 | Cross-camera Re-ID | FAISS flat IP index |
 | Message bus | Redis Streams (→ Kafka upgrade path) |
 | IPC frames | Python multiprocessing.shared_memory |
-| Database | MSSQL Server (SQLAlchemy + pyodbc) |
+| Database | PostgreSQL 16 + pgvector (SQLAlchemy 2.x + psycopg2-binary) |
 | Backend API | FastAPI + Uvicorn |
 | WebSocket | Socket.io (server + client) |
 | Frontend framework | React 18 + TypeScript + Vite |

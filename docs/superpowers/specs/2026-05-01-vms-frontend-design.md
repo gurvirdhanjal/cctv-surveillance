@@ -456,7 +456,7 @@ Light theme. Sidebar navigation; main pane is the active section.
 
 | Section | Page | Notes |
 |---|---|---|
-| Dashboard | `/admin` | Worker health, GPU util, MSSQL queue depth, Redis stream lag, latest schema migration, model versions |
+| Dashboard | `/admin` | Worker health, GPU util, PostgreSQL write queue depth, Redis stream lag, latest schema migration, model versions |
 | Persons | `/admin/persons` | List + enrolment wizard (4-step: name/ID → capture → quality check → save) |
 | Cameras | `/admin/cameras` | List + add/edit; per-row "Run profiler" CTA, capability tier badge, calibration wizard launch |
 | Zones | `/admin/zones` | Polygon editor on the floor-plan image; allowed_hours editor; max_capacity; loiter threshold |
@@ -871,7 +871,7 @@ Coverage target: 80% for shared, 70% for features. Hooks tested in isolation; pa
 - `e2e/admin.spec.ts` — enrol person, calibrate camera, edit zone, create maintenance window
 - `e2e/forensic.spec.ts` — search clips by text, open clip drawer
 
-Runs against a docker-compose stack with FastAPI + MSSQL test DB pre-seeded.
+Runs against a docker-compose stack with FastAPI + PostgreSQL test DB pre-seeded.
 
 ### Visual regression — optional, Phase 4.x
 
