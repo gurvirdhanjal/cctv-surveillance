@@ -7,16 +7,16 @@ import numpy as np
 import pytest
 
 from vms.ingestion.shm import (
-    _HEADER_FMT,
-    _HEADER_SIZE,
+    HEADER_FMT,
+    HEADER_SIZE,
     SHMSlot,
 )
 
 
 def test_header_constants_are_exported() -> None:
-    """Verify _HEADER_FMT and _HEADER_SIZE are exported for use by other modules."""
-    assert _HEADER_SIZE == 16
-    assert _HEADER_FMT == "<QQ"
+    """Verify HEADER_FMT and HEADER_SIZE are exported for use by other modules."""
+    assert HEADER_SIZE == 16
+    assert HEADER_FMT == "<QQ"
 
 
 @pytest.fixture
@@ -45,9 +45,10 @@ def test_shm_slot_write_then_read_returns_frame(slot: SHMSlot) -> None:
 def test_shm_slot_read_returns_none_when_stale(slot: SHMSlot) -> None:
     frame = np.zeros((48, 64, 3), dtype=np.uint8)
     slot.write(frame, seq_id=1)
-    real_now = time.monotonic()
+    real_ns = time.time_ns()
     with patch("vms.ingestion.shm.time") as mock_time:
-        mock_time.monotonic.return_value = real_now + 1.0
+        # Simulate current time 1 second (1_000_000_000 ns) in the future
+        mock_time.time_ns.return_value = real_ns + 1_000_000_000
         result = slot.read()
     assert result is None
 

@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
+
+import pytest
+
 from vms.ingestion.messages import FramePointer
 
 
@@ -14,8 +18,5 @@ def test_frame_pointer_round_trips_through_redis_fields() -> None:
 
 def test_frame_pointer_is_immutable() -> None:
     fp = FramePointer(cam_id=1, shm_name="x", seq_id=0, timestamp_ms=0, width=640, height=480)
-    try:
+    with pytest.raises(FrozenInstanceError):
         fp.cam_id = 99  # type: ignore[misc]
-        raise AssertionError("Should have raised FrozenInstanceError")
-    except Exception:
-        pass
