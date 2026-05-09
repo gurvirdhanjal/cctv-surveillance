@@ -1,4 +1,9 @@
-"""Redis connection and Stream helpers."""
+"""Redis connection and Stream helpers.
+
+stream_read() uses XREAD (no consumer group) — suitable for simple consumers
+that track their own last_id. stream_ack() requires a consumer group and is
+only valid for messages read via XREADGROUP (called directly by the consumer).
+"""
 
 from __future__ import annotations
 
@@ -9,15 +14,15 @@ import redis.asyncio as aioredis
 from vms.config import get_settings
 
 
-def get_redis() -> Any:  # redis.asyncio.Redis with untyped generics
+def get_redis() -> aioredis.Redis:
     """Return a Redis client using VMS_REDIS_URL."""
-    return aioredis.from_url(  # type: ignore[no-untyped-call]
+    return aioredis.from_url(  # type: ignore[no-untyped-call,no-any-return]
         get_settings().redis_url, decode_responses=True
     )
 
 
 async def stream_add(
-    client: Any,
+    client: aioredis.Redis,
     stream: str,
     fields: dict[str, str],
     maxlen: int | None = None,
@@ -25,12 +30,12 @@ async def stream_add(
     """XADD with MAXLEN cap. Returns the new message ID."""
     if maxlen is None:
         maxlen = get_settings().redis_stream_maxlen
-    result: str = await client.xadd(stream, fields, maxlen=maxlen)
+    result: str = await client.xadd(stream, fields, maxlen=maxlen)  # type: ignore[arg-type]
     return result
 
 
 async def stream_read(
-    client: Any,
+    client: aioredis.Redis,
     stream: str,
     last_id: str = "$",
     count: int = 100,
@@ -45,7 +50,7 @@ async def stream_read(
 
 
 async def stream_ack(
-    client: Any,
+    client: aioredis.Redis,
     stream: str,
     group: str,
     msg_id: str,

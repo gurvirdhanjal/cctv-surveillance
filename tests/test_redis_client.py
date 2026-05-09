@@ -43,4 +43,9 @@ async def test_stream_ack_succeeds_for_valid_group(
 ) -> None:
     await fake_redis.xgroup_create("ack:s", "grp", id="0", mkstream=True)
     msg_id = await stream_add(fake_redis, "ack:s", {"k": "v"})
+    # Read into the group's PEL first (XREADGROUP) so XACK has something to acknowledge
+    await fake_redis.xreadgroup("grp", "consumer1", {"ack:s": ">"}, count=1)
     await stream_ack(fake_redis, "ack:s", "grp", msg_id)
+    # Verify no messages remain pending
+    pending = await fake_redis.xpending("ack:s", "grp")
+    assert pending["pending"] == 0
