@@ -28,23 +28,40 @@ Plans (in `docs/superpowers/plans/`) are derived from specs. If a plan and its s
 ```
 vms/                     # Python package — production code (Phase 1A onward)
 ├── config.py            # pydantic-settings; reads VMS_* env vars
+├── redis_client.py      # Phase 1B: Stream helpers (get_redis, stream_add, stream_read, stream_ack)
 ├── db/
 │   ├── session.py       # engine, Base, SessionLocal, get_db
 │   ├── models.py        # ALL ORM models (single file until ~600 lines)
 │   └── audit.py         # hash-chain writer for audit_log — only public API: write_audit_event
-├── ingestion/           # Phase 1B
-├── inference/           # Phase 1B
+├── ingestion/           # Phase 1B: camera → SHM → Redis Streams
+│   ├── messages.py      # FramePointer frozen dataclass
+│   ├── shm.py           # SHMSlot: header + BGR frame, staleness guard
+│   └── worker.py        # IngestionWorker: camera loop + stream publish
+├── inference/           # Phase 1B: SCRFD + AdaFace + YOLO/ByteTrack
+│   ├── messages.py      # Tracklet, FaceWithEmbedding, DetectionFrame DTOs
+│   ├── detector.py      # SCRFDDetector ONNX wrapper
+│   ├── embedder.py      # AdaFaceEmbedder ONNX wrapper
+│   ├── tracker.py       # PerCameraTracker (YOLO + ByteTrack)
+│   └── engine.py        # InferenceEngine: reads frames stream → publishes detections
+├── writer/              # Phase 1B: detections stream → tracking_events DB
+│   └── db_writer.py     # DBWriter + flush_detection_frame (idempotent)
+├── api/                 # Phase 1B+: FastAPI routes
+│   ├── main.py          # FastAPI app + router registration
+│   ├── deps.py          # get_db, get_current_user (JWT), create_access_token
+│   ├── schemas.py       # Pydantic request/response models
+│   └── routes/
+│       ├── health.py    # GET /api/health
+│       └── persons.py   # POST /api/persons · POST /api/persons/{id}/embeddings · GET /api/persons/search
 ├── identity/            # Phase 2 (re-id, FAISS, alert FSM)
 ├── anomaly/             # Phase 2 (AnomalyDetector interface + concrete detectors)
 ├── dispatcher/          # Phase 3 (alert delivery: email/slack/telegram/webhook)
 ├── profiler/            # Phase 3 (CameraProfiler + Site Readiness Report)
-├── api/                 # FastAPI routes (Phase 1B+)
-└── security/            # at-rest cipher, JWT helpers, etc.
+└── security/            # Phase 5: at-rest cipher, JWT helpers, sensitive log filter
 
 alembic/                 # Database migrations — see §6
 frontend/                # React SPA (Phase 4)
 models/                  # Downloaded ML models (not committed; see §8)
-docs/                    # Specs, plans, presentations
+docs/                    # Specs, plans, presentations — see §16 for layout convention
 tests/                   # Pytest suite — mirrors vms/ structure
 scripts/                 # CLI tools, fine-tune recipes (Phase 5)
 
@@ -59,9 +76,11 @@ These legacy files are kept as reference until Phase 1B replaces them with the `
 
 ## 3. Current phase
 
-We are at **Phase 1A: Database Schema, Project Scaffold, and Config.** See `docs/superpowers/plans/2026-05-01-vms-v2-phase1a-db-schema.md` for the 14-task TDD plan.
+We are at **Phase 1B: Ingestion, Inference, and Base API.** See `docs/superpowers/plans/2026-05-09-vms-v2-phase1b-ingestion-inference-api.md` for the 10-task TDD plan.
 
-Subsequent phases (Phase 1B Ingestion, Phase 2 Identity + Anomaly Framework, Phase 3 Profiler + Dispatcher + Audit, Phase 4 Frontend, Phase 5 Forensic + Hardening, Phase 6 Camera Rollout) each get their own plan file when started. **Do not start a phase before its plan exists and is approved.**
+**Phase 1A** (Database Schema, Project Scaffold, and Config) is **COMPLETE** — 57 tests passing as of commit `4a4bc49`. Plan: `docs/superpowers/plans/2026-05-01-vms-v2-phase1a-db-schema.md`.
+
+Subsequent phases (Phase 2 Identity + Anomaly Framework, Phase 3 Profiler + Dispatcher + Audit, Phase 4 Frontend, Phase 5 Forensic + Hardening, Phase 6 Camera Rollout) each get their own plan file when started. **Do not start a phase before its plan exists and is approved.**
 
 ---
 
@@ -321,6 +340,71 @@ When dispatching a subagent (Plan, Explore, code-reviewer, etc.):
 - User's global rules: `~/.claude/rules/{python-*,git-workflow,development-workflow,performance,agents}.md`
 - User's global memory for this project: `~/.claude/projects/D--facial-recognistion/memory/MEMORY.md`
 - User email: `ai@apltechno.com`. User git name: `Gurvir Singh`.
+
+---
+
+## 16. Documentation layout — uniform convention
+
+All project documentation lives under `docs/`. The directory tree and naming rules below apply to every new file added.
+
+```
+docs/
+├── superpowers/
+│   ├── specs/       YYYY-MM-DD-vms-<topic>.md       ← design specifications
+│   └── plans/       YYYY-MM-DD-vms-<phase>-<topic>.md ← implementation plans
+└── EXPLAINER.md                                       ← standalone reference docs
+```
+
+### Naming rules
+
+| Type | Pattern | Example |
+|---|---|---|
+| Design spec | `YYYY-MM-DD-vms-<topic>.md` | `2026-05-01-vms-v2-hardened-design.md` |
+| Implementation plan | `YYYY-MM-DD-vms-<phase>-<topic>.md` | `2026-05-09-vms-v2-phase1b-ingestion-inference-api.md` |
+| Reference / explainer | `<topic>.md` under `docs/` root | `EXPLAINER.md` |
+
+### Required header for every plan
+
+Every plan file must start with:
+
+```markdown
+# <Title> Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
+> (recommended) or superpowers:executing-plans to implement this plan task-by-task.
+> Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Status: NOT STARTED | IN PROGRESS | COMPLETE**
+
+**Goal:** ...
+
+**Architecture:** ...
+
+**Tech Stack:** ...
+
+**Spec refs:** ...
+```
+
+### Required header for every spec
+
+```markdown
+# <Title>
+**Design Specification** · YYYY-MM-DD
+**Status:** Draft | Approved | Superseded
+```
+
+### Plan status tracking
+
+Update the `**Status:**` line in the plan file as work progresses:
+- `NOT STARTED` → plan written, not yet executing
+- `IN PROGRESS` → execution under way; note current task number
+- `COMPLETE` → all tasks done, tests passing, committed
+
+Also update CLAUDE.md §3 to reflect which phase is active.
+
+### One plan per phase
+
+Each phase gets exactly one plan file. A plan that grows unwieldy (> 800 lines) should be split into sub-phase plans (`phase2a`, `phase2b`, etc.). Sub-phase plans follow the same naming convention.
 
 ---
 
