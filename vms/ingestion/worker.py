@@ -66,7 +66,8 @@ class IngestionWorker:
                         cv2.resize(frame_np, (self._camera.width, self._camera.height)),
                         dtype=np.uint8,
                     )
-                assert self._slot is not None
+                if self._slot is None:
+                    raise RuntimeError("SHMSlot not initialised — call start() before _capture_loop()")
                 ts_ms = self._slot.write(frame_np, self._seq_id)
                 pointer = FramePointer(
                     cam_id=self._camera.camera_id,

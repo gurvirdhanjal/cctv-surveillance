@@ -55,6 +55,8 @@ async def test_ingestion_worker_publishes_frame_pointer(
     assert published[0].shm_name == "vms_cam_1"
     assert published[0].width == 64
     assert published[0].height == 48
+    assert published[0].seq_id == 0
+    assert published[0].timestamp_ms == 1000
 
 
 @pytest.mark.asyncio
