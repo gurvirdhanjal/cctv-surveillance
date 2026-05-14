@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import time as _time
+import uuid
 from unittest.mock import MagicMock
 
 import numpy as np
 
-from vms.identity.engine import IdentityEngine
+from vms.identity.engine import IdentityEngine, _TrackletEntry
 from vms.identity.reid import ReIdService
 
 
@@ -63,3 +65,54 @@ def test_engine_identify_person_delegates_to_reid_service() -> None:
 def test_engine_identify_person_returns_none_for_empty_embedding() -> None:
     engine = _make_engine()
     assert engine.identify_person(()) is None
+
+
+def test_evict_stale_removes_old_entries() -> None:
+    engine = _make_engine()
+    now_ms = int(_time.time() * 1000)
+    old_ms = now_ms - 400_000  # 400s ago > 300_000ms threshold
+
+    engine._registry[(1, 42)] = _TrackletEntry(
+        global_track_id=uuid.uuid4(),
+        person_id=None,
+        last_embedding=None,
+        last_seen_ms=old_ms,
+        camera_id=1,
+    )
+    assert len(engine._registry) == 1
+    evicted = engine.evict_stale(now_ms=now_ms)
+    assert evicted == 1
+    assert len(engine._registry) == 0
+
+
+def test_evict_stale_keeps_fresh_entries() -> None:
+    engine = _make_engine()
+    now_ms = int(_time.time() * 1000)
+    recent_ms = now_ms - 10_000  # 10s ago
+
+    engine._registry[(1, 99)] = _TrackletEntry(
+        global_track_id=uuid.uuid4(),
+        person_id=None,
+        last_embedding=None,
+        last_seen_ms=recent_ms,
+        camera_id=1,
+    )
+    evicted = engine.evict_stale(now_ms=now_ms)
+    assert evicted == 0
+    assert len(engine._registry) == 1
+
+
+def test_evict_stale_uses_current_time_when_no_arg() -> None:
+    engine = _make_engine()
+    # entry last seen 10 minutes ago — definitely stale
+    old_ms = int(_time.time() * 1000) - 600_000
+
+    engine._registry[(2, 1)] = _TrackletEntry(
+        global_track_id=uuid.uuid4(),
+        person_id=None,
+        last_embedding=None,
+        last_seen_ms=old_ms,
+        camera_id=2,
+    )
+    evicted = engine.evict_stale()  # no now_ms arg — should use current time
+    assert evicted == 1

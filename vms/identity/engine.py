@@ -24,8 +24,6 @@ from vms.identity.reid import ReIdService
 
 logger = logging.getLogger(__name__)
 
-_STALE_MS = 5 * 60 * 1000  # 5 minutes
-
 
 @dataclass
 class _TrackletEntry:
@@ -97,7 +95,7 @@ class IdentityEngine:
         for (cam, _), entry in self._registry.items():
             if cam == camera_id:
                 continue
-            if now_ms - entry.last_seen_ms > _STALE_MS:
+            if now_ms - entry.last_seen_ms > settings.reid_stale_ms:
                 continue
             if entry.last_embedding is None:
                 continue
@@ -116,3 +114,13 @@ class IdentityEngine:
         if margin < settings.reid_margin:
             return None
         return best_gid
+
+    def evict_stale(self, now_ms: int | None = None) -> int:
+        """Remove tracklets not seen within reid_stale_ms. Returns evicted count."""
+        if now_ms is None:
+            now_ms = time.time_ns() // 1_000_000
+        threshold = get_settings().reid_stale_ms
+        stale = [k for k, e in self._registry.items() if now_ms - e.last_seen_ms > threshold]
+        for k in stale:
+            del self._registry[k]
+        return len(stale)
