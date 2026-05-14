@@ -9,9 +9,20 @@ from typing import Any
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt  # type: ignore[import-untyped]
+from passlib.context import CryptContext  # type: ignore[import-untyped]
 
 from vms.config import get_settings
 from vms.db.session import SessionLocal
+
+_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def verify_password(plain: str, hashed: str) -> bool:
+    return bool(_pwd_context.verify(plain, hashed))
+
+
+def hash_password(password: str) -> str:
+    return str(_pwd_context.hash(password))
 
 _bearer = HTTPBearer(auto_error=False)
 

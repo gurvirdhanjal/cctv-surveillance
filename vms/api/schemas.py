@@ -37,6 +37,16 @@ class PurgeRequest(BaseModel):
     reason: str = Field(..., min_length=10, max_length=500)
 
 
+class TokenRequest(BaseModel):
+    username: str = Field(..., max_length=100)
+    password: str = Field(..., min_length=1, max_length=200)
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
 class HealthResponse(BaseModel):
     status: str
     version: str
