@@ -16,6 +16,7 @@ def _unit_vec(seed: int = 0) -> np.ndarray:
 
 # ── unit tests (no DB) ────────────────────────────────────────────────
 
+
 def test_faiss_index_starts_empty() -> None:
     idx = FaissIndex()
     assert idx.count() == 0
@@ -33,8 +34,8 @@ def test_faiss_index_search_returns_known_person() -> None:
     idx.add(embedding_id=1, person_id=10, embedding=v)
     results = idx.search(v, k=1)
     assert len(results) == 1
-    assert results[0][0] == 10      # person_id
-    assert results[0][1] > 0.99    # near-identical vector → similarity ≈ 1.0
+    assert results[0][0] == 10  # person_id
+    assert results[0][1] > 0.99  # near-identical vector → similarity ≈ 1.0
 
 
 def test_faiss_index_remove_decrements_count() -> None:
@@ -51,16 +52,19 @@ def test_faiss_index_search_on_empty_returns_empty() -> None:
 
 # ── integration tests (real PostgreSQL) ──────────────────────────────
 
+
 @pytest.mark.integration
 def test_faiss_index_rebuild_loads_active_embeddings(db_session: Session) -> None:
     person = Person(name="FaissAlice", employee_id="E_FAISS_01")
     db_session.add(person)
     db_session.flush()
-    db_session.add(PersonEmbedding(
-        person_id=person.person_id,
-        embedding=_unit_vec(seed=1),
-        quality_score=0.9,
-    ))
+    db_session.add(
+        PersonEmbedding(
+            person_id=person.person_id,
+            embedding=_unit_vec(seed=1),
+            quality_score=0.9,
+        )
+    )
     db_session.flush()
 
     idx = FaissIndex()

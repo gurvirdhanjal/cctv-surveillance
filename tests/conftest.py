@@ -6,6 +6,7 @@ Start with:
         -e POSTGRES_PASSWORD=vms -e POSTGRES_DB=vms_test -e POSTGRES_USER=vms \\
         -p 5434:5432 pgvector/pgvector:pg16
 """
+
 from __future__ import annotations
 
 import os
@@ -46,9 +47,7 @@ def db_session() -> Iterator[Any]:
 
     connection = engine.connect()
     transaction = connection.begin()
-    session: SASession = SASession(
-        bind=connection, join_transaction_mode="create_savepoint"
-    )
+    session: SASession = SASession(bind=connection, join_transaction_mode="create_savepoint")
     try:
         yield session
     finally:

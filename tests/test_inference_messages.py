@@ -41,9 +41,7 @@ def test_detection_frame_json_round_trip() -> None:
 
 
 def test_detection_frame_with_no_detections_round_trips() -> None:
-    frame = DetectionFrame(
-        camera_id=1, seq_id=0, timestamp_ms=0, tracklets=(), face_embeddings=()
-    )
+    frame = DetectionFrame(camera_id=1, seq_id=0, timestamp_ms=0, tracklets=(), face_embeddings=())
     recovered = DetectionFrame.from_redis_fields(frame.to_redis_fields())
     assert recovered.tracklets == ()
     assert recovered.face_embeddings == ()

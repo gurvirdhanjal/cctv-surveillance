@@ -61,7 +61,9 @@ class IdentityEngine:
             return entry.global_track_id
 
         emb_arr = np.array(embedding, dtype=np.float32) if embedding else None
-        matched_gid = self._cross_camera_match(emb_arr, camera_id, now_ms) if emb_arr is not None else None
+        matched_gid = (
+            self._cross_camera_match(emb_arr, camera_id, now_ms) if emb_arr is not None else None
+        )
         gid = matched_gid if matched_gid is not None else uuid.uuid4()
 
         self._registry[key] = _TrackletEntry(

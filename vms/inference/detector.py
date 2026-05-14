@@ -36,13 +36,9 @@ class SCRFDDetector:
     ) -> None:
         self._sess = session
         self._input_name: str = session.get_inputs()[0].name
-        self._conf_thres = (
-            conf_thres if conf_thres is not None else get_settings().scrfd_conf
-        )
+        self._conf_thres = conf_thres if conf_thres is not None else get_settings().scrfd_conf
         self._nms_thres = nms_thres
-        self._min_face_px = (
-            min_face_px if min_face_px is not None else get_settings().min_face_px
-        )
+        self._min_face_px = min_face_px if min_face_px is not None else get_settings().min_face_px
 
     @classmethod
     def from_path(cls, model_path: str) -> SCRFDDetector:
@@ -52,26 +48,20 @@ class SCRFDDetector:
         sess: Any = ort.InferenceSession(model_path, providers=providers)
         return cls(session=sess)
 
-    def detect(
-        self, frame_bgr: np.ndarray[Any, np.dtype[Any]]
-    ) -> list[FaceWithEmbedding]:
+    def detect(self, frame_bgr: np.ndarray[Any, np.dtype[Any]]) -> list[FaceWithEmbedding]:
         """Detect faces in a BGR frame. Returns FaceWithEmbedding list (embedding is empty tuple)."""
         h0, w0 = frame_bgr.shape[:2]
         blob = self._preprocess(frame_bgr)
         outputs: list[Any] = self._sess.run(None, {self._input_name: blob})
         return self._decode(outputs, h0, w0)
 
-    def _preprocess(
-        self, img: np.ndarray[Any, np.dtype[Any]]
-    ) -> np.ndarray[Any, np.dtype[Any]]:
+    def _preprocess(self, img: np.ndarray[Any, np.dtype[Any]]) -> np.ndarray[Any, np.dtype[Any]]:
         resized = cv2.resize(img, (_INPUT_SIZE, _INPUT_SIZE))
         rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(np.float32)
         rgb = (rgb - 127.5) / 128.0
         return np.transpose(rgb, (2, 0, 1))[None]
 
-    def _decode(
-        self, outputs: list[Any], h0: int, w0: int
-    ) -> list[FaceWithEmbedding]:
+    def _decode(self, outputs: list[Any], h0: int, w0: int) -> list[FaceWithEmbedding]:
         cls_outputs = outputs[0:3]
         bbox_outputs = outputs[3:6]
 
@@ -117,8 +107,7 @@ class SCRFDDetector:
         boxes[:, [1, 3]] *= h0 / _INPUT_SIZE
 
         boxes_xywh = [
-            [float(b[0]), float(b[1]), float(b[2] - b[0]), float(b[3] - b[1])]
-            for b in boxes
+            [float(b[0]), float(b[1]), float(b[2] - b[0]), float(b[3] - b[1])] for b in boxes
         ]
         idxs: Any = cv2.dnn.NMSBoxes(
             boxes_xywh, scores_arr.tolist(), self._conf_thres, self._nms_thres
