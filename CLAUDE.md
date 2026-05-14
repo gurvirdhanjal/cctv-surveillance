@@ -76,7 +76,9 @@ These legacy files are kept as reference until Phase 1B replaces them with the `
 
 ## 3. Current phase
 
-We are at **Phase 2b: Anomaly Framework** (not yet started — plan not written).
+We are at **Phase 2a Hardening** (IN PROGRESS).
+
+**Phase 2a Hardening** is the current active plan. It closes all critical/high/medium audit gaps before the anomaly framework starts. Plan: `docs/superpowers/plans/2026-05-14-vms-v2-phase2a-hardening.md`.
 
 **Phase 2a** (Identity Framework) is **COMPLETE** — 128 tests passing as of commit `634c8c4`. Plan: `docs/superpowers/plans/2026-05-14-vms-v2-phase2a-identity-framework.md`. Notes: `docs/superpowers/notes/2026-05-14-vms-v2-phase2a-implementation-notes.md`.
 
@@ -84,7 +86,7 @@ We are at **Phase 2b: Anomaly Framework** (not yet started — plan not written)
 
 **Phase 1A** (Database Schema, Project Scaffold, and Config) is **COMPLETE** — 57 tests passing as of commit `4a4bc49`. Plan: `docs/superpowers/plans/2026-05-01-vms-v2-phase1a-db-schema.md`.
 
-Subsequent phases (Phase 2 Identity + Anomaly Framework, Phase 3 Profiler + Dispatcher + Audit, Phase 4 Frontend, Phase 5 Forensic + Hardening, Phase 6 Camera Rollout) each get their own plan file when started. **Do not start a phase before its plan exists and is approved.**
+Subsequent phases (Phase 2b Anomaly Framework, Phase 3 Profiler + Dispatcher + Audit, Phase 4 Frontend, Phase 5 Forensic + Hardening, Phase 6 Camera Rollout) each get their own plan file when started. **Do not start a phase before its plan exists and is approved.**
 
 ---
 
@@ -131,6 +133,7 @@ Python style is documented in the user's `~/.claude/rules/python-coding-style.md
 - **Type annotations everywhere.** `mypy --strict` must pass. `Any` requires a comment explaining why.
 - **Frozen dataclasses for DTOs**, especially in inter-module messages (between ingestion → inference → identity). Mutability is opt-in via `@dataclass(frozen=False)` and must be justified.
 - **No `print()` calls in production code.** Use `logging.getLogger(__name__)`.
+- **Timezone convention:** DB stores all timestamps as UTC-naive (`TIMESTAMP WITHOUT TIME ZONE`). In code, always use `datetime.now(timezone.utc).replace(tzinfo=None)` — never bare `datetime.utcnow()`. Developer timezone is **IST (UTC+5:30)** for notes and plan dates; this does not affect DB or API behaviour.
 - **No emoji or decorative characters in code or commit messages** — they break terminal rendering on some Windows shells.
 - **Comments are rare.** Default to no comment. Only write a comment for non-obvious WHY (a hidden constraint, a workaround for a specific bug). Never comment what the code does — names should do that.
 - **Files stay under ~600 lines.** When `vms/db/models.py` approaches that, split by domain (`models/identity.py`, `models/topology.py`, etc.) — but only when the threshold is hit, not preemptively.
