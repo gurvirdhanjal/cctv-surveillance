@@ -9,17 +9,27 @@ project_to_floor uses bottom-centre (foot point) for better accuracy on standing
 from __future__ import annotations
 
 import json
+import logging
 
 import cv2
 import numpy as np
 
+logger = logging.getLogger(__name__)
+
 
 def load_homography(homography_json: str | None) -> np.ndarray | None:  # type: ignore[type-arg]
-    """Parse a camera's homography_matrix JSON into a (3, 3) float64 ndarray."""
+    """Parse a camera's homography_matrix JSON into a (3, 3) float64 ndarray.
+
+    Returns None if the input is None or malformed JSON.
+    """
     if homography_json is None:
         return None
-    flat: list[float] = json.loads(homography_json)
-    return np.array(flat, dtype=np.float64).reshape(3, 3)
+    try:
+        flat: list[float] = json.loads(homography_json)
+        return np.array(flat, dtype=np.float64).reshape(3, 3)
+    except (json.JSONDecodeError, ValueError):
+        logger.warning("Invalid homography_matrix JSON — skipping floor projection")
+        return None
 
 
 def project_to_floor(

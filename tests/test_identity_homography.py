@@ -33,3 +33,13 @@ def test_project_to_floor_identity_matrix() -> None:
 
 def test_project_to_floor_returns_none_for_no_matrix() -> None:
     assert project_to_floor((0, 0, 100, 200), None) is None
+
+
+def test_load_homography_malformed_json_returns_none() -> None:
+    result = load_homography("not valid json {{")
+    assert result is None
+
+
+def test_project_to_floor_malformed_json_returns_none() -> None:
+    result = project_to_floor((100, 100, 200, 200), "not valid json {{")
+    assert result is None
