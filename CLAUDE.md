@@ -76,9 +76,9 @@ These legacy files are kept as reference until Phase 1B replaces them with the `
 
 ## 3. Current phase
 
-We are at **Phase 2a Hardening** (IN PROGRESS).
+We are at **Phase 2b: Anomaly Framework** (not yet started — plan not written).
 
-**Phase 2a Hardening** is the current active plan. It closes all critical/high/medium audit gaps before the anomaly framework starts. Plan: `docs/superpowers/plans/2026-05-14-vms-v2-phase2a-hardening.md`.
+**Phase 2a Hardening** is **COMPLETE** — 159 tests passing as of commit `019e45e`. Plan: `docs/superpowers/plans/2026-05-14-vms-v2-phase2a-hardening.md`.
 
 **Phase 2a** (Identity Framework) is **COMPLETE** — 128 tests passing as of commit `634c8c4`. Plan: `docs/superpowers/plans/2026-05-14-vms-v2-phase2a-identity-framework.md`. Notes: `docs/superpowers/notes/2026-05-14-vms-v2-phase2a-implementation-notes.md`.
 
