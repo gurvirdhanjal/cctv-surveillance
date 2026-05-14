@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Generator
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import Depends, HTTPException, status
@@ -31,7 +32,12 @@ def get_db() -> Generator[Any, None, None]:
 
 def create_access_token(user_id: int, role: str) -> str:
     settings = get_settings()
-    payload = {"sub": str(user_id), "role": role}
+    expire = datetime.now(timezone.utc) + timedelta(hours=settings.jwt_expire_hours)
+    payload = {
+        "sub": str(user_id),
+        "role": role,
+        "exp": expire,
+    }
     return str(jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm))
 
 
