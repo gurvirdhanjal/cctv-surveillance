@@ -44,6 +44,7 @@ class Camera(Base):
     profiled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     model_overrides: Mapped[str | None] = mapped_column(Text, nullable=True)
     worker_group: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    homography_matrix: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class Zone(Base):
@@ -56,6 +57,7 @@ class Zone(Base):
     allowed_hours: Mapped[str | None] = mapped_column(Text, nullable=True)
     loiter_threshold_s: Mapped[int] = mapped_column(Integer, nullable=False, default=180)
     polygon_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    adjacent_zone_ids: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 # ─────────────────────────────────────────────────────────────────────
