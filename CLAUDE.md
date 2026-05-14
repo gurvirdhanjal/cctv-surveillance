@@ -76,7 +76,9 @@ These legacy files are kept as reference until Phase 1B replaces them with the `
 
 ## 3. Current phase
 
-We are at **Phase 1B: Ingestion, Inference, and Base API.** See `docs/superpowers/plans/2026-05-09-vms-v2-phase1b-ingestion-inference-api.md` for the 10-task TDD plan.
+We are at **Phase 2: Identity + Anomaly Framework** (not yet started — plan not written).
+
+**Phase 1B** (Ingestion, Inference, and Base API) is **COMPLETE** — 96 tests passing as of commit `019e45e`. Plan: `docs/superpowers/plans/2026-05-09-vms-v2-phase1b-ingestion-inference-api.md`. Notes: `docs/superpowers/notes/2026-05-09-vms-v2-phase1b-implementation-notes.md`.
 
 **Phase 1A** (Database Schema, Project Scaffold, and Config) is **COMPLETE** — 57 tests passing as of commit `4a4bc49`. Plan: `docs/superpowers/plans/2026-05-01-vms-v2-phase1a-db-schema.md`.
 
@@ -350,9 +352,10 @@ All project documentation lives under `docs/`. The directory tree and naming rul
 ```
 docs/
 ├── superpowers/
-│   ├── specs/       YYYY-MM-DD-vms-<topic>.md       ← design specifications
-│   └── plans/       YYYY-MM-DD-vms-<phase>-<topic>.md ← implementation plans
-└── EXPLAINER.md                                       ← standalone reference docs
+│   ├── specs/       YYYY-MM-DD-vms-<topic>.md               ← design specifications
+│   ├── plans/       YYYY-MM-DD-vms-<phase>-<topic>.md        ← implementation plans
+│   └── notes/       YYYY-MM-DD-vms-<phase>-implementation-notes.md ← task notes
+└── EXPLAINER.md                                               ← standalone reference docs
 ```
 
 ### Naming rules
@@ -361,6 +364,7 @@ docs/
 |---|---|---|
 | Design spec | `YYYY-MM-DD-vms-<topic>.md` | `2026-05-01-vms-v2-hardened-design.md` |
 | Implementation plan | `YYYY-MM-DD-vms-<phase>-<topic>.md` | `2026-05-09-vms-v2-phase1b-ingestion-inference-api.md` |
+| Implementation notes | `YYYY-MM-DD-vms-<phase>-implementation-notes.md` | `2026-05-09-vms-v2-phase1b-implementation-notes.md` |
 | Reference / explainer | `<topic>.md` under `docs/` root | `EXPLAINER.md` |
 
 ### Required header for every plan
@@ -405,6 +409,10 @@ Also update CLAUDE.md §3 to reflect which phase is active.
 ### One plan per phase
 
 Each phase gets exactly one plan file. A plan that grows unwieldy (> 800 lines) should be split into sub-phase plans (`phase2a`, `phase2b`, etc.). Sub-phase plans follow the same naming convention.
+
+### Implementation notes
+
+Each phase also gets one notes file in `docs/superpowers/notes/`. Update the notes file after each task completes — record decisions made, fixes applied, and anything surprising. The notes file is the companion to the plan: the plan says what to do; the notes say what actually happened and why.
 
 ---
 

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status: NOT STARTED**
+**Status: COMPLETE** (Tasks 1–10 done, 96 tests passing, commit `019e45e`)
 
 **Goal:** Wire the RTSP/webcam frame pipeline end-to-end — camera capture through shared memory and Redis Streams to SCRFD + AdaFace + YOLOv8n + ByteTrack inference — and expose a minimal FastAPI surface (health + person enrollment + JWT auth).
 

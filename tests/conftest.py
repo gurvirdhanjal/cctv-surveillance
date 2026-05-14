@@ -42,7 +42,6 @@ def _create_schema() -> Iterator[None]:
 def db_session() -> Iterator[Any]:
     """Each test runs inside a rolled-back transaction for full isolation."""
     import vms.db.models  # noqa: F401 — ensure all models are registered
-
     from vms.db.session import engine
 
     connection = engine.connect()
