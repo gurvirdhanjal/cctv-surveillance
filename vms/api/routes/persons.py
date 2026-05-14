@@ -24,13 +24,21 @@ from vms.db.models import User as DBUser
 
 router = APIRouter()
 
+_MANAGER_ROLES = {"manager", "admin"}
+
+
+def _require_manager(user: dict[str, Any]) -> None:
+    if user.get("role") not in _MANAGER_ROLES:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager role required")
+
 
 @router.post("/persons", response_model=PersonResponse, status_code=status.HTTP_201_CREATED)
 def create_person(
     body: PersonCreate,
     db: Session = Depends(get_db),  # noqa: B008
-    _user: dict[str, Any] = Depends(get_current_user),  # noqa: B008
+    user: dict[str, Any] = Depends(get_current_user),  # noqa: B008
 ) -> Person:
+    _require_manager(user)
     person = Person(
         name=body.name,
         employee_id=body.employee_id,
@@ -50,8 +58,9 @@ def add_embedding(
     person_id: int,
     body: EmbeddingCreate,
     db: Session = Depends(get_db),  # noqa: B008
-    _user: dict[str, Any] = Depends(get_current_user),  # noqa: B008
+    user: dict[str, Any] = Depends(get_current_user),  # noqa: B008
 ) -> PersonEmbedding:
+    _require_manager(user)
     person = db.get(Person, person_id)
     if person is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Person not found")
@@ -71,10 +80,11 @@ def add_embedding(
 def search_persons(
     q: str,
     db: Session = Depends(get_db),  # noqa: B008
-    _user: dict[str, Any] = Depends(get_current_user),  # noqa: B008
+    user: dict[str, Any] = Depends(get_current_user),  # noqa: B008
 ) -> list[Person]:
     return (
         db.query(Person)
+        .filter(Person.is_active.is_(True))
         .filter(Person.name.ilike(f"%{q}%") | Person.employee_id.ilike(f"%{q}%"))
         .limit(50)
         .all()

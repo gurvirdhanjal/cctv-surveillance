@@ -3,15 +3,24 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.orm import Session
 
 from vms.api.deps import create_access_token
 from vms.api.main import app
+from vms.db.models import Person
 
 
 def _auth_headers(role: str = "admin") -> dict[str, str]:
     token = create_access_token(user_id=1, role=role)
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _auth_headers_role(role: str) -> dict[str, str]:
+    from vms.api.deps import create_access_token
+
+    token = create_access_token(user_id=99, role=role)
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -117,3 +126,65 @@ async def test_purge_person_rejects_wrong_confirmation(db_session: Session) -> N
             headers=_auth_headers(role="admin"),
         )
     assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_create_person_guard_role_returns_403() -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/persons",
+            json={"name": "Bob", "employee_id": "E999"},
+            headers=_auth_headers_role("guard"),
+        )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_add_embedding_guard_role_returns_403(db_session: Session) -> None:
+    person = Person(name="Alice", employee_id="EA1")
+    db_session.add(person)
+    db_session.flush()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            f"/api/persons/{person.person_id}/embeddings",
+            json={"embedding": [0.0] * 512, "quality_score": 0.9},
+            headers=_auth_headers_role("guard"),
+        )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_search_excludes_purged_persons(db_session: Session) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        create_resp1 = await client.post(
+            "/api/persons",
+            json={"name": "ActiveAlice", "employee_id": "AA1"},
+            headers=_auth_headers_role("manager"),
+        )
+        assert create_resp1.status_code == 201
+
+        create_resp2 = await client.post(
+            "/api/persons",
+            json={"name": "ActiveAlice", "employee_id": "AA2"},
+            headers=_auth_headers_role("manager"),
+        )
+        person_id2 = create_resp2.json()["person_id"]
+
+        purge_resp = await client.request(
+            "DELETE",
+            f"/api/persons/{person_id2}",
+            json={"confirmation_name": "ActiveAlice", "reason": "test purge"},
+            headers=_auth_headers_role("admin"),
+        )
+        assert purge_resp.status_code == 204
+
+        response = await client.get(
+            "/api/persons/search?q=ActiveAlice",
+            headers=_auth_headers_role("manager"),
+        )
+    assert response.status_code == 200
+    results = response.json()
+    ids = [r["employee_id"] for r in results]
+    assert "AA1" in ids
+    assert "AA2" not in ids
