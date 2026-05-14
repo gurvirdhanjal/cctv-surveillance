@@ -32,6 +32,11 @@ class EmbeddingResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class PurgeRequest(BaseModel):
+    confirmation_name: str = Field(..., description="Must match person.name exactly")
+    reason: str = Field(..., min_length=10, max_length=500)
+
+
 class HealthResponse(BaseModel):
     status: str
     version: str

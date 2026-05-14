@@ -68,3 +68,52 @@ async def test_add_embedding_to_existing_person(db_session: Session) -> None:
             headers=_auth_headers(),
         )
     assert embed_resp.status_code == 201
+
+
+async def test_purge_person_returns_204(db_session: Session) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        create_resp = await client.post(
+            "/api/persons",
+            json={"name": "Purge Target", "employee_id": "E_PURGE_01"},
+            headers=_auth_headers(role="admin"),
+        )
+        person_id = create_resp.json()["person_id"]
+        # httpx.delete() does not accept json=; use request() for DELETE with body
+        resp = await client.request(
+            "DELETE",
+            f"/api/persons/{person_id}",
+            json={
+                "confirmation_name": "Purge Target",
+                "reason": "GDPR erasure request from subject",
+            },
+            headers=_auth_headers(role="admin"),
+        )
+    assert resp.status_code == 204
+
+
+async def test_purge_person_requires_admin_role() -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.request(
+            "DELETE",
+            "/api/persons/1",
+            json={"confirmation_name": "Anyone", "reason": "test reason here please"},
+            headers=_auth_headers(role="guard"),
+        )
+    assert resp.status_code == 403
+
+
+async def test_purge_person_rejects_wrong_confirmation(db_session: Session) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        create_resp = await client.post(
+            "/api/persons",
+            json={"name": "Real Name", "employee_id": "E_PURGE_02"},
+            headers=_auth_headers(role="admin"),
+        )
+        person_id = create_resp.json()["person_id"]
+        resp = await client.request(
+            "DELETE",
+            f"/api/persons/{person_id}",
+            json={"confirmation_name": "Wrong Name", "reason": "test reason here please"},
+            headers=_auth_headers(role="admin"),
+        )
+    assert resp.status_code == 409
