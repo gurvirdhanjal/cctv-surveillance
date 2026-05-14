@@ -9,7 +9,7 @@ import redis.asyncio as aioredis
 
 from vms.inference.detector import SCRFDDetector
 from vms.inference.embedder import AdaFaceEmbedder
-from vms.inference.messages import DetectionFrame
+from vms.inference.messages import DetectionFrame, FaceWithEmbedding, Tracklet
 from vms.inference.tracker import PerCameraTracker
 from vms.ingestion.messages import FramePointer
 from vms.ingestion.shm import SHMSlot
@@ -18,6 +18,30 @@ from vms.redis_client import stream_add, stream_read
 logger = logging.getLogger(__name__)
 
 _DETECTIONS_STREAM = "detections"
+
+
+def _associate_faces(
+    tracklets: tuple[Tracklet, ...],
+    face_embeddings: tuple[FaceWithEmbedding, ...],
+) -> dict[int, tuple[float, ...]]:
+    """Map local_track_id -> face embedding by face-centre-inside-person-bbox heuristic.
+
+    Each face is assigned to the first unmatched tracklet whose bbox contains the face centre.
+    Faces with empty embeddings are skipped.
+    """
+    result: dict[int, tuple[float, ...]] = {}
+    for fw in face_embeddings:
+        if not fw.embedding:
+            continue
+        fx = (fw.bbox[0] + fw.bbox[2]) // 2
+        fy = (fw.bbox[1] + fw.bbox[3]) // 2
+        for t in tracklets:
+            if t.local_track_id in result:
+                continue
+            x1, y1, x2, y2 = t.bbox
+            if x1 <= fx <= x2 and y1 <= fy <= y2:
+                result[t.local_track_id] = fw.embedding
+    return result
 
 
 class InferenceEngine:
@@ -74,13 +98,25 @@ class InferenceEngine:
                 face_embeddings.append(with_emb)
 
         tracker = self._trackers.get(pointer.cam_id)
-        tracklets = tracker.update(frame_bgr) if tracker else []
+        raw_tracklets = tracker.update(frame_bgr) if tracker else []
+
+        emb_map = _associate_faces(tuple(raw_tracklets), tuple(face_embeddings))
+        enriched_tracklets = tuple(
+            Tracklet(
+                local_track_id=t.local_track_id,
+                camera_id=t.camera_id,
+                bbox=t.bbox,
+                confidence=t.confidence,
+                embedding=emb_map.get(t.local_track_id, ()),
+            )
+            for t in raw_tracklets
+        )
 
         detection_frame = DetectionFrame(
             camera_id=pointer.cam_id,
             seq_id=seq_id,
             timestamp_ms=timestamp_ms,
-            tracklets=tuple(tracklets),
+            tracklets=enriched_tracklets,
             face_embeddings=tuple(face_embeddings),
         )
         await stream_add(self._redis, _DETECTIONS_STREAM, detection_frame.to_redis_fields())

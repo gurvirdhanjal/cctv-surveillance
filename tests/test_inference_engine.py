@@ -69,6 +69,41 @@ async def test_engine_publishes_detection_frame_to_detections_stream(
     assert frame_data.seq_id == 0
 
 
+def test_associate_faces_assigns_embedding_when_face_center_in_person_bbox() -> None:
+    from vms.inference.engine import _associate_faces
+    from vms.inference.messages import FaceWithEmbedding, Tracklet
+
+    tracklets = (
+        Tracklet(local_track_id=1, camera_id=1, bbox=(100, 100, 300, 400), confidence=0.9),
+    )
+    face_emb = tuple([0.1] * 512)
+    faces = (FaceWithEmbedding(bbox=(150, 150, 250, 250), confidence=0.95, embedding=face_emb),)
+    result = _associate_faces(tracklets, faces)
+    assert result[1] == face_emb
+
+
+def test_associate_faces_ignores_face_outside_all_bboxes() -> None:
+    from vms.inference.engine import _associate_faces
+    from vms.inference.messages import FaceWithEmbedding, Tracklet
+
+    tracklets = (Tracklet(local_track_id=1, camera_id=1, bbox=(0, 0, 100, 100), confidence=0.9),)
+    faces = (
+        FaceWithEmbedding(bbox=(500, 500, 600, 600), confidence=0.95, embedding=tuple([0.1] * 512)),
+    )
+    result = _associate_faces(tracklets, faces)
+    assert 1 not in result
+
+
+def test_associate_faces_ignores_face_with_empty_embedding() -> None:
+    from vms.inference.engine import _associate_faces
+    from vms.inference.messages import FaceWithEmbedding, Tracklet
+
+    tracklets = (Tracklet(local_track_id=1, camera_id=1, bbox=(0, 0, 300, 300), confidence=0.9),)
+    faces = (FaceWithEmbedding(bbox=(50, 50, 150, 150), confidence=0.95, embedding=()),)
+    result = _associate_faces(tracklets, faces)
+    assert 1 not in result
+
+
 @pytest.mark.asyncio
 async def test_engine_skips_stale_frame(fake_redis: fake_aioredis.FakeRedis) -> None:
     engine = _make_engine(fake_redis)

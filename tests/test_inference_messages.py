@@ -45,3 +45,59 @@ def test_detection_frame_with_no_detections_round_trips() -> None:
     recovered = DetectionFrame.from_redis_fields(frame.to_redis_fields())
     assert recovered.tracklets == ()
     assert recovered.face_embeddings == ()
+
+
+def test_tracklet_has_embedding_field_defaulting_to_empty() -> None:
+    from vms.inference.messages import Tracklet
+
+    t = Tracklet(local_track_id=1, camera_id=1, bbox=(0, 0, 100, 100), confidence=0.9)
+    assert t.embedding == ()
+
+
+def test_tracklet_accepts_embedding() -> None:
+    from vms.inference.messages import Tracklet
+
+    emb = tuple([0.1] * 512)
+    t = Tracklet(
+        local_track_id=1, camera_id=1, bbox=(0, 0, 100, 100), confidence=0.9, embedding=emb
+    )
+    assert len(t.embedding) == 512
+
+
+def test_detection_frame_round_trips_tracklet_embedding() -> None:
+    from vms.inference.messages import DetectionFrame, Tracklet
+
+    emb = tuple([0.2] * 512)
+    frame = DetectionFrame(
+        camera_id=1,
+        seq_id=1,
+        timestamp_ms=1000,
+        tracklets=(
+            Tracklet(
+                local_track_id=1,
+                camera_id=1,
+                bbox=(0, 0, 10, 10),
+                confidence=0.9,
+                embedding=emb,
+            ),
+        ),
+        face_embeddings=(),
+    )
+    fields = frame.to_redis_fields()
+    restored = DetectionFrame.from_redis_fields(fields)
+    assert restored.tracklets[0].embedding == emb
+
+
+def test_detection_frame_round_trips_tracklet_no_embedding() -> None:
+    from vms.inference.messages import DetectionFrame, Tracklet
+
+    frame = DetectionFrame(
+        camera_id=1,
+        seq_id=1,
+        timestamp_ms=1000,
+        tracklets=(Tracklet(local_track_id=1, camera_id=1, bbox=(0, 0, 10, 10), confidence=0.9),),
+        face_embeddings=(),
+    )
+    fields = frame.to_redis_fields()
+    restored = DetectionFrame.from_redis_fields(fields)
+    assert restored.tracklets[0].embedding == ()
