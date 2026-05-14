@@ -7,7 +7,7 @@ Never construct AuditLog ORM objects directly; always go through write_audit_eve
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -61,11 +61,14 @@ def write_audit_event(
     inserts, and returns the persisted AuditLog row.
     """
     last = session.execute(
-        select(AuditLog).order_by(AuditLog.audit_id.desc()).limit(1)
+        select(AuditLog)
+        .order_by(AuditLog.audit_id.desc())
+        .limit(1)
+        .with_for_update()
     ).scalar_one_or_none()
 
     prev_hash = last.row_hash if last is not None else _ZERO_HASH
-    event_ts = datetime.utcnow()
+    event_ts = datetime.now(timezone.utc).replace(tzinfo=None)
 
     row = AuditLog(
         event_type=event_type,
