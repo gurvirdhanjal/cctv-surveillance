@@ -61,10 +61,7 @@ def write_audit_event(
     inserts, and returns the persisted AuditLog row.
     """
     last = session.execute(
-        select(AuditLog)
-        .order_by(AuditLog.audit_id.desc())
-        .limit(1)
-        .with_for_update()
+        select(AuditLog).order_by(AuditLog.audit_id.desc()).limit(1).with_for_update()
     ).scalar_one_or_none()
 
     prev_hash = last.row_hash if last is not None else _ZERO_HASH

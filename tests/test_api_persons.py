@@ -194,7 +194,9 @@ async def test_search_excludes_purged_persons(db_session: Session) -> None:
 
 @pytest.mark.asyncio
 async def test_add_embedding_publishes_faiss_add() -> None:
-    with patch("vms.api.routes.persons.faiss_dirty.publish_add", new_callable=AsyncMock) as mock_pub:
+    with patch(
+        "vms.api.routes.persons.faiss_dirty.publish_add", new_callable=AsyncMock
+    ) as mock_pub:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             create_resp = await client.post(
                 "/api/persons",
@@ -214,7 +216,9 @@ async def test_add_embedding_publishes_faiss_add() -> None:
 
 @pytest.mark.asyncio
 async def test_purge_publishes_faiss_remove() -> None:
-    with patch("vms.api.routes.persons.faiss_dirty.publish_remove", new_callable=AsyncMock) as mock_pub:
+    with patch(
+        "vms.api.routes.persons.faiss_dirty.publish_remove", new_callable=AsyncMock
+    ) as mock_pub:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             create_resp = await client.post(
                 "/api/persons",

@@ -1,4 +1,5 @@
 """Tests for POST /api/auth/token."""
+
 from __future__ import annotations
 
 import uuid

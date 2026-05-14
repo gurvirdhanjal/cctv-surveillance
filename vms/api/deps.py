@@ -27,6 +27,7 @@ def get_api_redis() -> aioredis.Redis:
         )
     return _api_redis
 
+
 _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 

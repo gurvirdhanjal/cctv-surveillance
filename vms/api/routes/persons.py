@@ -139,7 +139,5 @@ async def purge_person(
         target_id=str(person_id),
         payload=body.reason,
     )
-    await faiss_dirty.publish_remove(
-        get_api_redis(), person_id=person_id, embedding_ids=emb_ids
-    )
+    await faiss_dirty.publish_remove(get_api_redis(), person_id=person_id, embedding_ids=emb_ids)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
