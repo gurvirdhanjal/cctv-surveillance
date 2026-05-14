@@ -76,7 +76,9 @@ These legacy files are kept as reference until Phase 1B replaces them with the `
 
 ## 3. Current phase
 
-We are at **Phase 2: Identity + Anomaly Framework** (not yet started — plan not written).
+We are at **Phase 2b: Anomaly Framework** (not yet started — plan not written).
+
+**Phase 2a** (Identity Framework) is **COMPLETE** — 128 tests passing as of commit `634c8c4`. Plan: `docs/superpowers/plans/2026-05-14-vms-v2-phase2a-identity-framework.md`. Notes: `docs/superpowers/notes/2026-05-14-vms-v2-phase2a-implementation-notes.md`.
 
 **Phase 1B** (Ingestion, Inference, and Base API) is **COMPLETE** — 96 tests passing as of commit `019e45e`. Plan: `docs/superpowers/plans/2026-05-09-vms-v2-phase1b-ingestion-inference-api.md`. Notes: `docs/superpowers/notes/2026-05-09-vms-v2-phase1b-implementation-notes.md`.
 
