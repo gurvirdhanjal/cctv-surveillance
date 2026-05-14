@@ -46,3 +46,13 @@ def test_missing_required_raises() -> None:
 
     with patch.dict(os.environ, {}, clear=True), pytest.raises(ValidationError):
         Settings()  # type: ignore[call-arg]
+
+
+def test_reid_stale_ms_default() -> None:
+    s = Settings(db_url="postgresql://x/y", jwt_secret="s")  # type: ignore[call-arg]
+    assert s.reid_stale_ms == 300_000
+
+
+def test_zone_cache_ttl_s_default() -> None:
+    s = Settings(db_url="postgresql://x/y", jwt_secret="s")  # type: ignore[call-arg]
+    assert s.zone_cache_ttl_s == 30

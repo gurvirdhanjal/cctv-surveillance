@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     min_blur: float = 25.0
     min_face_px: int = 40
 
+    # identity
+    reid_stale_ms: int = 300_000
+    zone_cache_ttl_s: int = 30
+
     # pipeline tuning
     stale_threshold_ms: int = 200
     db_flush_rows: int = 100
