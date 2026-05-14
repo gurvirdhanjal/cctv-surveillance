@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
-from vms.api.deps import get_current_user, get_db
+from vms.api.deps import get_api_redis, get_current_user, get_db
 from vms.api.schemas import (
     EmbeddingCreate,
     EmbeddingResponse,
@@ -21,6 +21,7 @@ from vms.api.schemas import (
 from vms.db.audit import write_audit_event
 from vms.db.models import Person, PersonEmbedding
 from vms.db.models import User as DBUser
+from vms.identity import faiss_dirty
 
 router = APIRouter()
 
@@ -54,7 +55,7 @@ def create_person(
     response_model=EmbeddingResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def add_embedding(
+async def add_embedding(
     person_id: int,
     body: EmbeddingCreate,
     db: Session = Depends(get_db),  # noqa: B008
@@ -73,6 +74,9 @@ def add_embedding(
     db.add(record)
     db.commit()
     db.refresh(record)
+    await faiss_dirty.publish_add(
+        get_api_redis(), embedding_id=record.embedding_id, person_id=person_id
+    )
     return record
 
 
@@ -92,7 +96,7 @@ def search_persons(
 
 
 @router.delete("/persons/{person_id}")
-def purge_person(
+async def purge_person(
     person_id: int,
     body: PurgeRequest,
     db: Session = Depends(get_db),  # noqa: B008
@@ -110,14 +114,16 @@ def purge_person(
             detail="confirmation_name does not match person.name",
         )
 
+    blank: list[float] = np.zeros(512, dtype=np.float32).tolist()
+    embs = db.query(PersonEmbedding).filter_by(person_id=person_id).all()
+    emb_ids = [e.embedding_id for e in embs]
+    for emb in embs:
+        emb.embedding = blank
+        emb.quality_score = 0.0
+
     person.is_active = False
     person.purged_at = datetime.utcnow()
     person.thumbnail_path = None
-
-    blank: list[float] = np.zeros(512, dtype=np.float32).tolist()
-    for emb in db.query(PersonEmbedding).filter_by(person_id=person_id).all():
-        emb.embedding = blank
-        emb.quality_score = 0.0
 
     # Resolve actor_user_id only when the user exists in DB — handles deleted-user edge case
     actor_id: int | None = int(user["sub"])
@@ -132,5 +138,8 @@ def purge_person(
         target_type="person",
         target_id=str(person_id),
         payload=body.reason,
+    )
+    await faiss_dirty.publish_remove(
+        get_api_redis(), person_id=person_id, embedding_ids=emb_ids
     )
     return Response(status_code=status.HTTP_204_NO_CONTENT)

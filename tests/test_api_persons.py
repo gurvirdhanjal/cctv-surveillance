@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from unittest.mock import AsyncMock, patch
+
 import numpy as np
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -188,3 +190,50 @@ async def test_search_excludes_purged_persons(db_session: Session) -> None:
     ids = [r["employee_id"] for r in results]
     assert "AA1" in ids
     assert "AA2" not in ids
+
+
+@pytest.mark.asyncio
+async def test_add_embedding_publishes_faiss_add() -> None:
+    with patch("vms.api.routes.persons.faiss_dirty.publish_add", new_callable=AsyncMock) as mock_pub:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            create_resp = await client.post(
+                "/api/persons",
+                json={"name": "FaissTest", "employee_id": "FT_FAISS1"},
+                headers=_auth_headers("admin"),
+            )
+            assert create_resp.status_code == 201
+            person_id = create_resp.json()["person_id"]
+            response = await client.post(
+                f"/api/persons/{person_id}/embeddings",
+                json={"embedding": [0.1] * 512, "quality_score": 0.85},
+                headers=_auth_headers("admin"),
+            )
+        assert response.status_code == 201
+        mock_pub.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_purge_publishes_faiss_remove() -> None:
+    with patch("vms.api.routes.persons.faiss_dirty.publish_remove", new_callable=AsyncMock) as mock_pub:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            create_resp = await client.post(
+                "/api/persons",
+                json={"name": "PurgeMe", "employee_id": "FT_PURGE1"},
+                headers=_auth_headers("admin"),
+            )
+            assert create_resp.status_code == 201
+            person_id = create_resp.json()["person_id"]
+            emb_resp = await client.post(
+                f"/api/persons/{person_id}/embeddings",
+                json={"embedding": [0.0] * 512, "quality_score": 0.9},
+                headers=_auth_headers("admin"),
+            )
+            assert emb_resp.status_code == 201
+            response = await client.request(
+                "DELETE",
+                f"/api/persons/{person_id}",
+                json={"confirmation_name": "PurgeMe", "reason": "GDPR erasure request"},
+                headers=_auth_headers("admin"),
+            )
+        assert response.status_code == 204
+        mock_pub.assert_called_once()

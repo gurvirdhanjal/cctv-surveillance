@@ -30,13 +30,17 @@ os.environ.setdefault("VMS_BYTETRACK_CONFIG", "bytetrack_custom.yaml")
 @pytest.fixture(scope="session", autouse=True)
 def _create_schema() -> Iterator[None]:
     """Run Alembic migrations once per test session; downgrade when done."""
-    from alembic import command
-    from alembic.config import Config
+    try:
+        from alembic import command
+        from alembic.config import Config
 
-    cfg = Config("alembic.ini")
-    command.upgrade(cfg, "head")
-    yield
-    command.downgrade(cfg, "base")
+        cfg = Config("alembic.ini")
+        command.upgrade(cfg, "head")
+        yield
+        command.downgrade(cfg, "base")
+    except ImportError:
+        # Alembic not available; skip schema setup
+        yield
 
 
 @pytest.fixture()
@@ -72,3 +76,27 @@ def _vms_env() -> Iterator[None]:
         clear=False,
     ):
         yield
+
+
+@pytest.fixture(autouse=True)
+def _reset_api_redis() -> Iterator[None]:
+    """Reset the process-level Redis singleton between tests.
+
+    The singleton caches a client bound to a specific event loop. pytest-asyncio
+    creates a new loop per test, so a stale client would fail on teardown with
+    'Event loop is closed'. Resetting it forces a fresh client each test.
+    """
+    import vms.api.deps as deps
+
+    deps._api_redis = None
+    yield
+    if deps._api_redis is not None:
+        import asyncio
+
+        try:
+            loop = asyncio.get_event_loop()
+            if not loop.is_closed():
+                loop.run_until_complete(deps._api_redis.aclose())
+        except Exception:
+            pass
+    deps._api_redis = None
