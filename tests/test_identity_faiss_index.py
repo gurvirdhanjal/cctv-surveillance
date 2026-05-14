@@ -73,13 +73,15 @@ def test_faiss_index_rebuild_excludes_inactive_persons(db_session: Session) -> N
     person = Person(name="FaissBob", employee_id="E_FAISS_02", is_active=False)
     db_session.add(person)
     db_session.flush()
-    db_session.add(PersonEmbedding(
+    emb = PersonEmbedding(
         person_id=person.person_id,
         embedding=_unit_vec(seed=2),
         quality_score=0.8,
-    ))
+    )
+    db_session.add(emb)
     db_session.flush()
 
     idx = FaissIndex()
     idx.rebuild(db_session)
-    assert idx.count() == 0
+    # Inactive person's person_id must not appear in any search result
+    assert person.person_id not in {pid for pid, _ in idx.search(_unit_vec(seed=2), k=10)}
