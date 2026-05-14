@@ -38,7 +38,15 @@ class SHMSlot:
         shm = SharedMemory(name=name, create=True, size=total)
         return cls(name, width, height, shm)
 
-    def write(self, frame: np.ndarray[tuple[int, int, int], np.dtype[np.uint8]], seq_id: int) -> int:
+    @classmethod
+    def open(cls, name: str, width: int, height: int) -> SHMSlot:
+        """Attach to an existing SHM segment written by an IngestionWorker."""
+        shm = SharedMemory(name=name, create=False)
+        return cls(name, width, height, shm)
+
+    def write(
+        self, frame: np.ndarray[tuple[int, int, int], np.dtype[np.uint8]], seq_id: int
+    ) -> int:
         """Write BGR frame and header. Returns the timestamp_ms recorded."""
         ts_ms = time.time_ns() // 1_000_000
         self._shm.buf[:HEADER_SIZE] = struct.pack(HEADER_FMT, seq_id, ts_ms)
