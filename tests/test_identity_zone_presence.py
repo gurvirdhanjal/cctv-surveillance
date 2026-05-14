@@ -41,9 +41,9 @@ def zone(db_session: Session) -> Zone:
 
 @pytest.mark.integration
 def test_tracker_opens_presence_on_zone_entry(db_session: Session, zone: Zone) -> None:
-    tracker = ZonePresenceTracker(db=db_session)
+    tracker = ZonePresenceTracker()
     gid = uuid.uuid4()
-    tracker.update(global_track_id=gid, floor_x=100.0, floor_y=100.0)
+    tracker.update(db_session, gid, 100.0, 100.0)
     db_session.flush()
 
     rows = db_session.query(ZonePresence).filter_by(global_track_id=gid, zone_id=zone.zone_id).all()
@@ -53,11 +53,11 @@ def test_tracker_opens_presence_on_zone_entry(db_session: Session, zone: Zone) -
 
 @pytest.mark.integration
 def test_tracker_closes_presence_on_zone_exit(db_session: Session, zone: Zone) -> None:
-    tracker = ZonePresenceTracker(db=db_session)
+    tracker = ZonePresenceTracker()
     gid = uuid.uuid4()
-    tracker.update(global_track_id=gid, floor_x=100.0, floor_y=100.0)  # enters
+    tracker.update(db_session, gid, 100.0, 100.0)  # enters
     db_session.flush()
-    tracker.update(global_track_id=gid, floor_x=9999.0, floor_y=9999.0)  # exits
+    tracker.update(db_session, gid, 9999.0, 9999.0)  # exits
     db_session.flush()
 
     rows = db_session.query(ZonePresence).filter_by(global_track_id=gid, zone_id=zone.zone_id).all()
@@ -67,10 +67,22 @@ def test_tracker_closes_presence_on_zone_exit(db_session: Session, zone: Zone) -
 
 @pytest.mark.integration
 def test_tracker_ignores_tracklet_with_no_zone_match(db_session: Session, zone: Zone) -> None:
-    tracker = ZonePresenceTracker(db=db_session)
+    tracker = ZonePresenceTracker()
     gid = uuid.uuid4()
-    tracker.update(global_track_id=gid, floor_x=9999.0, floor_y=9999.0)
+    tracker.update(db_session, gid, 9999.0, 9999.0)
     db_session.flush()
 
     rows = db_session.query(ZonePresence).filter_by(global_track_id=gid).all()
     assert rows == []
+
+
+def test_tracker_constructed_without_session() -> None:
+    tracker = ZonePresenceTracker()
+    assert tracker is not None
+
+
+def test_tracker_update_accepts_session_as_first_arg(db_session: Session) -> None:
+    import uuid
+
+    tracker = ZonePresenceTracker()
+    tracker.update(db_session, uuid.uuid4(), 1.0, 1.0)  # no matching zone — should not raise
