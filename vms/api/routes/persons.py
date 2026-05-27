@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import numpy as np
@@ -122,7 +122,7 @@ async def purge_person(
         emb.quality_score = 0.0
 
     person.is_active = False
-    person.purged_at = datetime.utcnow()
+    person.purged_at = datetime.now(timezone.utc).replace(tzinfo=None)
     person.thumbnail_path = None
 
     # Resolve actor_user_id only when the user exists in DB — handles deleted-user edge case
