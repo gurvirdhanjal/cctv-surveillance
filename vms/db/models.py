@@ -428,4 +428,7 @@ class AuditLog(Base):
     payload: Mapped[str | None] = mapped_column(Text, nullable=True)
     prev_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     row_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    row_hash_version: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="1"
+    )
     event_ts: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow_naive)

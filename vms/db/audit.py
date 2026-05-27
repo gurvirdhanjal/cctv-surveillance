@@ -75,6 +75,7 @@ def write_audit_event(
         payload=payload,
         prev_hash=prev_hash,
         row_hash="",  # placeholder; set below after flush gives us audit_id
+        row_hash_version=ROW_HASH_VERSION,
         event_ts=event_ts,
     )
     session.add(row)

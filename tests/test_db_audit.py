@@ -7,7 +7,7 @@ import threading
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from vms.db.audit import compute_row_hash, write_audit_event
+from vms.db.audit import ROW_HASH_VERSION, compute_row_hash, write_audit_event
 from vms.db.models import AuditLog
 
 _ZERO_HASH = "0" * 64
@@ -59,6 +59,11 @@ def test_write_audit_event_persists(db_session: Session) -> None:
     fetched = db_session.get(AuditLog, row.audit_id)
     assert fetched is not None
     assert fetched.event_type == "PERSON_ENROLLED"
+
+
+def test_row_hash_version_is_persisted(db_session: Session) -> None:
+    row = write_audit_event(db_session, event_type="SCHEMA_MIGRATION")
+    assert row.row_hash_version == ROW_HASH_VERSION
 
 
 def test_chain_integrity_across_three_rows(db_session: Session) -> None:
