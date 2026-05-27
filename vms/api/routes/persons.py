@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import json
+import pathlib
 from datetime import datetime, timezone
 from typing import Any
 
 import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from vms.api.deps import get_api_redis, get_current_user, get_db
@@ -19,7 +22,7 @@ from vms.api.schemas import (
     PurgeRequest,
 )
 from vms.db.audit import write_audit_event
-from vms.db.models import Person, PersonEmbedding
+from vms.db.models import Person, PersonClipEmbedding, PersonEmbedding, TrackingEvent
 from vms.db.models import User as DBUser
 from vms.identity import faiss_dirty
 
@@ -105,7 +108,9 @@ async def purge_person(
     if user.get("role") != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required")
 
-    person = db.get(Person, person_id)
+    person = db.execute(
+        select(Person).where(Person.person_id == person_id).with_for_update()
+    ).scalar_one_or_none()
     if person is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Person not found")
     if person.name != body.confirmation_name:
@@ -121,8 +126,33 @@ async def purge_person(
         emb.embedding = blank
         emb.quality_score = 0.0
 
+    # Collect CLIP snapshot paths before deletion so we can unlink files post-commit
+    clip_paths: list[str] = list(
+        db.execute(
+            select(PersonClipEmbedding.snapshot_path)
+            .join(
+                TrackingEvent,
+                PersonClipEmbedding.global_track_id == TrackingEvent.global_track_id,
+            )
+            .where(TrackingEvent.person_id == person_id)
+            .distinct()
+        ).scalars()
+    )
+
+    # Server-side bulk delete for CLIP embeddings associated with this person
+    db.execute(
+        delete(PersonClipEmbedding).where(
+            PersonClipEmbedding.global_track_id.in_(
+                select(TrackingEvent.global_track_id).where(
+                    TrackingEvent.person_id == person_id
+                )
+            )
+        )
+    )
+
     person.is_active = False
     person.purged_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    thumbnail_path = person.thumbnail_path
     person.thumbnail_path = None
 
     # Resolve actor_user_id only when the user exists in DB — handles deleted-user edge case
@@ -137,7 +167,14 @@ async def purge_person(
         actor_user_id=actor_id,
         target_type="person",
         target_id=str(person_id),
-        payload=body.reason,
+        payload=json.dumps({"reason": body.reason, "embeddings_blanked": len(emb_ids)}),
     )
+
+    # Delete files after commit so a DB rollback doesn't orphan a deleted file
+    if thumbnail_path:
+        pathlib.Path(thumbnail_path).unlink(missing_ok=True)
+    for snap in clip_paths:
+        pathlib.Path(snap).unlink(missing_ok=True)
+
     await faiss_dirty.publish_remove(get_api_redis(), person_id=person_id, embedding_ids=emb_ids)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
