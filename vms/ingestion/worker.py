@@ -4,17 +4,23 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import cv2
 import numpy as np
 import redis.asyncio as aioredis
+from sqlalchemy.orm import Session
 
+from vms.config import get_settings
 from vms.ingestion.messages import FramePointer
 from vms.ingestion.shm import SHMSlot
 from vms.redis_client import stream_add
 
 logger = logging.getLogger(__name__)
+
+# Exponential backoff steps in seconds; last value is the cap.
+_BACKOFF_DELAYS = (1, 2, 4, 8, 16, 32)
 
 
 @dataclass
@@ -29,12 +35,19 @@ class CameraConfig:
 class IngestionWorker:
     """Reads frames from one camera, writes to SHM, publishes FramePointer to Redis."""
 
-    def __init__(self, camera: CameraConfig, redis_client: aioredis.Redis) -> None:
+    def __init__(
+        self,
+        camera: CameraConfig,
+        redis_client: aioredis.Redis,
+        session_factory: Callable[[], Session] | None = None,
+    ) -> None:
         self._camera = camera
         self._redis = redis_client
+        self._session_factory = session_factory
         self._seq_id: int = 0
         self._running: bool = False
         self._slot: SHMSlot | None = None
+        self._consecutive_failures: int = 0
 
     async def start(self) -> None:
         shm_name = f"vms_cam_{self._camera.camera_id}"
@@ -50,16 +63,55 @@ class IngestionWorker:
     async def stop(self) -> None:
         self._running = False
 
+    async def _mark_camera_inactive(self) -> None:
+        if self._session_factory is None:
+            return
+        session = self._session_factory()
+        try:
+            from vms.db.models import Camera
+
+            cam = session.get(Camera, self._camera.camera_id)
+            if cam is not None:
+                cam.is_active = False
+                session.commit()
+        except Exception:
+            logger.exception(
+                "camera_id=%d failed to mark camera inactive", self._camera.camera_id
+            )
+        finally:
+            session.close()
+
     async def _capture_loop(self) -> None:
         cap = cv2.VideoCapture(self._camera.rtsp_url)
         stream_name = f"frames:group{self._camera.worker_group}"
+        failure_threshold = get_settings().rtsp_failure_threshold
         try:
             while self._running:
                 ret, frame = cap.read()
                 if not ret:
-                    logger.warning("camera_id=%d frame read failed", self._camera.camera_id)
-                    await asyncio.sleep(0.1)
+                    self._consecutive_failures += 1
+                    delay = _BACKOFF_DELAYS[
+                        min(self._consecutive_failures - 1, len(_BACKOFF_DELAYS) - 1)
+                    ]
+                    logger.warning(
+                        "camera_id=%d frame read failed (failures=%d, backoff=%ds)",
+                        self._camera.camera_id,
+                        self._consecutive_failures,
+                        delay,
+                    )
+                    if self._consecutive_failures >= failure_threshold:
+                        logger.error(
+                            "camera_id=%d exceeded failure threshold (%d), marking inactive",
+                            self._camera.camera_id,
+                            failure_threshold,
+                        )
+                        await self._mark_camera_inactive()
+                        self._running = False
+                        break
+                    await asyncio.sleep(delay)
                     continue
+
+                self._consecutive_failures = 0
                 frame_np = np.asarray(frame, dtype=np.uint8)
                 if frame_np.shape[:2] != (self._camera.height, self._camera.width):
                     frame_np = np.asarray(

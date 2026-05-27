@@ -95,3 +95,68 @@ async def test_ingestion_worker_skips_failed_read(
         await worker.start()
 
     assert call_count >= 2  # retried after failed read
+
+
+@pytest.mark.asyncio
+async def test_ingestion_worker_backoff_delays_increase_with_failures(
+    camera_cfg: CameraConfig, fake_redis: AsyncMock
+) -> None:
+    from unittest.mock import AsyncMock as _AsyncMock
+
+    from vms.ingestion.worker import _BACKOFF_DELAYS
+
+    sleep_calls: list[float] = []
+    stop_after = 4
+
+    mock_cap = MagicMock()
+    mock_cap.read.return_value = (False, None)
+    mock_cap.release = MagicMock()
+
+    worker = IngestionWorker(camera_cfg, fake_redis)
+
+    async def fake_sleep(delay: float) -> None:
+        sleep_calls.append(delay)
+        if len(sleep_calls) >= stop_after:
+            worker._running = False
+
+    with (
+        patch("vms.ingestion.worker.cv2.VideoCapture", return_value=mock_cap),
+        patch("asyncio.sleep", side_effect=fake_sleep),
+        patch("vms.ingestion.worker.get_settings") as mock_cfg,
+        patch("vms.ingestion.worker.SHMSlot.create") as mock_create,
+    ):
+        mock_cfg.return_value.rtsp_failure_threshold = 20
+        mock_create.return_value = MagicMock()
+        await worker.start()
+
+    assert sleep_calls[:stop_after] == list(_BACKOFF_DELAYS[:stop_after])
+
+
+@pytest.mark.asyncio
+async def test_ingestion_worker_marks_camera_inactive_after_failure_threshold(
+    camera_cfg: CameraConfig, fake_redis: AsyncMock
+) -> None:
+    mock_cap = MagicMock()
+    mock_cap.read.return_value = (False, None)
+    mock_cap.release = MagicMock()
+
+    mock_cam = MagicMock()
+    mock_cam.is_active = True
+    mock_session = MagicMock()
+    mock_session.get.return_value = mock_cam
+    session_factory = MagicMock(return_value=mock_session)
+
+    worker = IngestionWorker(camera_cfg, fake_redis, session_factory=session_factory)
+
+    with (
+        patch("vms.ingestion.worker.cv2.VideoCapture", return_value=mock_cap),
+        patch("asyncio.sleep", new_callable=AsyncMock),
+        patch("vms.ingestion.worker.get_settings") as mock_cfg,
+        patch("vms.ingestion.worker.SHMSlot.create") as mock_create,
+    ):
+        mock_cfg.return_value.rtsp_failure_threshold = 3
+        mock_create.return_value = MagicMock()
+        await worker.start()
+
+    assert mock_cam.is_active is False
+    mock_session.commit.assert_called()
