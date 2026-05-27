@@ -42,6 +42,12 @@ class SHMSlot:
     def open(cls, name: str, width: int, height: int) -> SHMSlot:
         """Attach to an existing SHM segment written by an IngestionWorker."""
         shm = SharedMemory(name=name, create=False)
+        expected = HEADER_SIZE + width * height * 3
+        if shm.size != expected:
+            shm.close()
+            raise ValueError(
+                f"SHM size mismatch for '{name}': expected {expected} bytes, got {shm.size}"
+            )
         return cls(name, width, height, shm)
 
     def write(
