@@ -76,7 +76,7 @@ Legacy prototype code is in `legacy/`. Do not import.
 
 We are at **Phase 2b: Anomaly Framework** (plan reviewed; implementation NOT STARTED).
 
-**Foundation Hardening & Docs Cleanup** is **IN PROGRESS** — plan: `docs/superpowers/plans/2026-05-27-vms-foundation-hardening-and-docs-cleanup.md`. Must land before Phase 2b implementation begins.
+**Foundation Hardening & Docs Cleanup** is **COMPLETE** — 176 tests passing as of commit `3bd6669`. Plan: `docs/superpowers/plans/2026-05-27-vms-foundation-hardening-and-docs-cleanup.md`. Delivered: production readiness spec, subphase taxonomy, configurable RTSP config, E2E integration test, four ops runbooks, customer onboarding runbook, Phase 3/5 scope stubs.
 
 **Phase 1B.2 Hardening** is **COMPLETE** — 171 tests passing as of commit `210b283`. Plan: `docs/superpowers/plans/2026-05-27-vms-v2-phase1b-2-hardening.md`. Fixes: GDPR purge (SELECT FOR UPDATE + file deletion + CLIP removal + JSON audit payload), SHM size validation, RTSP exponential backoff + camera deactivation, faiss_dirty consumer startup replay.
 
