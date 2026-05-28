@@ -73,17 +73,21 @@ Legacy prototype code is in `legacy/`. Do not import.
 
 ## 3. Current phase
 
-We are at **Phase 2b: Anomaly Framework** (plan written, implementation not yet started).
+We are at **Phase 2b: Anomaly Framework** (plan reviewed; implementation NOT STARTED).
 
-**Phase 1A/1B Hardening** is **COMPLETE** — 171 tests passing as of commit `5e466f3`. Plan: `docs/superpowers/plans/2026-05-27-vms-v2-phase1ab-hardening-fixes.md`. Fixes: datetime.utcnow, row_hash_version migration, GDPR purge (SELECT FOR UPDATE + file deletion + CLIP removal + JSON audit payload), SHM size validation, RTSP exponential backoff, faiss_dirty consumer.
+**Foundation Hardening & Docs Cleanup** is **IN PROGRESS** — plan: `docs/superpowers/plans/2026-05-27-vms-foundation-hardening-and-docs-cleanup.md`. Must land before Phase 2b implementation begins.
 
-**Phase 2a Hardening** is **COMPLETE** — 159 tests passing as of commit `019e45e`. Plan: `docs/superpowers/plans/2026-05-14-vms-v2-phase2a-hardening.md`.
+**Phase 1B.2 Hardening** is **COMPLETE** — 171 tests passing as of commit `210b283`. Plan: `docs/superpowers/plans/2026-05-27-vms-v2-phase1b-2-hardening.md`. Fixes: GDPR purge (SELECT FOR UPDATE + file deletion + CLIP removal + JSON audit payload), SHM size validation, RTSP exponential backoff + camera deactivation, faiss_dirty consumer startup replay.
 
-**Phase 2a** (Identity Framework) is **COMPLETE** — 128 tests passing as of commit `634c8c4`. Plan: `docs/superpowers/plans/2026-05-14-vms-v2-phase2a-identity-framework.md`. Notes: `docs/superpowers/notes/2026-05-14-vms-v2-phase2a-implementation-notes.md`.
+**Phase 1A.2 Hardening** is **COMPLETE** — 171 tests passing as of commit `210b283`. Plan: `docs/superpowers/plans/2026-05-27-vms-v2-phase1a-2-hardening.md`. Fixes: datetime.utcnow column defaults, row_hash_version migration.
 
-**Phase 1B** (Ingestion, Inference, and Base API) is **COMPLETE** — 96 tests passing as of commit `019e45e`. Plan: `docs/superpowers/plans/2026-05-09-vms-v2-phase1b-ingestion-inference-api.md`. Notes: `docs/superpowers/notes/2026-05-09-vms-v2-phase1b-implementation-notes.md`.
+**Phase 2a.2 Hardening** is **COMPLETE** — 159 tests passing as of commit `019e45e`. Plan: `docs/superpowers/plans/2026-05-14-vms-v2-phase2a-2-hardening.md`.
 
-**Phase 1A** (Database Schema, Project Scaffold, and Config) is **COMPLETE** — 57 tests passing as of commit `4a4bc49`. Plan: `docs/superpowers/plans/2026-05-01-vms-v2-phase1a-db-schema.md`.
+**Phase 2a.1** (Identity Framework) is **COMPLETE** — 128 tests passing as of commit `634c8c4`. Plan: `docs/superpowers/plans/2026-05-14-vms-v2-phase2a-1-identity-framework.md`. Notes: `docs/superpowers/notes/2026-05-14-vms-v2-phase2a-implementation-notes.md`.
+
+**Phase 1B.1** (Ingestion, Inference, and Base API) is **COMPLETE** — 96 tests passing as of commit `019e45e`. Plan: `docs/superpowers/plans/2026-05-09-vms-v2-phase1b-1-ingestion-inference-api.md`. Notes: `docs/superpowers/notes/2026-05-09-vms-v2-phase1b-implementation-notes.md`.
+
+**Phase 1A.1** (Database Schema, Project Scaffold, and Config) is **COMPLETE** — 57 tests passing as of commit `4a4bc49`. Plan: `docs/superpowers/plans/2026-05-01-vms-v2-phase1a-1-db-schema.md`.
 
 Subsequent phases (Phase 2b Anomaly Framework, Phase 3 Profiler + Dispatcher + Audit, Phase 4 Frontend, Phase 5 Forensic + Hardening, Phase 6 Camera Rollout) each get their own plan file when started. **Do not start a phase before its plan exists and is approved.**
 
