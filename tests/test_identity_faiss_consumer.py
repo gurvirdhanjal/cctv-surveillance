@@ -3,17 +3,16 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
+import fakeredis.aioredis as fake_aioredis
 import numpy as np
 import pytest
 
-import fakeredis.aioredis as fake_aioredis
-
+from vms.identity.engine import IdentityEngine
 from vms.identity.faiss_dirty import publish_add, publish_remove
 from vms.identity.faiss_index import FaissIndex
 from vms.identity.reid import ReIdService
-from vms.identity.engine import IdentityEngine
 from vms.writer.db_writer import DBWriter
 
 

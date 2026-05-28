@@ -75,9 +75,7 @@ class IngestionWorker:
                 cam.is_active = False
                 session.commit()
         except Exception:
-            logger.exception(
-                "camera_id=%d failed to mark camera inactive", self._camera.camera_id
-            )
+            logger.exception("camera_id=%d failed to mark camera inactive", self._camera.camera_id)
         finally:
             session.close()
 

@@ -7,6 +7,7 @@ The unique constraint uq_tracking_idem is on (camera_id, local_track_id, event_t
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import uuid
@@ -155,9 +156,7 @@ class DBWriter:
                                 db=db,
                             )
                         elif action == "remove":
-                            embedding_ids: list[int] = json.loads(
-                                fields.get("embedding_ids", "[]")
-                            )
+                            embedding_ids: list[int] = json.loads(fields.get("embedding_ids", "[]"))
                             self._identity.faiss_apply_remove(embedding_ids)
                         last_id = msg_id
                 except Exception:
@@ -206,10 +205,8 @@ class DBWriter:
                     await asyncio.sleep(0.05)
         finally:
             faiss_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await faiss_task
-            except asyncio.CancelledError:
-                pass
 
     async def stop(self) -> None:
         self._running = False

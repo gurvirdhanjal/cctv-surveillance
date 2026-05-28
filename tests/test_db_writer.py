@@ -133,9 +133,11 @@ def test_flush_uses_identity_engine_for_global_track_id(db_session: Session) -> 
     )
     db_session.flush()
 
-    row = db_session.query(TrackingEvent).filter_by(
-        camera_id=cam.camera_id, local_track_id="5"
-    ).first()
+    row = (
+        db_session.query(TrackingEvent)
+        .filter_by(camera_id=cam.camera_id, local_track_id="5")
+        .first()
+    )
     assert row is not None
     gid1 = str(row.global_track_id)
 
@@ -149,9 +151,9 @@ def test_flush_uses_identity_engine_for_global_track_id(db_session: Session) -> 
     )
     db_session.flush()
 
-    rows = db_session.query(TrackingEvent).filter_by(
-        camera_id=cam.camera_id, local_track_id="5"
-    ).all()
+    rows = (
+        db_session.query(TrackingEvent).filter_by(camera_id=cam.camera_id, local_track_id="5").all()
+    )
     assert len(rows) == 2
     assert all(str(r.global_track_id) == gid1 for r in rows)
 

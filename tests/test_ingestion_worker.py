@@ -101,7 +101,6 @@ async def test_ingestion_worker_skips_failed_read(
 async def test_ingestion_worker_backoff_delays_increase_with_failures(
     camera_cfg: CameraConfig, fake_redis: AsyncMock
 ) -> None:
-    from unittest.mock import AsyncMock as _AsyncMock
 
     from vms.ingestion.worker import _BACKOFF_DELAYS
 

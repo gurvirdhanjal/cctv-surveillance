@@ -143,9 +143,7 @@ async def purge_person(
     db.execute(
         delete(PersonClipEmbedding).where(
             PersonClipEmbedding.global_track_id.in_(
-                select(TrackingEvent.global_track_id).where(
-                    TrackingEvent.person_id == person_id
-                )
+                select(TrackingEvent.global_track_id).where(TrackingEvent.person_id == person_id)
             )
         )
     )

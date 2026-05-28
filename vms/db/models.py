@@ -29,6 +29,7 @@ def _utcnow_naive() -> datetime:
     """Return timezone-naive UTC datetime per CLAUDE.md timezone convention."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
+
 # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Topology
 # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -258,9 +259,7 @@ class AlertDispatch(Base):
     channel: Mapped[str] = mapped_column(String(20), nullable=False)
     target: Mapped[str] = mapped_column(String(500), nullable=False)
     attempt_n: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    dispatched_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=_utcnow_naive
-    )
+    dispatched_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow_naive)
     success: Mapped[bool] = mapped_column(Boolean, nullable=False)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     response_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -428,7 +427,5 @@ class AuditLog(Base):
     payload: Mapped[str | None] = mapped_column(Text, nullable=True)
     prev_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     row_hash: Mapped[str] = mapped_column(String(64), nullable=False)
-    row_hash_version: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="1"
-    )
+    row_hash_version: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     event_ts: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow_naive)

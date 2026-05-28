@@ -76,7 +76,9 @@ These legacy files are kept as reference until Phase 1B replaces them with the `
 
 ## 3. Current phase
 
-We are at **Phase 2b: Anomaly Framework** (not yet started — plan not written).
+We are at **Phase 2b: Anomaly Framework** (plan written, implementation not yet started).
+
+**Phase 1A/1B Hardening** is **COMPLETE** — 171 tests passing as of commit `5e466f3`. Plan: `docs/superpowers/plans/2026-05-27-vms-v2-phase1ab-hardening-fixes.md`. Fixes: datetime.utcnow, row_hash_version migration, GDPR purge (SELECT FOR UPDATE + file deletion + CLIP removal + JSON audit payload), SHM size validation, RTSP exponential backoff, faiss_dirty consumer.
 
 **Phase 2a Hardening** is **COMPLETE** — 159 tests passing as of commit `019e45e`. Plan: `docs/superpowers/plans/2026-05-14-vms-v2-phase2a-hardening.md`.
 

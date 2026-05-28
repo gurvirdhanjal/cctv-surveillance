@@ -345,7 +345,10 @@ async def test_purge_person_deletes_clip_embeddings(tmp_path: pathlib.Path) -> N
         resp = await client.request(
             "DELETE",
             f"/api/persons/{person_id}",
-            json={"confirmation_name": "ClipDeleteTest", "reason": "Testing CLIP embedding deletion"},
+            json={
+                "confirmation_name": "ClipDeleteTest",
+                "reason": "Testing CLIP embedding deletion",
+            },
             headers=_auth_headers(role="admin"),
         )
     assert resp.status_code == 204
