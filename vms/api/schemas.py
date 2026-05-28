@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -50,3 +53,57 @@ class TokenResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     version: str
+
+
+class AlertResponse(BaseModel):
+    alert_id: int
+    alert_type: str
+    severity: str
+    state: str
+    camera_id: int
+    zone_id: int | None
+    person_id: int | None
+    triggered_at: datetime
+    acknowledged_at: datetime | None
+    resolved_at: datetime | None
+    suppressed_by_window_id: int | None
+    dedup_key: str | None
+
+    model_config = {"from_attributes": True}
+
+
+class AnomalyDetectorResponse(BaseModel):
+    detector_id: int
+    alert_type: str
+    class_path: str
+    is_enabled: bool
+    config_json: str | None
+    model_version: str | None
+
+    model_config = {"from_attributes": True}
+
+
+class MaintenanceWindowResponse(BaseModel):
+    window_id: int
+    name: str
+    scope_type: str
+    scope_id: int
+    schedule_type: str
+    starts_at: datetime | None
+    ends_at: datetime | None
+    cron_expr: str | None
+    duration_minutes: int | None
+    suppress_alert_types: str | None
+    is_active: bool
+    reason: str | None
+
+    model_config = {"from_attributes": True}
+
+
+class SnapshotResponse(BaseModel):
+    ts: str
+    schema_version: str = "1"
+    head_count: dict[str, Any]
+    active_alerts: list[AlertResponse]
+    cameras: list[dict[str, Any]]
+    degraded: dict[str, Any] | None = None

@@ -52,6 +52,29 @@ class Settings(BaseSettings):
     rtsp_failure_threshold: int = 5
     rtsp_backoff_delays_ms: tuple[int, ...] = (1000, 2000, 4000, 8000, 16000, 32000)
 
+    # violence (gated pool in InferenceEngine)
+    violence_model: str = "models/movinet_a0.onnx"
+    violence_threshold: float = 0.65
+    violence_gate_min_persons: int = 2
+    violence_clip_frames: int = 16
+    violence_inference_every_s: float = 1.0
+
+    # alert FSM
+    alert_fsm_default_dedup_window_ms: int = 60_000
+    alert_fsm_default_cooldown_ms: int = 60_000
+    alert_fsm_default_sustain_ms: int = 500
+
+    # head count
+    head_count_emit_interval_s: float = 1.0
+    head_count_track_ttl_s: int = 30
+
+    # maintenance
+    maintenance_cache_ttl_s: int = 30
+
+    # anomaly orchestrator
+    anomaly_max_consecutive_errors: int = 5
+    alerts_stream_maxlen: int = 10_000
+
     # storage backend
     storage_backend: str = "local"  # "local" | "minio"
     storage_local_dir: str = "thumbnails"  # base dir for LocalStorageBackend

@@ -36,6 +36,7 @@ class DetectionFrame:
     timestamp_ms: int
     tracklets: tuple[Tracklet, ...]
     face_embeddings: tuple[FaceWithEmbedding, ...]
+    violence_score: float | None = None
 
     def to_redis_fields(self) -> dict[str, str]:
         tracklets_json = json.dumps(
@@ -60,13 +61,16 @@ class DetectionFrame:
                 for f in self.face_embeddings
             ]
         )
-        return {
+        fields: dict[str, str] = {
             "camera_id": str(self.camera_id),
             "seq_id": str(self.seq_id),
             "timestamp_ms": str(self.timestamp_ms),
             "tracklets": tracklets_json,
             "face_embeddings": faces_json,
         }
+        if self.violence_score is not None:
+            fields["violence_score"] = str(self.violence_score)
+        return fields
 
     @classmethod
     def from_redis_fields(cls, fields: dict[str, str]) -> DetectionFrame:
@@ -91,10 +95,13 @@ class DetectionFrame:
             )
             for f in raw_faces
         )
+        violence_raw = fields.get("violence_score")
+        violence_score = float(violence_raw) if violence_raw is not None else None
         return cls(
             camera_id=int(fields["camera_id"]),
             seq_id=int(fields["seq_id"]),
             timestamp_ms=int(fields["timestamp_ms"]),
             tracklets=tracklets,
             face_embeddings=face_embeddings,
+            violence_score=violence_score,
         )

@@ -6,8 +6,9 @@ import pathlib
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from prometheus_client import make_asgi_app
 
-from vms.api.routes import auth, health, persons
+from vms.api.routes import alerts, anomaly_detectors, auth, health, maintenance, persons, state
 from vms.config import Settings, get_settings
 from vms.db.partition_manager import ensure_future_partitions
 from vms.db.session import engine
@@ -23,11 +24,18 @@ def _apply_media_mount(app: FastAPI, settings: Settings) -> None:
         )
 
 
-app = FastAPI(title="VMS API", version="0.1.0")
+app = FastAPI(title="VMS API", version="0.2.0")
 
 app.include_router(auth.router, prefix="/api")
 app.include_router(health.router, prefix="/api")
 app.include_router(persons.router, prefix="/api")
+app.include_router(state.router, prefix="/api")
+app.include_router(alerts.router, prefix="/api")
+app.include_router(anomaly_detectors.router, prefix="/api")
+app.include_router(maintenance.router, prefix="/api")
+
+# Prometheus metrics endpoint (standard /metrics path, no /api prefix)
+app.mount("/metrics", make_asgi_app())
 
 
 def _call_ensure_future_partitions() -> None:

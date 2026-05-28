@@ -17,6 +17,19 @@ from vms.db.session import SessionLocal
 
 _api_redis: aioredis.Redis | None = None
 
+# Process-level shared state for inspection routes.
+_orchestrator_health: dict[str, dict[str, object]] = {}
+
+
+def set_orchestrator_health(snapshot: dict[str, dict[str, object]]) -> None:
+    """Called by the orchestrator process every N seconds."""
+    _orchestrator_health.clear()
+    _orchestrator_health.update(snapshot)
+
+
+def get_orchestrator_health() -> dict[str, dict[str, object]]:
+    return dict(_orchestrator_health)
+
 
 def get_api_redis() -> aioredis.Redis:
     """Return a process-level Redis client for publishing faiss_dirty events."""

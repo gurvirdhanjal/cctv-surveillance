@@ -74,3 +74,20 @@ def test_minio_settings_default_empty() -> None:
     assert s.minio_access_key == ""
     assert s.minio_secret_key == ""
     assert s.minio_bucket == "vms-media"
+
+
+def test_anomaly_defaults() -> None:
+    s = Settings(db_url="postgresql://x/y", jwt_secret="s")  # type: ignore[call-arg]
+    assert s.violence_model == "models/movinet_a0.onnx"
+    assert s.violence_threshold == 0.65
+    assert s.violence_gate_min_persons == 2
+    assert s.violence_clip_frames == 16
+    assert s.violence_inference_every_s == 1.0
+    assert s.alert_fsm_default_dedup_window_ms == 60_000
+    assert s.alert_fsm_default_cooldown_ms == 60_000
+    assert s.alert_fsm_default_sustain_ms == 500
+    assert s.head_count_emit_interval_s == 1.0
+    assert s.head_count_track_ttl_s == 30
+    assert s.maintenance_cache_ttl_s == 30
+    assert s.anomaly_max_consecutive_errors == 5
+    assert s.alerts_stream_maxlen == 10_000

@@ -19,6 +19,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     Uuid,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -200,8 +201,23 @@ class Alert(Base):
             "      OR resolved_at >= acknowledged_at)",
             name="chk_alert_resolution_order",
         ),
+        CheckConstraint(
+            "state IN ('active', 'acknowledged', 'resolved', 'suppressed')",
+            name="chk_alert_state",
+        ),
+        CheckConstraint(
+            "alert_type IN ('UNKNOWN_PERSON','PERSON_LOST','CROWD_DENSITY',"
+            "'INTRUSION','VIOLENCE','LOITERING')",
+            name="chk_alert_type",
+        ),
         Index("ix_alerts_alert_type", "alert_type"),
         Index("ix_alerts_triggered_at", "triggered_at"),
+        Index("ix_alerts_state", "state"),
+        Index(
+            "ix_alerts_dedup_key_active",
+            "dedup_key",
+            postgresql_where=text("state = 'active'"),
+        ),
     )
 
     alert_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -224,6 +240,7 @@ class Alert(Base):
     suppressed_by_window_id: Mapped[int | None] = mapped_column(
         ForeignKey("maintenance_windows.window_id", ondelete="SET NULL"), nullable=True
     )
+    dedup_key: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     dispatches: Mapped[list[AlertDispatch]] = relationship(
         "AlertDispatch", back_populates="alert", cascade="all, delete-orphan"

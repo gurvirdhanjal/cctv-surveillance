@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status: NOT STARTED**
+**Status: COMPLETE**
 
 **Goal:** Ship the pluggable `AnomalyDetector` framework, the six v1 detectors (UNKNOWN_PERSON, PERSON_LOST, CROWD_DENSITY, INTRUSION, VIOLENCE, LOITERING), the `AlertFSM` (sustain + cooldown + dedup + maintenance suppression), the `MaintenanceCalendar`, the `HeadCountAggregator`, and the read-only inspection APIs that let us verify behaviour without a frontend.
 
