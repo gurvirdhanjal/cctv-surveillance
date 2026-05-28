@@ -19,7 +19,7 @@ from vms.redis_client import stream_add
 
 logger = logging.getLogger(__name__)
 
-# Exponential backoff steps in seconds; last value is the cap.
+# Default backoff steps in seconds — overridden at runtime via rtsp_backoff_delays_ms.
 _BACKOFF_DELAYS = (1, 2, 4, 8, 16, 32)
 
 
@@ -82,14 +82,16 @@ class IngestionWorker:
     async def _capture_loop(self) -> None:
         cap = cv2.VideoCapture(self._camera.rtsp_url)
         stream_name = f"frames:group{self._camera.worker_group}"
-        failure_threshold = get_settings().rtsp_failure_threshold
+        settings = get_settings()
+        failure_threshold = settings.rtsp_failure_threshold
+        backoff_delays = [d / 1000.0 for d in settings.rtsp_backoff_delays_ms]
         try:
             while self._running:
                 ret, frame = cap.read()
                 if not ret:
                     self._consecutive_failures += 1
-                    delay = _BACKOFF_DELAYS[
-                        min(self._consecutive_failures - 1, len(_BACKOFF_DELAYS) - 1)
+                    delay = backoff_delays[
+                        min(self._consecutive_failures - 1, len(backoff_delays) - 1)
                     ]
                     logger.warning(
                         "camera_id=%d frame read failed (failures=%d, backoff=%ds)",

@@ -70,5 +70,5 @@ class AdaFaceEmbedder:
     ) -> np.ndarray[Any, np.dtype[Any]]:
         face = cv2.resize(face_bgr, (_EMBED_INPUT_SIZE, _EMBED_INPUT_SIZE))
         face = cv2.cvtColor(face, cv2.COLOR_BGR2RGB).astype(np.float32)
-        face = (face - 127.5) / 128.0
+        face = (face - 127.5) / 128.0  # type: ignore[operator]
         return np.transpose(face, (2, 0, 1))[None]
