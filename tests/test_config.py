@@ -78,8 +78,8 @@ def test_minio_settings_default_empty() -> None:
 
 def test_anomaly_defaults() -> None:
     s = Settings(db_url="postgresql://x/y", jwt_secret="s")  # type: ignore[call-arg]
-    # violence_model defaults to "" (disabled until user runs download_movinet_a2.py)
-    assert s.violence_model == ""
+    # violence_model points to models/movinet_a2 alongside other model files
+    assert s.violence_model == "models/movinet_a2"
     assert s.violence_threshold == 0.65
     assert s.violence_gate_min_persons == 2
     assert s.alert_fsm_default_dedup_window_ms == 60_000

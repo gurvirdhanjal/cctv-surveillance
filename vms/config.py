@@ -52,14 +52,11 @@ class Settings(BaseSettings):
     rtsp_failure_threshold: int = 5
     rtsp_backoff_delays_ms: tuple[int, ...] = (1000, 2000, 4000, 8000, 16000, 32000)
 
-    # violence detection — MoViNet A2 Stream (TF SavedModel via kagglehub or tar.gz)
-    # Set to the SavedModel directory path.
-    # Download: python scripts/download_movinet_a2.py
-    #   OR: curl -L -o ~/Downloads/model.tar.gz \
-    #     https://www.kaggle.com/api/v1/models/google/movinet/tensorFlow2/a2-stream-kinetics-600-classification/2/download
-    #   Then: tar xf ~/Downloads/model.tar.gz -C models/movinet_a2/
-    #   Then set: VMS_VIOLENCE_MODEL=models/movinet_a2
-    violence_model: str = ""  # empty = disabled until downloaded
+    # violence detection — MoViNet A2 Stream (TF SavedModel)
+    # Points to models/movinet_a2/ alongside scrfd/adaface/yolo.
+    # Run once to install: python scripts/download_movinet_a2.py
+    # Model is gitignored (large binary) — works after download with no extra config.
+    violence_model: str = "models/movinet_a2"
     violence_threshold: float = 0.65  # sigmoid score threshold [0, 1]
     violence_gate_min_persons: int = 2  # only run when >= N persons detected
 
