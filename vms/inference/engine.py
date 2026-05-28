@@ -1,16 +1,14 @@
 """Inference engine: reads frames stream -> SCRFD/YOLO + AdaFace + Tracker -> detections stream.
 
-Violence scoring:
-  A0 ONNX (clip mode):  buffers violence_clip_frames per camera, runs every violence_inference_every_s
-  A2 Stream (TF mode):  calls ViolenceModel.score(frame, camera_id) once per frame — stateful,
-                        no buffer needed. Gate: only when >= violence_gate_min_persons detected.
+Violence scoring (MoViNet A2 Stream):
+  score_frame(camera_id, frame) is called once per frame when >= violence_gate_min_persons
+  are detected. The model maintains per-camera streaming state internally (stateful).
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
-from collections import deque
 from typing import Any
 
 import numpy as np
@@ -83,10 +81,6 @@ class InferenceEngine:
         self._running = False
         self._last_id = "0-0"
 
-        # A0 ONNX clip buffers: camera_id -> deque of frames
-        self._clip_buffers: dict[int, deque[Any]] = {}
-        self._last_violence_ts: dict[int, float] = {}
-
     async def run(self) -> None:
         self._running = True
         while self._running:
@@ -155,25 +149,10 @@ class InferenceEngine:
         person_count: int,
         timestamp_ms: int,
     ) -> float | None:
+        """A2 Stream: score one frame per call. Gate: only when >= N persons detected."""
         if self._violence is None or not self._violence.is_available:
             return None
         settings = get_settings()
         if person_count < settings.violence_gate_min_persons:
             return None
-
-        if self._violence.is_a2_stream:
-            # A2 Stream: one frame at a time, no buffering needed
-            return self._violence.score(frame_bgr, cam_id)
-
-        # A0 ONNX: buffer violence_clip_frames, run every violence_inference_every_s
-        buf = self._clip_buffers.setdefault(cam_id, deque(maxlen=settings.violence_clip_frames))
-        buf.append(frame_bgr.copy())
-        last_ts = self._last_violence_ts.get(cam_id, 0.0)
-        now_s = timestamp_ms / 1000.0
-        if len(buf) == settings.violence_clip_frames and (
-            now_s - last_ts >= settings.violence_inference_every_s
-        ):
-            clip = np.stack(list(buf), axis=0)
-            self._last_violence_ts[cam_id] = now_s
-            return self._violence.score(clip, cam_id)
-        return None
+        return self._violence.score_frame(cam_id, frame_bgr)

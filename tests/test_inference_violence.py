@@ -1,46 +1,39 @@
-"""Tests for the MoViNet violence wrapper."""
+"""Tests for the MoViNet A2 Stream violence wrapper."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 import numpy as np
-import pytest
 
 from vms.inference.violence import ViolenceModel
 
 
-def test_missing_onnx_returns_none(tmp_path: Path) -> None:
-    model = ViolenceModel(str(tmp_path / "nonexistent.onnx"))
-    clip = np.zeros((16, 224, 224, 3), dtype=np.uint8)
-    assert model.score(clip) is None
+def test_empty_path_model_is_unavailable() -> None:
+    """Empty path disables violence detection gracefully."""
+    model = ViolenceModel("")
+    assert not model.is_available
 
 
-def test_score_returns_float_when_model_available(monkeypatch: pytest.MonkeyPatch) -> None:
-    class FakeSession:
-        def get_inputs(self):  # type: ignore[no-untyped-def]
-            class _Input:
-                name = "input"
+def test_missing_dir_model_is_unavailable(tmp_path: Path) -> None:
+    """Non-existent directory disables violence detection gracefully."""
+    model = ViolenceModel(str(tmp_path / "no_such_dir"))
+    assert not model.is_available
 
-            return [_Input()]
 
-        def run(self, _outs, _inputs):  # type: ignore[no-untyped-def]
-            return [np.array([[0.42]], dtype=np.float32)]
+def test_score_frame_returns_none_when_unavailable() -> None:
+    """score_frame() returns None when model not loaded."""
+    model = ViolenceModel("")
+    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+    assert model.score_frame(camera_id=1, frame_bgr=frame) is None
 
-    class FakeOrt:
-        @staticmethod
-        def InferenceSession(path, providers):  # type: ignore[no-untyped-def]
-            return FakeSession()
 
-    # New ViolenceModel imports onnxruntime lazily inside _load_a0_onnx.
-    # Monkeypatch the onnxruntime module in sys.modules so the lazy import picks it up.
-    import sys
+def test_saved_model_dir_detection(tmp_path: Path) -> None:
+    """_is_saved_model_dir recognises a directory with saved_model.pb."""
+    from vms.inference.violence import _is_saved_model_dir
 
-    monkeypatch.setitem(sys.modules, "onnxruntime", FakeOrt())  # type: ignore[arg-type]
-    # isfile() returns True → treated as ONNX path; isdir() returns False → not SavedModel
-    monkeypatch.setattr("vms.inference.violence.os.path.isfile", lambda p: True)
-    monkeypatch.setattr("vms.inference.violence.os.path.isdir", lambda p: False)
-    model = ViolenceModel("/fake/path.onnx")
-    clip = np.zeros((16, 224, 224, 3), dtype=np.uint8)
-    score = model.score(clip)
-    assert score == pytest.approx(0.42, abs=1e-3)
+    assert not _is_saved_model_dir(str(tmp_path / "nonexistent"))
+    assert not _is_saved_model_dir(str(tmp_path))  # empty dir
+
+    (tmp_path / "saved_model.pb").touch()
+    assert _is_saved_model_dir(str(tmp_path))

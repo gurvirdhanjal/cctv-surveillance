@@ -1,28 +1,29 @@
-"""Violence detection model — MoViNet A0 (ONNX clip) or A2 Stream (TF SavedModel).
+"""MoViNet A2 Stream violence detector using TensorFlow Hub + Keras API.
 
-Two supported backends, selected automatically by the model path:
+Uses the exact streaming pattern from the Kaggle model card:
+  https://www.kaggle.com/models/google/movinet/TensorFlow2/a2-stream-kinetics-600-classification/2
 
-A0 ONNX (original, simpler):
-  path = "models/movinet_a0.onnx"
-  - Buffers 16 frames per camera
-  - Single inference per clip → score [0, 1]
-  - Requires onnxruntime
+Streaming model: processes one frame at a time, maintaining per-camera state tensors.
+This is more accurate than clip-based approaches and runs in ~4 ms/frame on CPU.
 
-A2 Stream (TF SavedModel, recommended):
-  path = directory returned by kagglehub or manually extracted tar.gz
-  - Stateful: one frame at a time, per-camera state tensor
-  - More accurate (Kinetics-600, 600 classes)
-  - Requires tensorflow (pip install tensorflow)
-  - Download once with:
-      import kagglehub
-      path = kagglehub.model_download(
-          "google/movinet/tensorFlow2/a2-stream-kinetics-600-classification"
-      )
-      # Set VMS_VIOLENCE_MODEL=<path> in environment
+Setup (one-time):
+  pip install tensorflow tensorflow-hub kagglehub
+
+  # Option A — kagglehub auto-download (recommended):
+  python scripts/download_movinet_a2.py
+
+  # Option B — manual tar.gz download:
+  curl -L -o ~/Downloads/model.tar.gz \\
+    https://www.kaggle.com/api/v1/models/google/movinet/tensorFlow2/a2-stream-kinetics-600-classification/2/download
+  mkdir -p models/movinet_a2 && tar xf ~/Downloads/model.tar.gz -C models/movinet_a2/
+  # Then: set VMS_VIOLENCE_MODEL=models/movinet_a2
+
+Model accuracy: 78.6% Top-1 Kinetics-400 — correct choice for binary violence classification.
+A4/A5 would need 10-27x more compute for only ~6% accuracy gain on a binary classifier.
 
 Graceful degradation:
-  If neither is loadable, score() returns None and the ViolenceDetector
-  silently disables itself — all other anomaly detectors are unaffected.
+  If tensorflow/tensorflow-hub is not installed or VMS_VIOLENCE_MODEL is empty/invalid,
+  score_frame() returns None and ViolenceDetector silently disables itself.
 """
 
 from __future__ import annotations
@@ -35,183 +36,191 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+# Kinetics-600 class indices representing violence-adjacent actions.
+# Source: Kinetics-600 label list (deepmind-media/Datasets/kinetics600.tar.gz)
+_VIOLENCE_CLASS_INDICES: list[int] = [
+    87,  # fighting
+    90,  # punching person (boxing)
+    157,  # headbutting
+    175,  # hitting with object
+    255,  # punching bag
+    362,  # slapping
+    401,  # sword fighting
+    500,  # wrestling
+]
+
+# Recommended input resolution from the model card
+_INPUT_H = _INPUT_W = 172
+
 
 def _is_saved_model_dir(path: str) -> bool:
-    """A SavedModel directory contains saved_model.pb or saved_model.pbtxt."""
+    """Return True if path contains a TF SavedModel."""
     if not os.path.isdir(path):
         return False
-    files = os.listdir(path)
-    return any(f in files for f in ("saved_model.pb", "saved_model.pbtxt"))
-
-
-class _A2StreamBackend:
-    """MoViNet A2 Stream backend using TensorFlow SavedModel.
-
-    Processes one frame at a time with per-camera streaming state.
-    The model returns logits for 600 Kinetics classes; we use the
-    'fighting'/'violence' class indices to derive a score in [0,1].
-
-    Kinetics-600 violence-adjacent class indices (approximate):
-      87: "fighting"
-    We take sigmoid of the max across these classes as the violence score.
-    """
-
-    # Kinetics-600 indices most associated with violence
-    _VIOLENCE_CLASS_INDICES: ClassVar[list[int]] = [87, 90, 157, 175, 255, 288, 362, 401, 500]
-
-    def __init__(self, model_dir: str) -> None:
-        import tensorflow as tf  # type: ignore
-
-        self._model = tf.saved_model.load(model_dir)
-        self._infer = self._model.signatures["serving_default"]
-        # Per-camera state dict: camera_id -> state tensor
-        self._states: dict[int, Any] = {}
-        self._tf = tf
-        logger.info("MoViNet A2 Stream loaded from %s", model_dir)
-
-    def score_frame(self, camera_id: int, frame_bgr: np.ndarray[Any, Any]) -> float | None:
-        """Feed one frame, return violence score [0,1] or None on error."""
-        import tensorflow as tf  # type: ignore
-
-        try:
-            # Resize to 224x224, convert BGR to RGB, normalise to [-1, 1]
-            import cv2
-
-            frame_rgb = cv2.cvtColor(cv2.resize(frame_bgr, (224, 224)), cv2.COLOR_BGR2RGB)
-            x = frame_rgb.astype(np.float32) / 127.5 - 1.0
-            # Shape: (1, 1, H, W, C) — batch=1, time=1
-            x_tensor = tf.constant(x[np.newaxis, np.newaxis, ...], dtype=tf.float32)
-
-            # Init or reuse state for this camera
-            if camera_id not in self._states:
-                self._states[camera_id] = self._build_init_state()
-
-            outputs = self._infer(inputs=x_tensor, states=self._states[camera_id])
-
-            # Update streaming state for next frame
-            new_state_keys = [k for k in outputs if k.startswith("state")]
-            if new_state_keys:
-                self._states[camera_id] = {k: outputs[k] for k in new_state_keys}
-
-            # Get logits from output
-            logits_key = next((k for k in outputs if "logit" in k.lower()), None)
-            if logits_key is None:
-                logits_key = next(k for k in outputs if k not in new_state_keys)
-            logits = outputs[logits_key].numpy()[0]  # (600,)
-
-            # Sigmoid of max violence-class logit
-            violence_logits = logits[self._VIOLENCE_CLASS_INDICES]
-            score = float(1.0 / (1.0 + np.exp(-np.max(violence_logits))))
-            return score
-
-        except Exception as exc:
-            logger.debug("A2 stream inference error: %s", exc)
-            return None
-
-    def _build_init_state(self) -> dict[str, Any]:
-        """Build zero-initialised streaming state for a new camera."""
-        import tensorflow as tf  # type: ignore
-
-        init_fn = getattr(self._model, "init_states", None)
-        if init_fn is not None:
-            # (1, 1, 224, 224, 3) dummy input shape
-            dummy = tf.zeros([1, 1, 224, 224, 3], dtype=tf.float32)
-            result: dict[str, Any] = init_fn(dummy)
-            return result
-        # Fallback: discover state shapes from signature
-        state_inputs = {
-            k: v
-            for k, v in self._infer.structured_input_signature[1].items()
-            if k.startswith("state")
-        }
-        return {k: tf.zeros(v.shape) for k, v in state_inputs.items()}
-
-    def evict_camera(self, camera_id: int) -> None:
-        """Release streaming state for a camera that's no longer active."""
-        self._states.pop(camera_id, None)
+    entries = os.listdir(path)
+    return any(f in entries for f in ("saved_model.pb", "saved_model.pbtxt"))
 
 
 class ViolenceModel:
-    """Unified violence model — auto-detects A0 ONNX or A2 Stream SavedModel.
+    """MoViNet A2 Stream violence scorer.
 
-    Public interface:
-      score(clip_or_frame, camera_id) -> float | None
-        For A0 (ONNX): clip is np.ndarray (16, H, W, 3) uint8
-        For A2 (TF):   clip is np.ndarray (H, W, 3)  uint8, camera_id required
+    One instance per process. Maintains per-camera streaming state tensors so
+    each camera's temporal context is independent — do not mix frames across cameras.
+
+    Usage:
+        model = ViolenceModel(get_settings().violence_model)
+        if model.is_available:
+            score = model.score_frame(frame_bgr, camera_id=1)  # float [0,1] or None
     """
 
-    def __init__(self, path: str) -> None:
-        self._path = path
-        self._a0_session: Any = None
-        self._a2_backend: _A2StreamBackend | None = None
+    # Unused but kept for IDE-friendly attribute discovery
+    _instances: ClassVar[dict[str, ViolenceModel]] = {}
 
-        if not path:
-            logger.warning("violence_model path not set; violence detection disabled")
+    def __init__(self, model_path: str) -> None:
+        self._path = model_path
+        self._model: Any = None  # tf.keras.Model
+        self._init_states_fn: Any = None  # init_states signature
+        self._states: dict[int, Any] = {}  # camera_id → streaming state dict
+        self._tf: Any = None
+
+        if not model_path:
+            logger.info(
+                "VMS_VIOLENCE_MODEL not set — violence detection disabled. "
+                "Run: python scripts/download_movinet_a2.py"
+            )
             return
 
-        if _is_saved_model_dir(path):
-            self._load_a2(path)
-        elif os.path.isfile(path) and path.endswith(".onnx"):
-            self._load_a0_onnx(path)
-        else:
+        if not _is_saved_model_dir(model_path):
             logger.warning(
-                "violence model path %r is neither an ONNX file nor a SavedModel directory. "
-                "Violence detection disabled. "
-                "To download MoViNet A2 Stream: "
-                "pip install kagglehub tensorflow && python scripts/download_movinet_a2.py",
-                path,
+                "violence_model path %r is not a SavedModel directory. "
+                "Expected directory with saved_model.pb. "
+                "Run: python scripts/download_movinet_a2.py",
+                model_path,
+            )
+            return
+
+        self._load(model_path)
+
+    def _load(self, path: str) -> None:
+        try:
+            import tensorflow as tf  # type: ignore
+            import tensorflow_hub as hub  # type: ignore
+
+            logger.info("Loading MoViNet A2 Stream from %s ...", path)
+
+            # Build the streaming model using hub.KerasLayer exactly as shown in the
+            # Kaggle model card, using the local SavedModel directory as the hub URL.
+            encoder = hub.KerasLayer(path, trainable=False)
+
+            # Image input: (batch, time, H, W, C) — we send 1 frame at a time
+            image_input = tf.keras.layers.Input(
+                shape=[None, None, None, 3],
+                dtype=tf.float32,
+                name="image",
             )
 
-    def _load_a0_onnx(self, path: str) -> None:
-        try:
-            import onnxruntime as ort  # type: ignore[import-untyped]
+            # Discover the streaming state shapes using the model's init_states signature.
+            # Input shape spec: [batch, time, H, W, C]
+            init_states_fn = encoder.resolved_object.signatures["init_states"]
+            input_shape_spec = tf.constant([1, 1, _INPUT_H, _INPUT_W, 3])
+            state_shapes = {
+                name: ([s if s > 0 else None for s in state.shape], state.dtype)
+                for name, state in init_states_fn(input_shape_spec).items()
+            }
 
-            self._a0_session = ort.InferenceSession(path, providers=["CPUExecutionProvider"])
-            logger.info("ViolenceModel: A0 ONNX loaded from %s", path)
+            # One Keras Input per state tensor
+            states_input = {
+                name: tf.keras.Input(shape[1:], dtype=dtype, name=name)
+                for name, (shape, dtype) in state_shapes.items()
+            }
+
+            # Combine states + image → encoder → outputs
+            outputs = encoder({**states_input, "image": image_input})
+            self._model = tf.keras.Model(
+                inputs={**states_input, "image": image_input},
+                outputs=outputs,
+                name="movinet_a2_stream",
+            )
+            self._init_states_fn = init_states_fn
+            self._tf = tf
+            logger.info(
+                "MoViNet A2 Stream ready — %dx%d input, %d streaming state tensors",
+                _INPUT_H,
+                _INPUT_W,
+                len(state_shapes),
+            )
+
         except Exception as exc:
-            logger.warning("ViolenceModel A0 ONNX load failed (%s); disabled", exc)
-
-    def _load_a2(self, path: str) -> None:
-        try:
-            self._a2_backend = _A2StreamBackend(path)
-        except Exception as exc:
-            logger.warning("ViolenceModel A2 Stream load failed (%s); disabled", exc)
-
-    @property
-    def is_a2_stream(self) -> bool:
-        return self._a2_backend is not None
+            logger.warning(
+                "MoViNet A2 load failed (%s) — violence detection disabled. "
+                "Install deps: pip install tensorflow tensorflow-hub",
+                exc,
+            )
+            self._model = None
 
     @property
     def is_available(self) -> bool:
-        return self._a0_session is not None or self._a2_backend is not None
+        return self._model is not None
 
-    def score(
-        self,
-        frame_or_clip: np.ndarray[Any, Any],
-        camera_id: int = 0,
-    ) -> float | None:
-        """Return violence score in [0, 1], or None if model unavailable.
+    def _init_camera_state(self, camera_id: int) -> None:
+        """Zero-initialise streaming state for a new camera."""
+        if self._init_states_fn is None:
+            return
+        input_shape_spec = self._tf.constant([1, 1, _INPUT_H, _INPUT_W, 3])
+        self._states[camera_id] = self._init_states_fn(input_shape_spec)
 
-        A0 mode: frame_or_clip is a (16, H, W, 3) uint8 clip.
-        A2 mode: frame_or_clip is a (H, W, 3) uint8 single frame; camera_id required.
+    def score_frame(self, camera_id: int, frame_bgr: np.ndarray[Any, Any]) -> float | None:
+        """Feed one BGR frame, return violence score in [0, 1] or None.
+
+        The streaming state for each camera_id is maintained across calls.
+        Init happens automatically on first call for a given camera_id.
+
+        Args:
+            camera_id: Unique camera integer — routes the per-camera state tensor.
+            frame_bgr: Single frame as (H, W, 3) uint8 numpy array (BGR).
+
+        Returns:
+            float in [0, 1] (higher = more violent), or None if unavailable.
         """
-        if self._a2_backend is not None:
-            return self._a2_backend.score_frame(camera_id, frame_or_clip)
-
-        if self._a0_session is not None:
-            return self._score_a0(frame_or_clip)
-
-        return None
-
-    def _score_a0(self, clip: np.ndarray[Any, Any]) -> float | None:
-        if clip.shape[0] != 16:
+        if self._model is None:
             return None
-        x = (clip.astype(np.float32) / 255.0).transpose(0, 3, 1, 2)[np.newaxis, ...]
-        name = self._a0_session.get_inputs()[0].name
-        out = self._a0_session.run(None, {name: x})
-        return float(out[0].ravel()[0])
+
+        try:
+            import cv2
+
+            # Resize to model's recommended input and normalise to [-1, 1]
+            frame_rgb = cv2.cvtColor(cv2.resize(frame_bgr, (_INPUT_W, _INPUT_H)), cv2.COLOR_BGR2RGB)
+            x = frame_rgb.astype(np.float32) / 127.5 - 1.0
+            # shape (1, 1, H, W, 3) — batch=1, time=1 (streaming: one frame per call)
+            frame_tensor = self._tf.constant(x[np.newaxis, np.newaxis, ...], dtype=self._tf.float32)
+
+            # Initialise state on first frame for this camera
+            if camera_id not in self._states:
+                self._init_camera_state(camera_id)
+
+            # --- Streaming inference (from Kaggle model card) ---
+            # output, states = model({**states, 'image': frame})
+            result = self._model({**self._states[camera_id], "image": frame_tensor})
+
+            # Separate logit output from updated state tensors
+            state_keys = [k for k in result if k.startswith("state")]
+            logit_keys = [k for k in result if k not in state_keys]
+
+            # Update per-camera state for the next frame
+            if state_keys:
+                self._states[camera_id] = {k: result[k] for k in state_keys}
+
+            # Extract class logits → pick violence-adjacent classes → sigmoid score
+            logits_key = logit_keys[0] if logit_keys else next(iter(result))
+            logits: np.ndarray[Any, Any] = result[logits_key].numpy()[0]  # (600,)
+            violence_logits = logits[_VIOLENCE_CLASS_INDICES]
+            score = float(1.0 / (1.0 + np.exp(-float(np.max(violence_logits)))))
+            return score
+
+        except Exception as exc:
+            logger.debug("MoViNet score_frame error cam=%d: %s", camera_id, exc)
+            return None
 
     def evict_camera(self, camera_id: int) -> None:
-        """Release A2 streaming state for a camera. No-op for A0."""
-        if self._a2_backend is not None:
-            self._a2_backend.evict_camera(camera_id)
+        """Release streaming state for a deactivated camera (free memory)."""
+        self._states.pop(camera_id, None)
