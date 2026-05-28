@@ -31,8 +31,9 @@ os.environ.setdefault("VMS_BYTETRACK_CONFIG", "bytetrack_custom.yaml")
 def _create_schema() -> Iterator[None]:
     """Run Alembic migrations once per test session; downgrade when done."""
     try:
-        from alembic import command
         from alembic.config import Config
+
+        from alembic import command
 
         cfg = Config("alembic.ini")
         command.upgrade(cfg, "head")

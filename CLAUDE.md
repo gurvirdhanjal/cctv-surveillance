@@ -60,17 +60,14 @@ vms/                     # Python package — production code (Phase 1A onward)
 
 alembic/                 # Database migrations — see §6
 frontend/                # React SPA (Phase 4)
+legacy/                  # Pre-Phase 1A prototype code — DO NOT IMPORT (see below)
 models/                  # Downloaded ML models (not committed; see §8)
 docs/                    # Specs, plans, presentations — see §16 for layout convention
 tests/                   # Pytest suite — mirrors vms/ structure
 scripts/                 # CLI tools, fine-tune recipes (Phase 5)
-
-# Legacy prototype files (DO NOT IMPORT, port patterns only):
-main.py, face_detection.py, enrollment_emp.py, face_utils.py,
-scrfd_face.py, test.py, test_db.py, config.py (root)
 ```
 
-These legacy files are kept as reference until Phase 1B replaces them with the `vms.ingestion` and `vms.inference` modules. Do not edit, refactor, or import them.
+Legacy prototype code is in `legacy/`. Do not import.
 
 ---
 

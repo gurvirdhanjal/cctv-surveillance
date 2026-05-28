@@ -51,7 +51,7 @@ async def test_consume_faiss_dirty_add_updates_index(
     messages = await fake_redis.xread({"faiss_dirty": "0"}, count=100)
     assert messages
     _stream, entries = messages[0]
-    msg_id, fields = entries[0]
+    _msg_id, fields = entries[0]
 
     db = db_factory()
     identity.faiss_apply_add(
