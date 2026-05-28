@@ -56,3 +56,21 @@ def test_reid_stale_ms_default() -> None:
 def test_zone_cache_ttl_s_default() -> None:
     s = Settings(db_url="postgresql://x/y", jwt_secret="s")  # type: ignore[call-arg]
     assert s.zone_cache_ttl_s == 30
+
+
+def test_storage_backend_defaults_to_local() -> None:
+    s = Settings(db_url="postgresql://x/y", jwt_secret="s")  # type: ignore[call-arg]
+    assert s.storage_backend == "local"
+
+
+def test_storage_local_dir_defaults() -> None:
+    s = Settings(db_url="postgresql://x/y", jwt_secret="s")  # type: ignore[call-arg]
+    assert s.storage_local_dir == "thumbnails"
+
+
+def test_minio_settings_default_empty() -> None:
+    s = Settings(db_url="postgresql://x/y", jwt_secret="s")  # type: ignore[call-arg]
+    assert s.minio_endpoint == ""
+    assert s.minio_access_key == ""
+    assert s.minio_secret_key == ""
+    assert s.minio_bucket == "vms-media"

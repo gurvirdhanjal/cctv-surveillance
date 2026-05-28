@@ -52,6 +52,14 @@ class Settings(BaseSettings):
     rtsp_failure_threshold: int = 5
     rtsp_backoff_delays_ms: tuple[int, ...] = (1000, 2000, 4000, 8000, 16000, 32000)
 
+    # storage backend
+    storage_backend: str = "local"  # "local" | "minio"
+    storage_local_dir: str = "thumbnails"  # base dir for LocalStorageBackend
+    minio_endpoint: str = ""  # e.g. "http://minio:9000"
+    minio_access_key: str = ""
+    minio_secret_key: str = ""
+    minio_bucket: str = "vms-media"
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

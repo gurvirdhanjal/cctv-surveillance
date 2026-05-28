@@ -77,6 +77,8 @@ Legacy prototype code is in `legacy/`. Do not import.
 
 We are at **Phase 2b: Anomaly Framework** (plan reviewed; implementation NOT STARTED).
 
+**Storage Abstraction Layer** is **COMPLETE** — 219 tests passing (176 pre-existing + 43 new). Plan: `docs/superpowers/plans/2026-05-28-vms-storage-abstraction.md`. Delivered: `StorageBackend` Protocol, `LocalStorageBackend`, `MinIOStorageBackend` (moto-tested), `get_storage()` factory, `write_thumbnail`/`write_snapshot` helpers, Alembic data migration for relative keys, GDPR purge wired to storage backend, `/media` StaticFiles mount for local backend. `boto3`/`moto[s3]` added to dependencies. Commit to follow.
+
 **Foundation Hardening & Docs Cleanup** is **COMPLETE** — 176 tests passing as of commit `3bd6669`. Plan: `docs/superpowers/plans/2026-05-27-vms-foundation-hardening-and-docs-cleanup.md`. Delivered: production readiness spec, subphase taxonomy, configurable RTSP config, E2E integration test, four ops runbooks, customer onboarding runbook, Phase 3/5 scope stubs.
 
 **Phase 1B.2 Hardening** is **COMPLETE** — 171 tests passing as of commit `210b283`. Plan: `docs/superpowers/plans/2026-05-27-vms-v2-phase1b-2-hardening.md`. Fixes: GDPR purge (SELECT FOR UPDATE + file deletion + CLIP removal + JSON audit payload), SHM size validation, RTSP exponential backoff + camera deactivation, faiss_dirty consumer startup replay.

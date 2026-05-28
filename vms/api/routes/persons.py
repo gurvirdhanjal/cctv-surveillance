@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import pathlib
 from datetime import datetime, timezone
 from typing import Any
 
@@ -25,6 +24,7 @@ from vms.db.audit import write_audit_event
 from vms.db.models import Person, PersonClipEmbedding, PersonEmbedding, TrackingEvent
 from vms.db.models import User as DBUser
 from vms.identity import faiss_dirty
+from vms.storage.factory import get_storage
 
 router = APIRouter()
 
@@ -126,8 +126,8 @@ async def purge_person(
         emb.embedding = blank
         emb.quality_score = 0.0
 
-    # Collect CLIP snapshot paths before deletion so we can unlink files post-commit
-    clip_paths: list[str] = list(
+    # Collect CLIP snapshot keys before deletion so we can remove them post-commit
+    clip_keys: list[str] = list(
         db.execute(
             select(PersonClipEmbedding.snapshot_path)
             .join(
@@ -150,7 +150,7 @@ async def purge_person(
 
     person.is_active = False
     person.purged_at = datetime.now(timezone.utc).replace(tzinfo=None)
-    thumbnail_path = person.thumbnail_path
+    thumbnail_key = person.thumbnail_path
     person.thumbnail_path = None
 
     # Resolve actor_user_id only when the user exists in DB — handles deleted-user edge case
@@ -168,11 +168,12 @@ async def purge_person(
         payload=json.dumps({"reason": body.reason, "embeddings_blanked": len(emb_ids)}),
     )
 
-    # Delete files after commit so a DB rollback doesn't orphan a deleted file
-    if thumbnail_path:
-        pathlib.Path(thumbnail_path).unlink(missing_ok=True)
-    for snap in clip_paths:
-        pathlib.Path(snap).unlink(missing_ok=True)
+    # Remove media files after commit via storage backend
+    storage = get_storage()
+    if thumbnail_key:
+        storage.delete(thumbnail_key)
+    for key in clip_keys:
+        storage.delete(key)
 
     await faiss_dirty.publish_remove(get_api_redis(), person_id=person_id, embedding_ids=emb_ids)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -30,8 +30,7 @@ logger = logging.getLogger(__name__)
 _DETECTIONS_STREAM = "detections"
 _EVICT_EVERY = 1000  # evict stale registry entries every N messages
 
-_INSERT_SQL = text(
-    """
+_INSERT_SQL = text("""
     INSERT INTO tracking_events
         (camera_id, local_track_id, global_track_id, person_id,
          bbox_x1, bbox_y1, bbox_x2, bbox_y2,
@@ -43,8 +42,7 @@ _INSERT_SQL = text(
          :floor_x, :floor_y,
          :event_ts, :ingest_ts, :seq_id)
     ON CONFLICT ON CONSTRAINT uq_tracking_idem DO NOTHING
-    """
-)
+    """)
 
 
 def flush_detection_frame(
