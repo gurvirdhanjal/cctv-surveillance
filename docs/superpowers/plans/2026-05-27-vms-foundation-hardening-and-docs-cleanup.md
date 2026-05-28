@@ -75,8 +75,8 @@ isolation; gaps surface during paid deployment.
 
 ### Subtasks
 
-- [ ] 1.1 Create `docs/superpowers/specs/2026-05-27-vms-production-readiness.md`
-- [ ] 1.2 Required sections:
+- [x] 1.1 Create `docs/superpowers/specs/2026-05-27-vms-production-readiness.md`
+- [x] 1.2 Required sections:
   - **Service level objectives** (uptime target, frame ingestion latency p50/p99,
     alert dispatch latency p99, FAISS staleness ceiling)
   - **Security audit gates** (OWASP top 10 pass, dependency CVE scan clean, JWT
@@ -90,9 +90,9 @@ isolation; gaps surface during paid deployment.
     onboarding runbook validated by external tester, EXPLAINER.md links current)
   - **Capacity claims** (concrete numbers per GPU SKU, validated by soak)
   - **Per-phase gate-closing matrix** (which phase delivers which gate)
-- [ ] 1.3 Each gate states: criterion, owner phase, evidence required, status
-- [ ] 1.4 Link from CLAUDE.md §1 as the v1-GA acceptance spec
-- [ ] 1.5 Commit: `docs: add production readiness spec defining v1 GA exit criteria`
+- [x] 1.3 Each gate states: criterion, owner phase, evidence required, status
+- [x] 1.4 Link from CLAUDE.md §1 as the v1-GA acceptance spec
+- [x] 1.5 Commit: `docs: add production readiness spec defining v1 GA exit criteria`
 
 ---
 
@@ -103,13 +103,13 @@ superseded plan create onboarding confusion.
 
 ### Subtasks
 
-- [ ] 2.1 Create `legacy/` directory at repo root
-- [ ] 2.2 `git mv` each legacy file to `legacy/`:
+- [x] 2.1 Create `legacy/` directory at repo root
+- [x] 2.2 `git mv` each legacy file to `legacy/`:
   ```
   git mv main.py face_detection.py enrollment_emp.py face_utils.py
   git mv scrfd_face.py test.py test_db.py config.py legacy/
   ```
-- [ ] 2.3 Add `legacy/README.md`:
+- [x] 2.3 Add `legacy/README.md`:
   ```markdown
   # Legacy prototype files
 
@@ -118,13 +118,13 @@ superseded plan create onboarding confusion.
 
   Production code lives in `vms/`. See CLAUDE.md §2.
   ```
-- [ ] 2.4 Add `legacy/` to ruff and mypy excludes in pyproject.toml
-- [ ] 2.5 `git rm docs/superpowers/plans/2026-04-23-phase1-foundation.md`
+- [x] 2.4 Add `legacy/` to ruff and mypy excludes in pyproject.toml
+- [x] 2.5 `git rm docs/superpowers/plans/2026-04-23-phase1-foundation.md`
   (git history preserves it; `git show <commit>:<path>` recovers)
-- [ ] 2.6 Update CLAUDE.md §2: remove the legacy file list; replace with one
+- [x] 2.6 Update CLAUDE.md §2: remove the legacy file list; replace with one
   sentence: \"Legacy prototype code is in `legacy/`. Do not import.\"
-- [ ] 2.7 Verify `ruff check vms/ tests/` still passes (no legacy imports broken)
-- [ ] 2.8 Commit: `chore: move legacy prototype files to legacy/ and delete superseded phase 1 plan`
+- [x] 2.7 Verify `ruff check vms/ tests/` still passes (no legacy imports broken)
+- [x] 2.8 Commit: `chore: move legacy prototype files to legacy/ and delete superseded phase 1 plan`
 
 ---
 
@@ -136,7 +136,7 @@ the relationship explicit.
 
 ### Subtasks
 
-- [ ] 3.1 Rename plans:
+- [x] 3.1 Rename plans:
   ```
   git mv docs/superpowers/plans/2026-05-01-vms-v2-phase1a-db-schema.md \
          docs/superpowers/plans/2026-05-01-vms-v2-phase1a-1-db-schema.md
@@ -144,14 +144,14 @@ the relationship explicit.
   git mv docs/superpowers/plans/2026-05-09-vms-v2-phase1b-ingestion-inference-api.md \
          docs/superpowers/plans/2026-05-09-vms-v2-phase1b-1-ingestion-inference-api.md
   ```
-- [ ] 3.2 Split the hardening-fixes plan into two:
+- [x] 3.2 Split the hardening-fixes plan into two:
   - `2026-05-27-vms-v2-phase1a-2-hardening.md` — contains the audit-log row_hash_version
     fix (T2), datetime.utcnow column-default fix (T1, the 8 in models.py only)
   - `2026-05-27-vms-v2-phase1b-2-hardening.md` — contains SHM validation (T4),
     RTSP backoff + session_factory (T5), GDPR purge completeness (T3),
     persons.py:125 utcnow line, evict_stale wiring (T6), faiss_dirty consumer (T7)
   - Delete the combined `2026-05-27-vms-v2-phase1ab-hardening-fixes.md`
-- [ ] 3.3 Update CLAUDE.md §3 phase status section:
+- [x] 3.3 Update CLAUDE.md §3 phase status section:
   ```markdown
   We are at **Phase 2b: Anomaly Framework** (plan reviewed; implementation NOT
   STARTED).
@@ -178,11 +178,11 @@ the relationship explicit.
 
   **Phase 1A.1** (initial DB Schema) is **COMPLETE** ...
   ```
-- [ ] 3.4 Optionally rename `2026-05-14-vms-v2-phase2a-hardening.md` →
+- [x] 3.4 Optionally rename `2026-05-14-vms-v2-phase2a-hardening.md` →
   `2026-05-14-vms-v2-phase2a-2-hardening.md` and `2026-05-14-vms-v2-phase2a-identity-framework.md`
   → `2026-05-14-vms-v2-phase2a-1-identity-framework.md` for consistency.
-- [ ] 3.5 Update each renamed plan's `**Status:**` line to clarify subphase number
-- [ ] 3.6 Commit: `docs: rename plans to subphase taxonomy (1A.1, 1A.2, 1B.1, 1B.2, 2a.1, 2a.2)`
+- [x] 3.5 Update each renamed plan's `**Status:**` line to clarify subphase number
+- [x] 3.6 Commit: `docs: rename plans to subphase taxonomy (1A.1, 1A.2, 1B.1, 1B.2, 2a.1, 2a.2)`
 
 ---
 
@@ -192,36 +192,36 @@ the relationship explicit.
 
 ### Subtasks
 
-- [ ] 4.1 Create `docs/runbooks/` directory
-- [ ] 4.2 Write `docs/runbooks/install.md`:
+- [x] 4.1 Create `docs/runbooks/` directory
+- [x] 4.2 Write `docs/runbooks/install.md`:
   - Hardware prerequisites (GPU SKU, RAM, disk, network)
   - OS prerequisites (Ubuntu 22.04 + nvidia-container-toolkit, or Windows Server 2022)
   - Docker compose recipe for prod (PostgreSQL 16 + Redis 7 + nginx + vms-app)
   - Bare-metal install procedure (systemd units)
   - Post-install verification (`vms-cli doctor`)
   - Common install errors and fixes
-- [ ] 4.3 Write `docs/runbooks/upgrade.md`:
+- [x] 4.3 Write `docs/runbooks/upgrade.md`:
   - Pre-upgrade backup procedure
   - Alembic migration application order
   - Model manifest update procedure
   - Zero-downtime rollout (blue/green via nginx upstream swap)
   - Rollback procedure if upgrade fails
   - Post-upgrade smoke test
-- [ ] 4.4 Write `docs/runbooks/backup-restore.md`:
+- [x] 4.4 Write `docs/runbooks/backup-restore.md`:
   - What to back up: PostgreSQL `pg_dump`, FAISS rebuild from DB (no backup needed),
     face thumbnails directory, model manifest lockfile, configuration secrets
   - Backup schedule recommendation (nightly DB dump, weekly full filesystem)
   - Restore procedure: stop services, restore DB, restart, FAISS auto-rebuilds
   - Restore validation: verify last 5 audit events chain-link, test one search query
-- [ ] 4.5 Write `docs/runbooks/disaster-recovery.md`:
+- [x] 4.5 Write `docs/runbooks/disaster-recovery.md`:
   - RTO/RPO targets (recommend 4h RTO, 24h RPO for plant CCTV)
   - Server-down procedure: cold-spare hardware swap, restore from backup
   - GPU failure procedure: degraded mode (ingestion-only, no inference)
   - Network partition procedure: alert dispatch fallback to local SMTP relay
   - Full-site loss procedure: rebuild from offsite backup
-- [ ] 4.6 Index file: `docs/runbooks/README.md` listing all runbooks
-- [ ] 4.7 Each runbook: numbered steps, no prose-only sections, end with verification
-- [ ] 4.8 Commit: `docs: add install / upgrade / backup-restore / disaster-recovery runbooks`
+- [x] 4.6 Index file: `docs/runbooks/README.md` listing all runbooks
+- [x] 4.7 Each runbook: numbered steps, no prose-only sections, end with verification
+- [x] 4.8 Commit: `docs: add install / upgrade / backup-restore / disaster-recovery runbooks`
 
 ---
 
@@ -231,7 +231,7 @@ the relationship explicit.
 
 ### Subtasks
 
-- [ ] 5.1 Write `docs/runbooks/customer-onboarding.md`:
+- [x] 5.1 Write `docs/runbooks/customer-onboarding.md`:
   - **Step 1 — Server install** (link to install.md)
   - **Step 2 — Create first admin user** (`vms-cli users create --admin`)
   - **Step 3 — Network camera discovery** (network scan, RTSP probe)
@@ -249,10 +249,10 @@ the relationship explicit.
     test dispatch)
   - **Step 10 — Run acceptance test** (walk an enrolled person + unknown person
     through Camera 1, verify alerts fire correctly)
-- [ ] 5.2 Each step lists: prerequisites, exact commands or API calls, expected
+- [x] 5.2 Each step lists: prerequisites, exact commands or API calls, expected
   output, troubleshooting
-- [ ] 5.3 Phase 4 frontend implements this as a wizard UI; this doc is the spec
-- [ ] 5.4 Commit: `docs: add customer onboarding runbook covering install-to-first-alert flow`
+- [x] 5.3 Phase 4 frontend implements this as a wizard UI; this doc is the spec
+- [x] 5.4 Commit: `docs: add customer onboarding runbook covering install-to-first-alert flow`
 
 ---
 
@@ -263,23 +263,23 @@ config-driven.
 
 ### Subtasks
 
-- [ ] 6.1 Add to `vms/config.py` Settings class:
+- [x] 6.1 Add to `vms/config.py` Settings class:
   ```python
   rtsp_failure_threshold: int = 5
   rtsp_backoff_delays_ms: tuple[int, ...] = (1000, 2000, 4000, 8000, 60000)
   ```
-- [ ] 6.2 Update Phase 1B.2 hardening plan T5 to read from `get_settings()`:
+- [x] 6.2 Update Phase 1B.2 hardening plan T5 to read from `get_settings()`:
   ```python
   settings = get_settings()
   _BACKOFF_DELAYS = [d / 1000.0 for d in settings.rtsp_backoff_delays_ms]
   _FAILURE_THRESHOLD = settings.rtsp_failure_threshold
   ```
-- [ ] 6.3 Update CLAUDE.md §12 pitfall table:
+- [x] 6.3 Update CLAUDE.md §12 pitfall table:
   ```
   | RTSP failure handling | Configurable per site: `settings.rtsp_failure_threshold` (default 5) and `rtsp_backoff_delays_ms`. CLAUDE.md no longer cites a hardcoded number. |
   ```
-- [ ] 6.4 Add test `test_rtsp_threshold_reads_from_config` in test_ingestion_worker.py
-- [ ] 6.5 Commit: `feat(config): rtsp_failure_threshold and rtsp_backoff_delays_ms now configurable`
+- [x] 6.4 Add test `test_rtsp_threshold_reads_from_config` in test_ingestion_worker.py
+- [x] 6.5 Commit: `feat(config): rtsp_failure_threshold and rtsp_backoff_delays_ms now configurable`
 
 ---
 
@@ -290,11 +290,11 @@ contract drift surfaces in production.
 
 ### Subtasks
 
-- [ ] 7.1 Create `tests/test_e2e_full_pipeline.py`
-- [ ] 7.2 Synthetic frame source: a small helper that pushes pre-generated frames
+- [x] 7.1 Create `tests/test_e2e_full_pipeline.py`
+- [x] 7.2 Synthetic frame source: a small helper that pushes pre-generated frames
   (numpy arrays with one synthesized face) into the `frames:group1` Redis stream
   with proper `FramePointer` headers, no cv2 capture
-- [ ] 7.3 Test 1: `test_e2e_known_person_no_unknown_alert`:
+- [x] 7.3 Test 1: `test_e2e_known_person_no_unknown_alert`:
   - Seed DB with one Person + one PersonEmbedding (a known vector)
   - Start IngestionWorker (synthetic source), InferenceEngine, IdentityEngine,
     DBWriter, AnomalyOrchestrator with `UnknownPersonDetector`
@@ -302,16 +302,16 @@ contract drift surfaces in production.
   - Wait up to 5s for pipeline to drain
   - Assert: zero `UNKNOWN_PERSON` alerts in `alerts` table
   - Assert: at least one TrackingEvent row with non-null `person_id`
-- [ ] 7.4 Test 2: `test_e2e_unknown_person_fires_alert`:
+- [x] 7.4 Test 2: `test_e2e_unknown_person_fires_alert`:
   - Same setup, push 10 frames containing a face that doesn't match the seed
   - Assert: at least one `UNKNOWN_PERSON` alert in `alerts` table with `state='active'`
   - Assert: AnomalyEvent FSM transitioned through PENDING → FIRED
-- [ ] 7.5 Mark tests `@pytest.mark.integration` so they run on `main` branch only
-- [ ] 7.6 Document required fixtures in `tests/conftest.py`: real test PostgreSQL
+- [x] 7.5 Mark tests `@pytest.mark.integration` so they run on `main` branch only
+- [x] 7.6 Document required fixtures in `tests/conftest.py`: real test PostgreSQL
   on port 5434, real Redis on port 6380 (separate from dev Redis)
-- [ ] 7.7 Verify: full suite still completes in <60s for unit tests, <90s with
+- [x] 7.7 Verify: full suite still completes in <60s for unit tests, <90s with
   integration tests
-- [ ] 7.8 Commit: `test: add end-to-end full-pipeline integration test`
+- [x] 7.8 Commit: `test: add end-to-end full-pipeline integration test`
 
 ---
 
@@ -323,7 +323,7 @@ the rationale.
 
 ### Subtasks
 
-- [ ] 8.1 Create `docs/superpowers/plans/PHASE3-SCOPE-ADDITIONS.md` (a stub, not a
+- [x] 8.1 Create `docs/superpowers/plans/PHASE3-SCOPE-ADDITIONS.md` (a stub, not a
   plan):
   ```markdown
   # Phase 3 — Additional scope captured 2026-05-27
@@ -342,7 +342,7 @@ the rationale.
   drops, FAISS staleness, scheduler stalls) currently produce no alerts.
   See decision log D2 in 2026-05-27-vms-foundation-hardening-and-docs-cleanup.md.
   ```
-- [ ] 8.2 Create `docs/superpowers/plans/PHASE5-SCOPE-ADDITIONS.md` stub:
+- [x] 8.2 Create `docs/superpowers/plans/PHASE5-SCOPE-ADDITIONS.md` stub:
   ```markdown
   # Phase 5 — Additional scope captured 2026-05-27
 
@@ -366,20 +366,20 @@ the rationale.
   ## Reason
   See decision log D3 + D10 in 2026-05-27-vms-foundation-hardening-and-docs-cleanup.md.
   ```
-- [ ] 8.3 Commit: `docs: stub Phase 3 and Phase 5 scope additions from foundation hardening review`
+- [x] 8.3 Commit: `docs: stub Phase 3 and Phase 5 scope additions from foundation hardening review`
 
 ---
 
 ## Task 9: Final pass — verify nothing broken
 
-- [ ] 9.1 `ruff check vms/ tests/` clean
-- [ ] 9.2 `mypy vms/` clean
-- [ ] 9.3 `pytest tests/ -q` — all existing 159 tests still pass + new E2E test passes
-- [ ] 9.4 `grep -r 'phase1-foundation' docs/ CLAUDE.md` returns zero (link rot check)
-- [ ] 9.5 `grep -r 'main.py\|face_detection.py\|enrollment_emp.py\|face_utils.py\|scrfd_face.py' --include='*.md' --include='*.py' vms/ docs/ CLAUDE.md` returns zero unintended references
-- [ ] 9.6 Confirm CLAUDE.md §3 phase status section reflects all subphase renames
-- [ ] 9.7 Confirm production-readiness spec is linked from CLAUDE.md
-- [ ] 9.8 Commit: `chore: final foundation-hardening verification`
+- [x] 9.1 `ruff check vms/ tests/` clean
+- [x] 9.2 `mypy vms/` clean
+- [x] 9.3 `pytest tests/ -q` — all existing 159 tests still pass + new E2E test passes
+- [x] 9.4 `grep -r 'phase1-foundation' docs/ CLAUDE.md` returns zero (link rot check)
+- [x] 9.5 `grep -r 'main.py\|face_detection.py\|enrollment_emp.py\|face_utils.py\|scrfd_face.py' --include='*.md' --include='*.py' vms/ docs/ CLAUDE.md` returns zero unintended references
+- [x] 9.6 Confirm CLAUDE.md §3 phase status section reflects all subphase renames
+- [x] 9.7 Confirm production-readiness spec is linked from CLAUDE.md
+- [x] 9.8 Commit: `chore: final foundation-hardening verification`
 
 ---
 
