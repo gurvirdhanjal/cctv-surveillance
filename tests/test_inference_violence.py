@@ -32,10 +32,14 @@ def test_score_returns_float_when_model_available(monkeypatch: pytest.MonkeyPatc
         def InferenceSession(path, providers):  # type: ignore[no-untyped-def]
             return FakeSession()
 
-    import vms.inference.violence as mod
+    # New ViolenceModel imports onnxruntime lazily inside _load_a0_onnx.
+    # Monkeypatch the onnxruntime module in sys.modules so the lazy import picks it up.
+    import sys
 
-    monkeypatch.setattr(mod, "ort", FakeOrt(), raising=True)
-    monkeypatch.setattr(mod.os.path, "exists", lambda p: True)
+    monkeypatch.setitem(sys.modules, "onnxruntime", FakeOrt())  # type: ignore[arg-type]
+    # isfile() returns True → treated as ONNX path; isdir() returns False → not SavedModel
+    monkeypatch.setattr("vms.inference.violence.os.path.isfile", lambda p: True)
+    monkeypatch.setattr("vms.inference.violence.os.path.isdir", lambda p: False)
     model = ViolenceModel("/fake/path.onnx")
     clip = np.zeros((16, 224, 224, 3), dtype=np.uint8)
     score = model.score(clip)

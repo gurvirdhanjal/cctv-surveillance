@@ -53,11 +53,16 @@ class Settings(BaseSettings):
     rtsp_backoff_delays_ms: tuple[int, ...] = (1000, 2000, 4000, 8000, 16000, 32000)
 
     # violence (gated pool in InferenceEngine)
+    # Path to either:
+    #   - ONNX file (A0 clip mode): "models/movinet_a0.onnx"
+    #   - SavedModel directory from kagglehub (A2 streaming mode):
+    #     set to the path returned by kagglehub.model_download(...)
+    #     or use VMS_VIOLENCE_MODEL env var after running download_movinet_a2.py
     violence_model: str = "models/movinet_a0.onnx"
     violence_threshold: float = 0.65
     violence_gate_min_persons: int = 2
-    violence_clip_frames: int = 16
-    violence_inference_every_s: float = 1.0
+    violence_clip_frames: int = 16  # A0 only: frames per clip
+    violence_inference_every_s: float = 1.0  # A0 only: min interval between inferences
 
     # alert FSM
     alert_fsm_default_dedup_window_ms: int = 60_000

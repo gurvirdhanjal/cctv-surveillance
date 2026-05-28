@@ -37,6 +37,13 @@ strict = true
 plugins = ["sqlalchemy.ext.mypy.plugin"]
 exclude = ["^legacy/"]
 
+# These files use lazy optional imports (tensorflow, insightface) that may or
+# may not be installed in any given environment. warn_unused_ignores would flip
+# depending on whether the optional dep is present.
+[[tool.mypy.overrides]]
+module = ["vms.inference.violence", "vms.inference.detector"]
+warn_unused_ignores = false
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"

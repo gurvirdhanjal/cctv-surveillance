@@ -1,16 +1,32 @@
-"""Inference engine: reads frames stream -> SCRFD + AdaFace + Tracker -> detections stream."""
+"""Inference engine: reads frames stream -> SCRFD/YOLO + AdaFace + Tracker -> detections stream.
+
+Violence scoring:
+  A0 ONNX (clip mode):  buffers violence_clip_frames per camera, runs every violence_inference_every_s
+  A2 Stream (TF mode):  calls ViolenceModel.score(frame, camera_id) once per frame — stateful,
+                        no buffer needed. Gate: only when >= violence_gate_min_persons detected.
+"""
 
 from __future__ import annotations
 
 import asyncio
 import logging
+from collections import deque
+from typing import Any
 
+import numpy as np
 import redis.asyncio as aioredis
 
-from vms.inference.detector import SCRFDDetector, _InsightFaceBackend, _NullDetector
+from vms.config import get_settings
+from vms.inference.detector import (
+    SCRFDDetector,
+    _InsightFaceBackend,
+    _NullDetector,
+    _YoloFaceBackend,
+)
 from vms.inference.embedder import AdaFaceEmbedder, _InsightFaceEmbedder, _NullEmbedder
 from vms.inference.messages import DetectionFrame, FaceWithEmbedding, Tracklet
 from vms.inference.tracker import PerCameraTracker
+from vms.inference.violence import ViolenceModel
 from vms.ingestion.messages import FramePointer
 from vms.ingestion.shm import SHMSlot
 from vms.redis_client import stream_add, stream_read
@@ -51,19 +67,25 @@ class InferenceEngine:
         self,
         camera_ids: list[int],
         worker_group: int,
-        detector: SCRFDDetector | _InsightFaceBackend | _NullDetector,
+        detector: SCRFDDetector | _InsightFaceBackend | _YoloFaceBackend | _NullDetector,
         embedder: AdaFaceEmbedder | _InsightFaceEmbedder | _NullEmbedder,
         trackers: dict[int, PerCameraTracker],
         redis_client: aioredis.Redis,
+        violence: ViolenceModel | None = None,
     ) -> None:
-        self._camera_ids = camera_ids  # reserved for future per-engine camera filtering
+        self._camera_ids = camera_ids
         self._stream_name = f"frames:group{worker_group}"
         self._detector = detector
         self._embedder = embedder
         self._trackers = trackers
         self._redis = redis_client
+        self._violence = violence
         self._running = False
         self._last_id = "0-0"
+
+        # A0 ONNX clip buffers: camera_id -> deque of frames
+        self._clip_buffers: dict[int, deque[Any]] = {}
+        self._last_violence_ts: dict[int, float] = {}
 
     async def run(self) -> None:
         self._running = True
@@ -112,11 +134,46 @@ class InferenceEngine:
             for t in raw_tracklets
         )
 
+        violence_score = self._compute_violence_score(
+            pointer.cam_id, frame_bgr, len(raw_tracklets), timestamp_ms
+        )
+
         detection_frame = DetectionFrame(
             camera_id=pointer.cam_id,
             seq_id=seq_id,
             timestamp_ms=timestamp_ms,
             tracklets=enriched_tracklets,
             face_embeddings=tuple(face_embeddings),
+            violence_score=violence_score,
         )
         await stream_add(self._redis, _DETECTIONS_STREAM, detection_frame.to_redis_fields())
+
+    def _compute_violence_score(
+        self,
+        cam_id: int,
+        frame_bgr: np.ndarray[Any, Any],
+        person_count: int,
+        timestamp_ms: int,
+    ) -> float | None:
+        if self._violence is None or not self._violence.is_available:
+            return None
+        settings = get_settings()
+        if person_count < settings.violence_gate_min_persons:
+            return None
+
+        if self._violence.is_a2_stream:
+            # A2 Stream: one frame at a time, no buffering needed
+            return self._violence.score(frame_bgr, cam_id)
+
+        # A0 ONNX: buffer violence_clip_frames, run every violence_inference_every_s
+        buf = self._clip_buffers.setdefault(cam_id, deque(maxlen=settings.violence_clip_frames))
+        buf.append(frame_bgr.copy())
+        last_ts = self._last_violence_ts.get(cam_id, 0.0)
+        now_s = timestamp_ms / 1000.0
+        if len(buf) == settings.violence_clip_frames and (
+            now_s - last_ts >= settings.violence_inference_every_s
+        ):
+            clip = np.stack(list(buf), axis=0)
+            self._last_violence_ts[cam_id] = now_s
+            return self._violence.score(clip, cam_id)
+        return None

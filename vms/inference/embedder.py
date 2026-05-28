@@ -96,9 +96,7 @@ class AdaFaceEmbedder:
         self._min_face_px = min_face_px if min_face_px is not None else get_settings().min_face_px
 
     @classmethod
-    def from_path(
-        cls, model_path: str
-    ) -> AdaFaceEmbedder | _InsightFaceEmbedder | _NullEmbedder:
+    def from_path(cls, model_path: str) -> AdaFaceEmbedder | _InsightFaceEmbedder | _NullEmbedder:
         """Load from ONNX file, InsightFace fallback, or null embedder."""
         settings = get_settings()
         min_px = settings.min_face_px

@@ -32,9 +32,7 @@ _STRIDES = [8, 16, 32]
 _ANCHORS_PER_CELL = 2
 
 
-def _try_load_insightface(
-    conf_thres: float, min_face_px: int
-) -> _InsightFaceBackend | None:
+def _try_load_insightface(conf_thres: float, min_face_px: int) -> _InsightFaceBackend | None:
     """Try to construct an InsightFace backend. Returns None if not installed."""
     try:
         from insightface.app import FaceAnalysis  # type: ignore[import-not-found]
@@ -100,7 +98,9 @@ class SCRFDDetector:
         self._min_face_px = min_face_px if min_face_px is not None else get_settings().min_face_px
 
     @classmethod
-    def from_path(cls, model_path: str) -> SCRFDDetector | _InsightFaceBackend | _NullDetector:
+    def from_path(
+        cls, model_path: str
+    ) -> SCRFDDetector | _InsightFaceBackend | _YoloFaceBackend | _NullDetector:
         """Load from ONNX file, InsightFace fallback, or null detector (graceful degradation)."""
         settings = get_settings()
         conf = settings.scrfd_conf
@@ -117,15 +117,32 @@ class SCRFDDetector:
             except Exception as exc:
                 logger.warning("ONNX load failed (%s); trying InsightFace fallback", exc)
 
+        # Fallback 1: legacy face-YOLO (yolov8s-face-lindevs.onnx) — proven in testing
+        yolo_face_path = os.path.join(os.path.dirname(model_path), "yolov8s-face-lindevs.onnx")
+        if os.path.exists(yolo_face_path):
+            try:
+                import onnxruntime as ort  # type: ignore
+
+                providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+                sess = ort.InferenceSession(yolo_face_path, providers=providers)
+                logger.info(
+                    "SCRFDDetector: %s not found; using legacy yolov8s-face-lindevs.onnx",
+                    model_path,
+                )
+                return _YoloFaceBackend(sess, conf, min_px)
+            except Exception as exc:
+                logger.warning("yolov8s-face-lindevs.onnx load failed (%s)", exc)
+
+        # Fallback 2: InsightFace auto-download
         backend = _try_load_insightface(conf, min_px)
         if backend is not None:
             return backend
 
         logger.warning(
-            "Face detector unavailable — ONNX file %s not found and InsightFace not installed. "
+            "Face detector unavailable — ONNX file %s not found, legacy yolov8s-face-lindevs.onnx "
+            "not found, and InsightFace not installed. "
             "Tracking continues but all persons will be UNKNOWN. "
-            "Fix: pip install insightface  OR  download %s",
-            model_path,
+            "Fix: pip install insightface  OR  place scrfd_2.5g.onnx in models/",
             model_path,
         )
         return _NullDetector()
@@ -213,6 +230,99 @@ class SCRFDDetector:
                 )
             )
         return results
+
+
+class _YoloFaceBackend:
+    """Legacy yolov8s-face-lindevs.onnx face detector (proven in testing).
+
+    This is the same postprocessing as legacy/main.py and legacy/face_detection.py.
+    Used as Tier 2 fallback when scrfd_2.5g.onnx is absent.
+    """
+
+    def __init__(self, session: Any, conf_thres: float, min_face_px: int) -> None:
+        self._sess = session
+        self._input_name: str = session.get_inputs()[0].name
+        self._conf_thres = conf_thres
+        self._min_face_px = min_face_px
+
+    def detect(self, frame_bgr: np.ndarray[Any, np.dtype[Any]]) -> list[FaceWithEmbedding]:
+        h0, w0 = frame_bgr.shape[:2]
+        inp, scale, pad_x, pad_y = self._letterbox(frame_bgr)
+        outputs = self._sess.run(None, {self._input_name: inp})
+        return self._decode(outputs, h0, w0, scale, pad_x, pad_y)
+
+    @staticmethod
+    def _letterbox(
+        img: np.ndarray[Any, np.dtype[Any]], size: int = 640
+    ) -> tuple[np.ndarray[Any, np.dtype[Any]], float, int, int]:
+        h, w = img.shape[:2]
+        scale = min(size / h, size / w)
+        nh, nw = int(h * scale), int(w * scale)
+        resized = cv2.resize(img, (nw, nh))
+        pad_y, pad_x = (size - nh) // 2, (size - nw) // 2
+        padded = cv2.copyMakeBorder(
+            resized,
+            pad_y,
+            size - nh - pad_y,
+            pad_x,
+            size - nw - pad_x,
+            cv2.BORDER_CONSTANT,
+            value=(114, 114, 114),
+        )
+        rgb = cv2.cvtColor(padded, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
+        return np.transpose(rgb, (2, 0, 1))[None], scale, pad_x, pad_y
+
+    def _decode(
+        self,
+        outputs: list[Any],
+        orig_h: int,
+        orig_w: int,
+        scale: float,
+        pad_x: int,
+        pad_y: int,
+    ) -> list[FaceWithEmbedding]:
+        # Handle (1,C,N) or (1,N,C) layout robustly (from legacy _to_nxc)
+        raw = outputs[0]
+        if raw.ndim == 3 and raw.shape[0] == 1:
+            raw = raw[0]
+        if raw.ndim == 2 and raw.shape[0] <= 20 and raw.shape[1] > raw.shape[0]:
+            raw = raw.T
+
+        raw_boxes: list[tuple[int, int, int, int, float]] = []
+        for det in raw:
+            if det.shape[0] < 5:
+                continue
+            obj = float(det[4])
+            conf = obj * float(np.max(det[5:])) if det.shape[0] > 5 else obj
+            if conf < self._conf_thres:
+                continue
+            cx, cy, bw, bh = det[:4]
+            x1 = int((cx - bw / 2 - pad_x) / scale)
+            y1 = int((cy - bh / 2 - pad_y) / scale)
+            x2 = int((cx + bw / 2 - pad_x) / scale)
+            y2 = int((cy + bh / 2 - pad_y) / scale)
+            x1, y1 = max(0, x1), max(0, y1)
+            x2, y2 = min(orig_w - 1, x2), min(orig_h - 1, y2)
+            if (x2 - x1) < self._min_face_px or (y2 - y1) < self._min_face_px:
+                continue
+            raw_boxes.append((x1, y1, x2, y2, conf))
+
+        if not raw_boxes:
+            return []
+
+        boxes_xywh = [[x1, y1, x2 - x1, y2 - y1] for x1, y1, x2, y2, _ in raw_boxes]
+        scores = [c for *_, c in raw_boxes]
+        idxs: Any = cv2.dnn.NMSBoxes(boxes_xywh, scores, self._conf_thres, 0.45)
+        if len(idxs) == 0:
+            return []
+        return [
+            FaceWithEmbedding(
+                bbox=(raw_boxes[i][0], raw_boxes[i][1], raw_boxes[i][2], raw_boxes[i][3]),
+                confidence=raw_boxes[i][4],
+                embedding=(),
+            )
+            for i in idxs.flatten()
+        ]
 
 
 class _NullDetector:
