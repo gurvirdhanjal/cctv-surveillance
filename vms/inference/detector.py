@@ -1,14 +1,22 @@
-"""SCRFD 2.5g face detector (ONNX).
+"""SCRFD 2.5g face detector (ONNX or InsightFace fallback).
 
 Input:  (1, 3, 640, 640) float32, normalised (pixel - 127.5) / 128.0, BGR->RGB, CHW
 Outputs [cls_s8, cls_s16, cls_s32, bbox_s8, bbox_s16, bbox_s32]:
   cls shapes:  (N, 1)  where N = (640/stride)^2 * 2 anchors
   bbox shapes: (N, 4)  ltrb in stride units from anchor centre
+
+Model loading strategy (tried in order):
+  1. ONNX file at model_path — fastest, recommended for production.
+  2. InsightFace FaceAnalysis — auto-downloads buffalo_l from CDN on first use.
+     Install with: pip install insightface onnxruntime
+  3. None (graceful degradation) — face detection disabled; tracklets still work
+     via YOLO/ByteTrack, but no face embeddings → all persons appear as UNKNOWN.
 """
 
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 import cv2
@@ -24,8 +32,59 @@ _STRIDES = [8, 16, 32]
 _ANCHORS_PER_CELL = 2
 
 
+def _try_load_insightface(
+    conf_thres: float, min_face_px: int
+) -> _InsightFaceBackend | None:
+    """Try to construct an InsightFace backend. Returns None if not installed."""
+    try:
+        from insightface.app import FaceAnalysis  # type: ignore[import-not-found]
+
+        logger.info("SCRFD ONNX not found; loading InsightFace buffalo_l (auto-download)")
+        app = FaceAnalysis(
+            name="buffalo_l",
+            allowed_modules=["detection"],
+            providers=["CUDAExecutionProvider", "CPUExecutionProvider"],
+        )
+        app.prepare(ctx_id=0, det_size=(_INPUT_SIZE, _INPUT_SIZE))
+        return _InsightFaceBackend(app, conf_thres, min_face_px)
+    except Exception as exc:
+        logger.warning("InsightFace not available (%s); face detection disabled", exc)
+        return None
+
+
+class _InsightFaceBackend:
+    """Thin wrapper so InsightFace presents the same detect() interface as SCRFDDetector."""
+
+    def __init__(self, app: Any, conf_thres: float, min_face_px: int) -> None:
+        self._app = app
+        self._conf_thres = conf_thres
+        self._min_face_px = min_face_px
+
+    def detect(self, frame_bgr: np.ndarray[Any, np.dtype[Any]]) -> list[FaceWithEmbedding]:
+        faces = self._app.get(frame_bgr)
+        results: list[FaceWithEmbedding] = []
+        for f in faces:
+            if f.det_score < self._conf_thres:
+                continue
+            x1, y1, x2, y2 = (int(v) for v in f.bbox)
+            if (x2 - x1) < self._min_face_px or (y2 - y1) < self._min_face_px:
+                continue
+            results.append(
+                FaceWithEmbedding(
+                    bbox=(x1, y1, x2, y2),
+                    confidence=float(f.det_score),
+                    embedding=(),
+                )
+            )
+        return results
+
+
 class SCRFDDetector:
-    """Wraps SCRFD 2.5g ONNX model for face detection."""
+    """Wraps SCRFD 2.5g ONNX model for face detection.
+
+    When model file is absent, falls back to InsightFace auto-download.
+    When neither is available, detect() returns [] and logs a warning once.
+    """
 
     def __init__(
         self,
@@ -41,12 +100,35 @@ class SCRFDDetector:
         self._min_face_px = min_face_px if min_face_px is not None else get_settings().min_face_px
 
     @classmethod
-    def from_path(cls, model_path: str) -> SCRFDDetector:
-        import onnxruntime as ort  # type: ignore[import-untyped]  # lazy: not available in test env
+    def from_path(cls, model_path: str) -> SCRFDDetector | _InsightFaceBackend | _NullDetector:
+        """Load from ONNX file, InsightFace fallback, or null detector (graceful degradation)."""
+        settings = get_settings()
+        conf = settings.scrfd_conf
+        min_px = settings.min_face_px
 
-        providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
-        sess: Any = ort.InferenceSession(model_path, providers=providers)
-        return cls(session=sess)
+        if os.path.exists(model_path):
+            try:
+                import onnxruntime as ort  # type: ignore[import-untyped]  # lazy
+
+                providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+                sess: Any = ort.InferenceSession(model_path, providers=providers)
+                logger.info("SCRFDDetector loaded from %s", model_path)
+                return cls(session=sess, conf_thres=conf, min_face_px=min_px)
+            except Exception as exc:
+                logger.warning("ONNX load failed (%s); trying InsightFace fallback", exc)
+
+        backend = _try_load_insightface(conf, min_px)
+        if backend is not None:
+            return backend
+
+        logger.warning(
+            "Face detector unavailable — ONNX file %s not found and InsightFace not installed. "
+            "Tracking continues but all persons will be UNKNOWN. "
+            "Fix: pip install insightface  OR  download %s",
+            model_path,
+            model_path,
+        )
+        return _NullDetector()
 
     def detect(self, frame_bgr: np.ndarray[Any, np.dtype[Any]]) -> list[FaceWithEmbedding]:
         """Detect faces in a BGR frame. Returns FaceWithEmbedding list (embedding is empty tuple)."""
@@ -131,3 +213,10 @@ class SCRFDDetector:
                 )
             )
         return results
+
+
+class _NullDetector:
+    """No-op detector used when neither ONNX nor InsightFace is available."""
+
+    def detect(self, frame_bgr: np.ndarray[Any, np.dtype[Any]]) -> list[FaceWithEmbedding]:
+        return []

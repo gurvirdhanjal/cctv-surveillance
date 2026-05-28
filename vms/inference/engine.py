@@ -7,8 +7,8 @@ import logging
 
 import redis.asyncio as aioredis
 
-from vms.inference.detector import SCRFDDetector
-from vms.inference.embedder import AdaFaceEmbedder
+from vms.inference.detector import SCRFDDetector, _InsightFaceBackend, _NullDetector
+from vms.inference.embedder import AdaFaceEmbedder, _InsightFaceEmbedder, _NullEmbedder
 from vms.inference.messages import DetectionFrame, FaceWithEmbedding, Tracklet
 from vms.inference.tracker import PerCameraTracker
 from vms.ingestion.messages import FramePointer
@@ -51,8 +51,8 @@ class InferenceEngine:
         self,
         camera_ids: list[int],
         worker_group: int,
-        detector: SCRFDDetector,
-        embedder: AdaFaceEmbedder,
+        detector: SCRFDDetector | _InsightFaceBackend | _NullDetector,
+        embedder: AdaFaceEmbedder | _InsightFaceEmbedder | _NullEmbedder,
         trackers: dict[int, PerCameraTracker],
         redis_client: aioredis.Redis,
     ) -> None:
