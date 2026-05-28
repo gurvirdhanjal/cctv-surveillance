@@ -7,6 +7,7 @@ The unique constraint uq_tracking_idem is on (camera_id, local_track_id, event_t
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -17,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from vms.db.models import Camera
 from vms.identity.engine import IdentityEngine
+from vms.identity.faiss_dirty import STREAM as _FAISS_DIRTY_STREAM
 from vms.identity.homography import project_to_floor
 from vms.identity.zone_presence import ZonePresenceTracker
 from vms.inference.messages import DetectionFrame
@@ -128,41 +130,86 @@ class DBWriter:
             self._cam_homography[camera_id] = cam.homography_matrix if cam else None
         return self._cam_homography[camera_id]
 
-    async def run(self) -> None:
-        self._running = True
+    async def _consume_faiss_dirty(self) -> None:
+        """Consume faiss_dirty stream and apply incremental FAISS updates.
+
+        Starts from last_id="0" to replay missed events on every startup,
+        ensuring the in-memory index converges with DB state.
+        """
+        if self._identity is None:
+            return
+        last_id = "0"
         while self._running:
             messages = await stream_read(
-                self._redis, _DETECTIONS_STREAM, last_id=self._last_id, count=100
+                self._redis, _FAISS_DIRTY_STREAM, last_id=last_id, count=100
             )
             if messages:
                 db = self._db_factory()
                 try:
                     for msg_id, fields in messages:
-                        frame = DetectionFrame.from_redis_fields(fields)
-                        homography_json = self._get_homography(db, frame.camera_id)
-                        flush_detection_frame(
-                            db,
-                            frame,
-                            identity=self._identity,
-                            homography_json=homography_json,
-                            zone_tracker=self._zone_tracker,
-                        )
-                        self._last_id = msg_id
-                        self._msg_count += 1
-
-                    if self._identity is not None and self._msg_count % _EVICT_EVERY == 0:
-                        evicted = self._identity.evict_stale()
-                        if evicted:
-                            logger.debug("evicted %d stale tracklets", evicted)
-
-                    db.commit()
+                        action = fields.get("action", "")
+                        if action == "add":
+                            self._identity.faiss_apply_add(
+                                embedding_id=int(fields["embedding_id"]),
+                                person_id=int(fields["person_id"]),
+                                db=db,
+                            )
+                        elif action == "remove":
+                            embedding_ids: list[int] = json.loads(
+                                fields.get("embedding_ids", "[]")
+                            )
+                            self._identity.faiss_apply_remove(embedding_ids)
+                        last_id = msg_id
                 except Exception:
-                    db.rollback()
-                    logger.exception("DB writer flush failed")
+                    logger.exception("faiss_dirty consumer error")
                 finally:
                     db.close()
             else:
-                await asyncio.sleep(0.05)
+                await asyncio.sleep(0.1)
+
+    async def run(self) -> None:
+        self._running = True
+        faiss_task = asyncio.create_task(self._consume_faiss_dirty())
+        try:
+            while self._running:
+                messages = await stream_read(
+                    self._redis, _DETECTIONS_STREAM, last_id=self._last_id, count=100
+                )
+                if messages:
+                    db = self._db_factory()
+                    try:
+                        for msg_id, fields in messages:
+                            frame = DetectionFrame.from_redis_fields(fields)
+                            homography_json = self._get_homography(db, frame.camera_id)
+                            flush_detection_frame(
+                                db,
+                                frame,
+                                identity=self._identity,
+                                homography_json=homography_json,
+                                zone_tracker=self._zone_tracker,
+                            )
+                            self._last_id = msg_id
+                            self._msg_count += 1
+
+                        if self._identity is not None and self._msg_count % _EVICT_EVERY == 0:
+                            evicted = self._identity.evict_stale()
+                            if evicted:
+                                logger.debug("evicted %d stale tracklets", evicted)
+
+                        db.commit()
+                    except Exception:
+                        db.rollback()
+                        logger.exception("DB writer flush failed")
+                    finally:
+                        db.close()
+                else:
+                    await asyncio.sleep(0.05)
+        finally:
+            faiss_task.cancel()
+            try:
+                await faiss_task
+            except asyncio.CancelledError:
+                pass
 
     async def stop(self) -> None:
         self._running = False

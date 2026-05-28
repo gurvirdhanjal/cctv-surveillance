@@ -15,12 +15,15 @@ import logging
 import time
 import uuid
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 from vms.config import get_settings
 from vms.identity.reid import ReIdService
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +117,21 @@ class IdentityEngine:
         if margin < settings.reid_margin:
             return None
         return best_gid
+
+    def faiss_apply_add(self, embedding_id: int, person_id: int, db: Session) -> None:
+        """Fetch embedding from DB and add it to the FAISS index."""
+        from vms.db.models import PersonEmbedding
+
+        row = db.get(PersonEmbedding, embedding_id)
+        if row is None:
+            logger.warning("faiss_dirty add: embedding_id=%d not found in DB", embedding_id)
+            return
+        vec = np.array(row.embedding, dtype=np.float32)
+        self._reid.apply_add(embedding_id, person_id, vec)
+
+    def faiss_apply_remove(self, embedding_ids: list[int]) -> None:
+        """Remove embeddings from the FAISS index."""
+        self._reid.apply_remove(embedding_ids)
 
     def evict_stale(self, now_ms: int | None = None) -> int:
         """Remove tracklets not seen within reid_stale_ms. Returns evicted count."""

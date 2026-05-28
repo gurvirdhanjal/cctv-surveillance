@@ -12,7 +12,8 @@ import redis.asyncio as aioredis
 
 from vms.redis_client import stream_add
 
-_STREAM = "faiss_dirty"
+STREAM = "faiss_dirty"
+_STREAM = STREAM  # backward-compat alias
 
 
 async def publish_add(
