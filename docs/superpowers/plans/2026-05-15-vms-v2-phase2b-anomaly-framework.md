@@ -1,6 +1,6 @@
 # Phase 2b — Anomaly Framework Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Status: COMPLETE**
 
@@ -161,7 +161,7 @@ Each task ends with `pytest -v` over the full suite — a regression in earlier 
 - Create: `alembic/versions/<id>_phase2b_anomaly_framework.py`
 - Modify: `tests/test_db_migrations.py` (or create — check existing)
 
-- [ ] **Step 1: Write the failing migration round-trip test**
+- [x] **Step 1: Write the failing migration round-trip test**
 
 Add to `tests/test_db_migrations.py` (create the file if absent — follow the Phase 1A `tests/test_db_models.py` pattern):
 
@@ -226,7 +226,7 @@ def test_phase2b_migration_round_trip() -> None:
     command.upgrade(cfg, "head")
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```powershell
 pytest tests/test_db_migrations.py -v
@@ -234,7 +234,7 @@ pytest tests/test_db_migrations.py -v
 
 Expected: FAIL — `dedup_key` column missing, default detector rows missing.
 
-- [ ] **Step 3: Update `vms/db/models.py`**
+- [x] **Step 3: Update `vms/db/models.py`**
 
 In the `Alert` class `__table_args__`, add a state CHECK constraint, a type CHECK constraint, and a partial index on `dedup_key`. Also add the `dedup_key` column:
 
@@ -272,7 +272,7 @@ class Alert(Base):
 
 Add `from sqlalchemy import text` to the imports if not already present.
 
-- [ ] **Step 4: Generate the migration**
+- [x] **Step 4: Generate the migration**
 
 ```powershell
 alembic revision -m "phase2b anomaly framework"
@@ -359,7 +359,7 @@ def downgrade() -> None:
     op.drop_column("alerts", "dedup_key")
 ```
 
-- [ ] **Step 5: Apply locally and confirm**
+- [x] **Step 5: Apply locally and confirm**
 
 ```powershell
 alembic upgrade head
@@ -369,7 +369,7 @@ alembic upgrade head
 
 Expected: all three commands succeed.
 
-- [ ] **Step 6: Run tests to verify they pass**
+- [x] **Step 6: Run tests to verify they pass**
 
 ```powershell
 pytest tests/test_db_migrations.py -v
@@ -377,7 +377,7 @@ pytest tests/test_db_migrations.py -v
 
 Expected: all PASS.
 
-- [ ] **Step 7: Run full suite**
+- [x] **Step 7: Run full suite**
 
 ```powershell
 pytest -v
@@ -385,7 +385,7 @@ pytest -v
 
 Expected: 159+ tests still pass (Phase 2a hardening baseline + new migration tests).
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```powershell
 git add vms/db/models.py alembic/versions/ tests/test_db_migrations.py
@@ -400,7 +400,7 @@ git commit -m "feat(db): phase2b — alerts.dedup_key, state/type CHECK, seed 6 
 - Modify: `vms/config.py`
 - Modify: `tests/test_config.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/test_config.py`:
 
@@ -422,7 +422,7 @@ def test_anomaly_defaults() -> None:
     assert s.alerts_stream_maxlen == 10_000
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```powershell
 pytest tests/test_config.py::test_anomaly_defaults -v
@@ -430,7 +430,7 @@ pytest tests/test_config.py::test_anomaly_defaults -v
 
 Expected: FAIL — fields not defined.
 
-- [ ] **Step 3: Add fields to `vms/config.py`**
+- [x] **Step 3: Add fields to `vms/config.py`**
 
 Insert in `Settings` after the existing `zone_cache_ttl_s` line:
 
@@ -459,7 +459,7 @@ Insert in `Settings` after the existing `zone_cache_ttl_s` line:
     alerts_stream_maxlen: int = 10_000
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 ```powershell
 pytest tests/test_config.py -v
@@ -467,7 +467,7 @@ pytest tests/test_config.py -v
 
 Expected: all PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add vms/config.py tests/test_config.py
@@ -485,7 +485,7 @@ git commit -m "feat(config): phase2b — violence, FSM, head-count, maintenance,
 - Create: `vms/anomaly/base.py`
 - Create: `tests/test_anomaly_base.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/test_anomaly_base.py`:
 
@@ -594,7 +594,7 @@ def test_concrete_detector_passes_smoke() -> None:
     assert d.evaluate(ctx) is None
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```powershell
 pytest tests/test_anomaly_base.py -v
@@ -602,13 +602,13 @@ pytest tests/test_anomaly_base.py -v
 
 Expected: FAIL — `vms.anomaly` package not present.
 
-- [ ] **Step 3: Create `vms/anomaly/__init__.py`**
+- [x] **Step 3: Create `vms/anomaly/__init__.py`**
 
 ```python
 """Anomaly framework — detectors, FSM, maintenance, orchestrator."""
 ```
 
-- [ ] **Step 4: Create `vms/anomaly/base.py`**
+- [x] **Step 4: Create `vms/anomaly/base.py`**
 
 ```python
 """AnomalyDetector ABC + supporting DTOs.
@@ -733,7 +733,7 @@ class SeamProvider(Protocol):
         return None
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 ```powershell
 pytest tests/test_anomaly_base.py -v
@@ -741,7 +741,7 @@ pytest tests/test_anomaly_base.py -v
 
 Expected: all PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add vms/anomaly/ tests/test_anomaly_base.py
@@ -758,7 +758,7 @@ git commit -m "feat(anomaly): add AnomalyDetector ABC, AnomalyEvent, FSMConfig, 
 - Create: `vms/anomaly/registry.py`
 - Create: `tests/test_anomaly_registry.py`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/test_anomaly_registry.py`:
 
@@ -858,7 +858,7 @@ def test_load_returns_result_summary(db_session: Session) -> None:
     assert isinstance(result.errors, list)
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```powershell
 pytest tests/test_anomaly_registry.py -v
@@ -866,7 +866,7 @@ pytest tests/test_anomaly_registry.py -v
 
 Expected: FAIL — module missing.
 
-- [ ] **Step 3: Create `vms/anomaly/registry.py`**
+- [x] **Step 3: Create `vms/anomaly/registry.py`**
 
 ```python
 """Detector registry: read anomaly_detectors rows, instantiate classes."""
@@ -963,7 +963,7 @@ def load_enabled_detectors(session: Session) -> RegistryLoadResult:
     return RegistryLoadResult(detectors=detectors, errors=errors)
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 ```powershell
 pytest tests/test_anomaly_registry.py -v
@@ -971,7 +971,7 @@ pytest tests/test_anomaly_registry.py -v
 
 Expected: all PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add vms/anomaly/registry.py tests/test_anomaly_registry.py
@@ -989,7 +989,7 @@ git commit -m "feat(anomaly): add detector registry with class_path loader and p
 - Create: `vms/anomaly/maintenance.py`
 - Create: `tests/test_anomaly_maintenance.py`
 
-- [ ] **Step 1: Add `croniter` dependency**
+- [x] **Step 1: Add `croniter` dependency**
 
 In `requirements.txt`:
 
@@ -1003,7 +1003,7 @@ Install:
 pip install croniter==2.0.5
 ```
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 Create `tests/test_anomaly_maintenance.py`:
 
@@ -1228,7 +1228,7 @@ def test_cache_respects_ttl(db_session: Session, monkeypatch: pytest.MonkeyPatch
     assert call_count["n"] == 0
 ```
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 ```powershell
 pytest tests/test_anomaly_maintenance.py -v
@@ -1236,7 +1236,7 @@ pytest tests/test_anomaly_maintenance.py -v
 
 Expected: FAIL — module missing.
 
-- [ ] **Step 4: Create `vms/anomaly/maintenance.py`**
+- [x] **Step 4: Create `vms/anomaly/maintenance.py`**
 
 ```python
 """MaintenanceCalendar — TTL-cached suppression lookup."""
@@ -1379,7 +1379,7 @@ class MaintenanceCalendar:
         return False
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 ```powershell
 pytest tests/test_anomaly_maintenance.py -v
@@ -1387,7 +1387,7 @@ pytest tests/test_anomaly_maintenance.py -v
 
 Expected: all PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add requirements.txt vms/anomaly/maintenance.py tests/test_anomaly_maintenance.py
@@ -1416,7 +1416,7 @@ The DB is the source of truth: at startup, the FSM rebuilds active `dedup_key ->
 - Create: `vms/anomaly/fsm.py`
 - Create: `tests/test_anomaly_fsm.py`
 
-- [ ] **Step 1: Write failing tests for the stream helper**
+- [x] **Step 1: Write failing tests for the stream helper**
 
 Create `tests/test_anomaly_fsm.py` (will be filled out further below, start with stream test):
 
@@ -1660,7 +1660,7 @@ async def test_evict_closed_removes_resolved_entry_and_allows_new_fire(
     assert db_session.query(Alert).filter_by(dedup_key="k7").count() == 2
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```powershell
 pytest tests/test_anomaly_fsm.py -v
@@ -1668,7 +1668,7 @@ pytest tests/test_anomaly_fsm.py -v
 
 Expected: FAIL — module missing.
 
-- [ ] **Step 3: Create `vms/anomaly/streams.py`**
+- [x] **Step 3: Create `vms/anomaly/streams.py`**
 
 ```python
 """Stream contracts for anomaly subsystem.
@@ -1727,7 +1727,7 @@ async def publish_alert_fired(
     )
 ```
 
-- [ ] **Step 4: Create `vms/anomaly/fsm.py`**
+- [x] **Step 4: Create `vms/anomaly/fsm.py`**
 
 ```python
 """AlertFSM — sustain/cooldown/dedup state machine + alerts persistence.
@@ -1891,7 +1891,7 @@ class AlertFSM:
         return FSMDecision.FIRED
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 ```powershell
 pytest tests/test_anomaly_fsm.py -v
@@ -1899,7 +1899,7 @@ pytest tests/test_anomaly_fsm.py -v
 
 Expected: all PASS.
 
-- [ ] **Step 6: Run full suite**
+- [x] **Step 6: Run full suite**
 
 ```powershell
 pytest -v
@@ -1907,7 +1907,7 @@ pytest -v
 
 Expected: all PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```powershell
 git add vms/anomaly/streams.py vms/anomaly/fsm.py tests/test_anomaly_fsm.py
@@ -1925,7 +1925,7 @@ git commit -m "feat(anomaly): add AlertFSM with sustain/cooldown/dedup + mainten
 - Create: `vms/anomaly/detectors/unknown_person.py`
 - Create: `tests/test_anomaly_unknown_person.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/test_anomaly_unknown_person.py`:
 
@@ -1994,7 +1994,7 @@ def test_should_run_short_circuits_when_no_tracklets() -> None:
     assert det.should_run(ctx) is False
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```powershell
 pytest tests/test_anomaly_unknown_person.py -v
@@ -2002,13 +2002,13 @@ pytest tests/test_anomaly_unknown_person.py -v
 
 Expected: FAIL — module missing.
 
-- [ ] **Step 3: Create `vms/anomaly/detectors/__init__.py`**
+- [x] **Step 3: Create `vms/anomaly/detectors/__init__.py`**
 
 ```python
 """Concrete anomaly detectors."""
 ```
 
-- [ ] **Step 4: Create `vms/anomaly/detectors/unknown_person.py`**
+- [x] **Step 4: Create `vms/anomaly/detectors/unknown_person.py`**
 
 ```python
 """UNKNOWN_PERSON detector.
@@ -2085,7 +2085,7 @@ class UnknownPersonDetector(AnomalyDetector, SeamProvider):
 
 > **Note:** the orchestrator (Task 14) replaces `_gid_for_tracklet` and `_person_id_for` with bound helpers that consult the IdentityEngine via `_bind_seams`. They are exposed as methods so tests can monkey-patch them. The defaults return `None` (safe no-op); a detector running without seam injection silently emits no events rather than returning the wrong gid.
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 ```powershell
 pytest tests/test_anomaly_unknown_person.py -v
@@ -2093,7 +2093,7 @@ pytest tests/test_anomaly_unknown_person.py -v
 
 Expected: all PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add vms/anomaly/detectors/__init__.py vms/anomaly/detectors/unknown_person.py tests/test_anomaly_unknown_person.py
@@ -2112,7 +2112,7 @@ Because PERSON_LOST is a per-`gid` rule (not per-frame), it runs once per evalua
 - Create: `vms/anomaly/detectors/person_lost.py`
 - Create: `tests/test_anomaly_person_lost.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/test_anomaly_person_lost.py`:
 
@@ -2176,7 +2176,7 @@ def test_should_run_always_true() -> None:
     assert det.should_run(ctx) is True
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```powershell
 pytest tests/test_anomaly_person_lost.py -v
@@ -2184,7 +2184,7 @@ pytest tests/test_anomaly_person_lost.py -v
 
 Expected: FAIL — module missing.
 
-- [ ] **Step 3: Create `vms/anomaly/detectors/person_lost.py`**
+- [x] **Step 3: Create `vms/anomaly/detectors/person_lost.py`**
 
 ```python
 """PERSON_LOST detector.
@@ -2251,7 +2251,7 @@ class PersonLostDetector(AnomalyDetector, SeamProvider):
         return {}
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 ```powershell
 pytest tests/test_anomaly_person_lost.py -v
@@ -2259,7 +2259,7 @@ pytest tests/test_anomaly_person_lost.py -v
 
 Expected: all PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add vms/anomaly/detectors/person_lost.py tests/test_anomaly_person_lost.py
@@ -2276,7 +2276,7 @@ git commit -m "feat(anomaly): add PersonLostDetector"
 - Create: `vms/anomaly/detectors/crowd_density.py`
 - Create: `tests/test_anomaly_crowd_density.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/test_anomaly_crowd_density.py`:
 
@@ -2339,7 +2339,7 @@ def test_should_run_skips_when_head_count_empty() -> None:
     assert det.should_run(ctx) is False
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```powershell
 pytest tests/test_anomaly_crowd_density.py -v
@@ -2347,7 +2347,7 @@ pytest tests/test_anomaly_crowd_density.py -v
 
 Expected: FAIL — module missing.
 
-- [ ] **Step 3: Create `vms/anomaly/detectors/crowd_density.py`**
+- [x] **Step 3: Create `vms/anomaly/detectors/crowd_density.py`**
 
 ```python
 """CROWD_DENSITY detector. Reads ctx.head_count + ctx.zone_lookup."""
@@ -2399,7 +2399,7 @@ class CrowdDensityDetector(AnomalyDetector):
         return FSMConfig(sustain_ms=10_000, cooldown_ms=300_000, dedup_window_ms=300_000)
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 ```powershell
 pytest tests/test_anomaly_crowd_density.py -v
@@ -2407,7 +2407,7 @@ pytest tests/test_anomaly_crowd_density.py -v
 
 Expected: all PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add vms/anomaly/detectors/crowd_density.py tests/test_anomaly_crowd_density.py
@@ -2426,7 +2426,7 @@ If `allowed_hours` is NULL on a restricted zone, **any** entry triggers INTRUSIO
 - Create: `vms/anomaly/detectors/intrusion.py`
 - Create: `tests/test_anomaly_intrusion.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/test_anomaly_intrusion.py`:
 
@@ -2518,7 +2518,7 @@ def test_malformed_allowed_hours_treated_as_always_restricted() -> None:
     assert det.evaluate(_ctx({gid: 5}, {5: z}, when)) is not None
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```powershell
 pytest tests/test_anomaly_intrusion.py -v
@@ -2526,7 +2526,7 @@ pytest tests/test_anomaly_intrusion.py -v
 
 Expected: FAIL — module missing.
 
-- [ ] **Step 3: Create `vms/anomaly/detectors/intrusion.py`**
+- [x] **Step 3: Create `vms/anomaly/detectors/intrusion.py`**
 
 ```python
 """INTRUSION detector — restricted zone outside allowed_hours."""
@@ -2641,7 +2641,7 @@ class IntrusionDetector(AnomalyDetector):
         return slots
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 ```powershell
 pytest tests/test_anomaly_intrusion.py -v
@@ -2649,7 +2649,7 @@ pytest tests/test_anomaly_intrusion.py -v
 
 Expected: all PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add vms/anomaly/detectors/intrusion.py tests/test_anomaly_intrusion.py
@@ -2666,7 +2666,7 @@ git commit -m "feat(anomaly): add IntrusionDetector with allowed_hours parsing"
 - Create: `vms/anomaly/detectors/loitering.py`
 - Create: `tests/test_anomaly_loitering.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/test_anomaly_loitering.py`:
 
@@ -2732,7 +2732,7 @@ def test_skips_when_no_entered_at() -> None:
     assert det.evaluate(_ctx({gid: 3}, {3: _zone(3, 180)}, now)) is None
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```powershell
 pytest tests/test_anomaly_loitering.py -v
@@ -2740,7 +2740,7 @@ pytest tests/test_anomaly_loitering.py -v
 
 Expected: FAIL — module missing.
 
-- [ ] **Step 3: Create `vms/anomaly/detectors/loitering.py`**
+- [x] **Step 3: Create `vms/anomaly/detectors/loitering.py`**
 
 ```python
 """LOITERING detector — tracklet dwell > zone.loiter_threshold_s."""
@@ -2806,7 +2806,7 @@ class LoiteringDetector(AnomalyDetector, SeamProvider):
         return None
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 ```powershell
 pytest tests/test_anomaly_loitering.py -v
@@ -2814,7 +2814,7 @@ pytest tests/test_anomaly_loitering.py -v
 
 Expected: all PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add vms/anomaly/detectors/loitering.py tests/test_anomaly_loitering.py
@@ -2841,7 +2841,7 @@ The InferenceEngine integration is in this task too: extend `DetectionFrame.viol
 - Modify: `tests/test_inference_engine.py`
 - Create: `tests/test_anomaly_violence.py`
 
-- [ ] **Step 1: Write the failing test for the DetectionFrame field**
+- [x] **Step 1: Write the failing test for the DetectionFrame field**
 
 Add to `tests/test_inference_messages.py`:
 
@@ -2873,7 +2873,7 @@ def test_detection_frame_missing_violence_field_back_compat() -> None:
     assert df.violence_score is None
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```powershell
 pytest tests/test_inference_messages.py -v
@@ -2881,7 +2881,7 @@ pytest tests/test_inference_messages.py -v
 
 Expected: FAIL — `violence_score` field missing.
 
-- [ ] **Step 3: Update `vms/inference/messages.py`**
+- [x] **Step 3: Update `vms/inference/messages.py`**
 
 Add to `DetectionFrame`:
 
@@ -2914,7 +2914,7 @@ In `from_redis_fields()` parse:
         )
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 ```powershell
 pytest tests/test_inference_messages.py -v
@@ -2922,7 +2922,7 @@ pytest tests/test_inference_messages.py -v
 
 Expected: all PASS.
 
-- [ ] **Step 5: Write failing test for MoViNet wrapper**
+- [x] **Step 5: Write failing test for MoViNet wrapper**
 
 Create `tests/test_inference_violence.py`:
 
@@ -2965,7 +2965,7 @@ def test_score_returns_float_when_model_available(monkeypatch: pytest.MonkeyPatc
     assert score == pytest.approx(0.42, abs=1e-3)
 ```
 
-- [ ] **Step 6: Run tests to verify they fail**
+- [x] **Step 6: Run tests to verify they fail**
 
 ```powershell
 pytest tests/test_inference_violence.py -v
@@ -2973,7 +2973,7 @@ pytest tests/test_inference_violence.py -v
 
 Expected: FAIL — module missing.
 
-- [ ] **Step 7: Create `vms/inference/violence.py`**
+- [x] **Step 7: Create `vms/inference/violence.py`**
 
 ```python
 """MoViNet-A0 violence-detection ONNX wrapper.
@@ -3018,7 +3018,7 @@ class ViolenceModel:
         return float(out[0].ravel()[0])
 ```
 
-- [ ] **Step 8: Run tests to verify they pass**
+- [x] **Step 8: Run tests to verify they pass**
 
 ```powershell
 pytest tests/test_inference_violence.py -v
@@ -3026,7 +3026,7 @@ pytest tests/test_inference_violence.py -v
 
 Expected: all PASS.
 
-- [ ] **Step 9: Wire MoViNet into `vms/inference/engine.py`**
+- [x] **Step 9: Wire MoViNet into `vms/inference/engine.py`**
 
 In `InferenceEngine.__init__`:
 
@@ -3058,7 +3058,7 @@ In `_process_one_message`, after `raw_tracklets` is computed and before `Detecti
 
 Pass `violence_score=violence_score` to `DetectionFrame(...)`.
 
-- [ ] **Step 10: Add a regression test in `tests/test_inference_engine.py`**
+- [x] **Step 10: Add a regression test in `tests/test_inference_engine.py`**
 
 ```python
 def test_inference_engine_disables_violence_when_model_missing(tmp_path, monkeypatch) -> None:
@@ -3071,7 +3071,7 @@ def test_inference_engine_disables_violence_when_model_missing(tmp_path, monkeyp
     assert engine._violence.score(np.zeros((16, 224, 224, 3), dtype=np.uint8)) is None
 ```
 
-- [ ] **Step 11: Write the detector test**
+- [x] **Step 11: Write the detector test**
 
 Create `tests/test_anomaly_violence.py`:
 
@@ -3118,7 +3118,7 @@ def test_config_threshold_overrides_default() -> None:
     assert det.evaluate(_ctx(0.85)) is None
 ```
 
-- [ ] **Step 12: Run tests to verify they fail**
+- [x] **Step 12: Run tests to verify they fail**
 
 ```powershell
 pytest tests/test_anomaly_violence.py -v
@@ -3126,7 +3126,7 @@ pytest tests/test_anomaly_violence.py -v
 
 Expected: FAIL — module missing.
 
-- [ ] **Step 13: Create `vms/anomaly/detectors/violence.py`**
+- [x] **Step 13: Create `vms/anomaly/detectors/violence.py`**
 
 ```python
 """VIOLENCE detector. Reads ctx.violence_score from the InferenceEngine gated pool."""
@@ -3185,7 +3185,7 @@ class ViolenceDetector(AnomalyDetector):
         return FSMConfig(sustain_ms=2_000, cooldown_ms=30_000, dedup_window_ms=30_000)
 ```
 
-- [ ] **Step 14: Run tests to verify they pass**
+- [x] **Step 14: Run tests to verify they pass**
 
 ```powershell
 pytest tests/test_anomaly_violence.py tests/test_inference_violence.py tests/test_inference_messages.py tests/test_inference_engine.py -v
@@ -3193,7 +3193,7 @@ pytest tests/test_anomaly_violence.py tests/test_inference_violence.py tests/tes
 
 Expected: all PASS.
 
-- [ ] **Step 15: Run full suite**
+- [x] **Step 15: Run full suite**
 
 ```powershell
 pytest -v
@@ -3201,7 +3201,7 @@ pytest -v
 
 Expected: all PASS.
 
-- [ ] **Step 16: Commit**
+- [x] **Step 16: Commit**
 
 ```powershell
 git add vms/inference/messages.py vms/inference/violence.py vms/inference/engine.py vms/anomaly/detectors/violence.py tests/test_inference_messages.py tests/test_inference_violence.py tests/test_inference_engine.py tests/test_anomaly_violence.py
@@ -3218,7 +3218,7 @@ git commit -m "feat(anomaly,inference): add MoViNet wrapper + ViolenceDetector +
 - Create: `vms/identity/head_count.py`
 - Create: `tests/test_identity_head_count.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/test_identity_head_count.py`:
 
@@ -3285,7 +3285,7 @@ def test_zone_none_is_ignored() -> None:
     assert agg.snapshot().plant_total == 0
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```powershell
 pytest tests/test_identity_head_count.py -v
@@ -3293,7 +3293,7 @@ pytest tests/test_identity_head_count.py -v
 
 Expected: FAIL — module missing.
 
-- [ ] **Step 3: Create `vms/identity/head_count.py`**
+- [x] **Step 3: Create `vms/identity/head_count.py`**
 
 ```python
 """HeadCountAggregator (spec §N.1).
@@ -3372,7 +3372,7 @@ class HeadCountAggregator:
         return {zid: len(s) for zid, s in self._by_zone.items() if s}
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 ```powershell
 pytest tests/test_identity_head_count.py -v
@@ -3380,7 +3380,7 @@ pytest tests/test_identity_head_count.py -v
 
 Expected: all PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add vms/identity/head_count.py tests/test_identity_head_count.py
@@ -3399,7 +3399,7 @@ The orchestrator also wires the per-detector "default seam" methods to real impl
 - Create: `vms/anomaly/orchestrator.py`
 - Create: `tests/test_anomaly_orchestrator.py`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/test_anomaly_orchestrator.py`:
 
@@ -3541,7 +3541,7 @@ async def test_detector_auto_disabled_after_max_consecutive_errors(db_session: S
     assert orch.health()["INTRUSION"]["disabled"] is True
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```powershell
 pytest tests/test_anomaly_orchestrator.py -v
@@ -3549,7 +3549,7 @@ pytest tests/test_anomaly_orchestrator.py -v
 
 Expected: FAIL — module missing.
 
-- [ ] **Step 3: Create `vms/anomaly/orchestrator.py`**
+- [x] **Step 3: Create `vms/anomaly/orchestrator.py`**
 
 ```python
 """AnomalyOrchestrator — consumes detections stream, runs detectors, feeds FSM."""
@@ -3808,7 +3808,7 @@ class AnomalyOrchestrator:
         self._running = False
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 ```powershell
 pytest tests/test_anomaly_orchestrator.py -v
@@ -3816,7 +3816,7 @@ pytest tests/test_anomaly_orchestrator.py -v
 
 Expected: all PASS.
 
-- [ ] **Step 5: Run full suite**
+- [x] **Step 5: Run full suite**
 
 ```powershell
 pytest -v
@@ -3824,7 +3824,7 @@ pytest -v
 
 Expected: all PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add vms/anomaly/orchestrator.py tests/test_anomaly_orchestrator.py
@@ -3863,7 +3863,7 @@ All routes require auth via the existing `get_current_user` dependency.
 - Create: `tests/test_api_maintenance.py`
 - Create: `tests/test_cli.py`
 
-- [ ] **Step 1: Write failing tests for `/api/state/snapshot`**
+- [x] **Step 1: Write failing tests for `/api/state/snapshot`**
 
 Create `tests/test_api_state.py`:
 
@@ -3907,7 +3907,7 @@ async def test_snapshot_requires_auth() -> None:
     assert r.status_code in (401, 403)
 ```
 
-- [ ] **Step 2: Write failing tests for `/api/alerts`**
+- [x] **Step 2: Write failing tests for `/api/alerts`**
 
 Create `tests/test_api_alerts.py`:
 
@@ -3964,7 +3964,7 @@ async def test_alerts_list_filter_by_alert_type(db_session: Session) -> None:
     assert r.status_code == 200
 ```
 
-- [ ] **Step 3: Write failing tests for `/api/anomaly-detectors`**
+- [x] **Step 3: Write failing tests for `/api/anomaly-detectors`**
 
 Create `tests/test_api_anomaly_detectors.py`:
 
@@ -4002,7 +4002,7 @@ async def test_detector_health_returns_empty_when_unwired() -> None:
     assert isinstance(r.json(), dict)
 ```
 
-- [ ] **Step 4: Write failing tests for `/api/maintenance`**
+- [x] **Step 4: Write failing tests for `/api/maintenance`**
 
 Create `tests/test_api_maintenance.py`:
 
@@ -4046,7 +4046,7 @@ async def test_list_maintenance_windows(db_session: Session) -> None:
     assert "mw1" in names
 ```
 
-- [ ] **Step 5: Run tests to verify they fail**
+- [x] **Step 5: Run tests to verify they fail**
 
 ```powershell
 pytest tests/test_api_state.py tests/test_api_alerts.py tests/test_api_anomaly_detectors.py tests/test_api_maintenance.py -v
@@ -4054,7 +4054,7 @@ pytest tests/test_api_state.py tests/test_api_alerts.py tests/test_api_anomaly_d
 
 Expected: FAIL — routes missing.
 
-- [ ] **Step 6: Add schemas to `vms/api/schemas.py`**
+- [x] **Step 6: Add schemas to `vms/api/schemas.py`**
 
 ```python
 class AlertResponse(BaseModel):
@@ -4113,7 +4113,7 @@ class SnapshotResponse(BaseModel):
 
 Add the missing `datetime` import if needed.
 
-- [ ] **Step 7: Add shared orchestrator-health hook in `vms/api/deps.py`**
+- [x] **Step 7: Add shared orchestrator-health hook in `vms/api/deps.py`**
 
 ```python
 # Process-level shared state for inspection routes.
@@ -4128,7 +4128,7 @@ def get_orchestrator_health() -> dict[str, dict[str, object]]:
     return dict(_orchestrator_health)
 ```
 
-- [ ] **Step 8: Create `vms/api/routes/state.py`**
+- [x] **Step 8: Create `vms/api/routes/state.py`**
 
 ```python
 """GET /api/state/snapshot — spec §N.3."""
@@ -4194,7 +4194,7 @@ def snapshot(
     }
 ```
 
-- [ ] **Step 9: Create `vms/api/routes/alerts.py`**
+- [x] **Step 9: Create `vms/api/routes/alerts.py`**
 
 ```python
 """GET /api/alerts — list alerts with filters."""
@@ -4239,7 +4239,7 @@ def list_alerts(
     return q.order_by(Alert.triggered_at.desc()).limit(limit).all()
 ```
 
-- [ ] **Step 10: Create `vms/api/routes/anomaly_detectors.py`**
+- [x] **Step 10: Create `vms/api/routes/anomaly_detectors.py`**
 
 ```python
 """GET /api/anomaly-detectors[/health]."""
@@ -4273,7 +4273,7 @@ def detector_health(
     return get_orchestrator_health()
 ```
 
-- [ ] **Step 11: Create `vms/api/routes/maintenance.py`**
+- [x] **Step 11: Create `vms/api/routes/maintenance.py`**
 
 ```python
 """GET /api/maintenance — list active windows."""
@@ -4300,7 +4300,7 @@ def list_windows(
     return db.query(MaintenanceWindow).filter_by(is_active=True).all()
 ```
 
-- [ ] **Step 12: Register routers in `vms/api/main.py`**
+- [x] **Step 12: Register routers in `vms/api/main.py`**
 
 ```python
 from vms.api.routes import (
@@ -4323,7 +4323,7 @@ app.include_router(anomaly_detectors.router, prefix="/api")
 app.include_router(maintenance.router, prefix="/api")
 ```
 
-- [ ] **Step 13: Run API tests**
+- [x] **Step 13: Run API tests**
 
 ```powershell
 pytest tests/test_api_state.py tests/test_api_alerts.py tests/test_api_anomaly_detectors.py tests/test_api_maintenance.py -v
@@ -4331,7 +4331,7 @@ pytest tests/test_api_state.py tests/test_api_alerts.py tests/test_api_anomaly_d
 
 Expected: all PASS.
 
-- [ ] **Step 14: Write the CLI test**
+- [x] **Step 14: Write the CLI test**
 
 Create `tests/test_cli.py`:
 
@@ -4380,7 +4380,7 @@ def test_cli_alerts_list_invokes_api(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "VIOLENCE" in result.output
 ```
 
-- [ ] **Step 15: Run CLI test to verify it fails**
+- [x] **Step 15: Run CLI test to verify it fails**
 
 ```powershell
 pytest tests/test_cli.py -v
@@ -4388,7 +4388,7 @@ pytest tests/test_cli.py -v
 
 Expected: FAIL — module missing.
 
-- [ ] **Step 16: Add `click` dependency**
+- [x] **Step 16: Add `click` dependency**
 
 In `requirements.txt`:
 
@@ -4399,13 +4399,13 @@ httpx==0.27.2
 
 (`httpx` may already be present for `AsyncClient`. If absent, install it.)
 
-- [ ] **Step 17: Create `vms/cli/__init__.py`**
+- [x] **Step 17: Create `vms/cli/__init__.py`**
 
 ```python
 """vms-cli — inspection CLI for ops."""
 ```
 
-- [ ] **Step 18: Create `vms/cli/main.py`**
+- [x] **Step 18: Create `vms/cli/main.py`**
 
 ```python
 """vms-cli — small click-based CLI to inspect the running VMS.
@@ -4500,7 +4500,7 @@ def head_count(api: str, token: str) -> None:
     click.echo(json.dumps(body.get("head_count", {}), indent=2))
 ```
 
-- [ ] **Step 19: Add entry point**
+- [x] **Step 19: Add entry point**
 
 If `pyproject.toml` exists, add under `[project.scripts]`:
 
@@ -4516,7 +4516,7 @@ console_scripts =
     vms-cli = vms.cli.main:cli
 ```
 
-- [ ] **Step 20: Run CLI test**
+- [x] **Step 20: Run CLI test**
 
 ```powershell
 pytest tests/test_cli.py -v
@@ -4524,7 +4524,7 @@ pytest tests/test_cli.py -v
 
 Expected: PASS.
 
-- [ ] **Step 21: Run full suite**
+- [x] **Step 21: Run full suite**
 
 ```powershell
 pytest -v
@@ -4532,7 +4532,7 @@ pytest -v
 
 Expected: all PASS.
 
-- [ ] **Step 22: Commit**
+- [x] **Step 22: Commit**
 
 ```powershell
 git add vms/api/routes/state.py vms/api/routes/alerts.py vms/api/routes/anomaly_detectors.py vms/api/routes/maintenance.py vms/api/main.py vms/api/schemas.py vms/api/deps.py vms/cli/ pyproject.toml requirements.txt tests/test_api_state.py tests/test_api_alerts.py tests/test_api_anomaly_detectors.py tests/test_api_maintenance.py tests/test_cli.py
@@ -4558,7 +4558,7 @@ git commit -m "feat(api,cli): add read-only inspection routes + vms-cli for ops 
 
 ---
 
-- [ ] **Step 1: Add prometheus-client dependency**
+- [x] **Step 1: Add prometheus-client dependency**
 
 Add to `requirements.txt`:
 ```
@@ -4572,7 +4572,7 @@ pip install prometheus-client==0.20.0
 
 ---
 
-- [ ] **Step 2: Create `vms/observability/__init__.py`**
+- [x] **Step 2: Create `vms/observability/__init__.py`**
 
 ```python
 """Observability helpers: Prometheus metrics + structured log adapter."""
@@ -4580,7 +4580,7 @@ pip install prometheus-client==0.20.0
 
 ---
 
-- [ ] **Step 3: Create `vms/observability/metrics.py`**
+- [x] **Step 3: Create `vms/observability/metrics.py`**
 
 ```python
 """Prometheus metrics registry for VMS.
@@ -4655,7 +4655,7 @@ inference_latency_seconds = Histogram(
 
 ---
 
-- [ ] **Step 4: Write failing test for metrics**
+- [x] **Step 4: Write failing test for metrics**
 
 Create `tests/test_observability_metrics.py`:
 
@@ -4680,7 +4680,7 @@ def test_zone_head_count_gauge_exists() -> None:
     assert zone_head_count.labels(zone_id="42")._value.get() == 7.0
 ```
 
-- [ ] **Step 5: Run metrics tests to verify they fail**
+- [x] **Step 5: Run metrics tests to verify they fail**
 
 ```powershell
 pytest tests/test_observability_metrics.py -v
@@ -4688,7 +4688,7 @@ pytest tests/test_observability_metrics.py -v
 
 Expected: FAIL — `vms.observability.metrics` not importable.
 
-- [ ] **Step 6: Run metrics tests to verify they pass** (after Step 3 is done)
+- [x] **Step 6: Run metrics tests to verify they pass** (after Step 3 is done)
 
 ```powershell
 pytest tests/test_observability_metrics.py -v
@@ -4698,7 +4698,7 @@ Expected: PASS.
 
 ---
 
-- [ ] **Step 7: Create `vms/observability/logging.py`**
+- [x] **Step 7: Create `vms/observability/logging.py`**
 
 ```python
 """Structured log adapter that injects correlation fields.
@@ -4741,7 +4741,7 @@ def get_logger(name: str, **bound_fields: Any) -> _ContextAdapter:
 
 ---
 
-- [ ] **Step 8: Wire metrics into `AnomalyOrchestrator`**
+- [x] **Step 8: Wire metrics into `AnomalyOrchestrator`**
 
 In `vms/anomaly/orchestrator.py`, add at the top after existing imports:
 
@@ -4788,7 +4788,7 @@ _m.alerts_deduped_total.labels(alert_type=event.alert_type).inc()
 
 ---
 
-- [ ] **Step 9: Expose Prometheus `/metrics` endpoint in `vms/api/main.py`**
+- [x] **Step 9: Expose Prometheus `/metrics` endpoint in `vms/api/main.py`**
 
 Add to `vms/api/main.py`:
 
@@ -4804,7 +4804,7 @@ This mounts at `/metrics` (no `/api` prefix — standard Prometheus convention).
 
 ---
 
-- [ ] **Step 10: Write the end-to-end integration test**
+- [x] **Step 10: Write the end-to-end integration test**
 
 Create `tests/test_e2e_anomaly.py`:
 
@@ -4985,7 +4985,7 @@ async def test_e2e_maintenance_suppresses_alert(db_session: Session) -> None:
         "Alert must not be active when a ONE_TIME maintenance window covers the camera"
 ```
 
-- [ ] **Step 11: Run E2E integration tests**
+- [x] **Step 11: Run E2E integration tests**
 
 ```powershell
 pytest tests/test_e2e_anomaly.py -v -m integration
@@ -4995,7 +4995,7 @@ Expected: both PASS (or SKIP if DB not available in unit-test mode — integrati
 
 ---
 
-- [ ] **Step 12: Final quality gate**
+- [x] **Step 12: Final quality gate**
 
 ```powershell
 black vms/ tests/
@@ -5013,7 +5013,7 @@ Expected:
 
 ---
 
-- [ ] **Step 13: Update CLAUDE.md — Phase 2b COMPLETE**
+- [x] **Step 13: Update CLAUDE.md — Phase 2b COMPLETE**
 
 In `CLAUDE.md §3`, replace the Phase 2b status line:
 
@@ -5031,7 +5031,7 @@ We are at **Phase 3: Profiler + Dispatcher + Audit** (not yet started — plan n
 
 ---
 
-- [ ] **Step 14: Commit**
+- [x] **Step 14: Commit**
 
 ```powershell
 git add vms/observability/ vms/anomaly/orchestrator.py vms/anomaly/fsm.py vms/api/main.py requirements.txt tests/test_observability_metrics.py tests/test_e2e_anomaly.py CLAUDE.md

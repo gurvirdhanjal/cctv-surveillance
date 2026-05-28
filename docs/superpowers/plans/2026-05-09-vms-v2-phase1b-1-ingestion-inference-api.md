@@ -1,6 +1,6 @@
 # VMS v2 Phase 1B — Ingestion, Inference, and Base API
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Status: COMPLETE** (Tasks 1–10 done, 96 tests passing, commit `019e45e`)
 
@@ -69,7 +69,7 @@ tests/
 
 ## Pre-flight checks
 
-- [ ] **Step 0.1: Add fakeredis to dev dependencies**
+- [x] **Step 0.1: Add fakeredis to dev dependencies**
 
 Append to `requirements-dev.txt`:
 ```
@@ -81,13 +81,13 @@ Install:
 pip install fakeredis[aioredis]==2.23.2
 ```
 
-- [ ] **Step 0.2: Confirm test PostgreSQL is still running**
+- [x] **Step 0.2: Confirm test PostgreSQL is still running**
 ```powershell
 docker exec vms-test-db pg_isready -U vms -d vms_test
 ```
 Expected: `/var/run/postgresql:5432 - accepting connections`
 
-- [ ] **Step 0.3: Confirm 57 existing tests still pass**
+- [x] **Step 0.3: Confirm 57 existing tests still pass**
 ```powershell
 python -m pytest tests/ -q
 ```
@@ -101,7 +101,7 @@ Expected: `57 passed`
 - Create: `vms/redis_client.py`
 - Create: `tests/test_redis_client.py`
 
-- [ ] **Step 1.1: Write failing tests**
+- [x] **Step 1.1: Write failing tests**
 
 ```python
 # tests/test_redis_client.py
@@ -152,13 +152,13 @@ async def test_stream_ack_succeeds_for_valid_group(
     await stream_ack(fake_redis, "ack:s", "grp", msg_id)
 ```
 
-- [ ] **Step 1.2: Run tests — expect ImportError**
+- [x] **Step 1.2: Run tests — expect ImportError**
 ```powershell
 python -m pytest tests/test_redis_client.py -v
 ```
 Expected: `ModuleNotFoundError: No module named 'vms.redis_client'`
 
-- [ ] **Step 1.3: Implement `vms/redis_client.py`**
+- [x] **Step 1.3: Implement `vms/redis_client.py`**
 
 ```python
 """Redis connection and Stream helpers."""
@@ -213,19 +213,19 @@ async def stream_ack(
     await client.xack(stream, group, msg_id)
 ```
 
-- [ ] **Step 1.4: Run tests — expect 4 passed**
+- [x] **Step 1.4: Run tests — expect 4 passed**
 ```powershell
 python -m pytest tests/test_redis_client.py -v
 ```
 Expected: `4 passed`
 
-- [ ] **Step 1.5: Lint + type-check**
+- [x] **Step 1.5: Lint + type-check**
 ```powershell
 ruff check vms/redis_client.py tests/test_redis_client.py
 mypy vms/redis_client.py
 ```
 
-- [ ] **Step 1.6: Commit**
+- [x] **Step 1.6: Commit**
 ```powershell
 git add vms/redis_client.py tests/test_redis_client.py requirements-dev.txt
 git commit -m "feat(redis): add stream_add/stream_read/stream_ack helpers"
@@ -242,7 +242,7 @@ git commit -m "feat(redis): add stream_add/stream_read/stream_ack helpers"
 - Create: `tests/test_ingestion_shm.py`
 - Create: `tests/test_ingestion_messages.py`
 
-- [ ] **Step 2.1: Write failing tests for FramePointer**
+- [x] **Step 2.1: Write failing tests for FramePointer**
 
 ```python
 # tests/test_ingestion_messages.py
@@ -267,7 +267,7 @@ def test_frame_pointer_is_immutable() -> None:
         pass
 ```
 
-- [ ] **Step 2.2: Write failing tests for SHMSlot**
+- [x] **Step 2.2: Write failing tests for SHMSlot**
 
 ```python
 # tests/test_ingestion_shm.py
@@ -326,18 +326,18 @@ def test_shm_slot_seq_id_is_preserved(slot: SHMSlot) -> None:
     assert seq_id == 42
 ```
 
-- [ ] **Step 2.3: Run tests — expect ImportError**
+- [x] **Step 2.3: Run tests — expect ImportError**
 ```powershell
 python -m pytest tests/test_ingestion_messages.py tests/test_ingestion_shm.py -v
 ```
 Expected: `ModuleNotFoundError: No module named 'vms.ingestion'`
 
-- [ ] **Step 2.4: Create `vms/ingestion/__init__.py`**
+- [x] **Step 2.4: Create `vms/ingestion/__init__.py`**
 ```python
 """Ingestion layer: camera capture, shared memory, Redis Stream publishing."""
 ```
 
-- [ ] **Step 2.5: Implement `vms/ingestion/messages.py`**
+- [x] **Step 2.5: Implement `vms/ingestion/messages.py`**
 
 ```python
 """Inter-process message types for the ingestion layer."""
@@ -380,7 +380,7 @@ class FramePointer:
         )
 ```
 
-- [ ] **Step 2.6: Implement `vms/ingestion/shm.py`**
+- [x] **Step 2.6: Implement `vms/ingestion/shm.py`**
 
 ```python
 """Shared memory slot for single-camera frame exchange between processes.
@@ -446,19 +446,19 @@ class SHMSlot:
         self._shm.unlink()
 ```
 
-- [ ] **Step 2.7: Run tests — expect 5 passed**
+- [x] **Step 2.7: Run tests — expect 5 passed**
 ```powershell
 python -m pytest tests/test_ingestion_messages.py tests/test_ingestion_shm.py -v
 ```
 Expected: `5 passed`
 
-- [ ] **Step 2.8: Lint + type-check**
+- [x] **Step 2.8: Lint + type-check**
 ```powershell
 ruff check vms/ingestion/ tests/test_ingestion_messages.py tests/test_ingestion_shm.py
 mypy vms/ingestion/messages.py vms/ingestion/shm.py
 ```
 
-- [ ] **Step 2.9: Commit**
+- [x] **Step 2.9: Commit**
 ```powershell
 git add vms/ingestion/ tests/test_ingestion_messages.py tests/test_ingestion_shm.py
 git commit -m "feat(ingestion): add SHMSlot and FramePointer message"
@@ -472,7 +472,7 @@ git commit -m "feat(ingestion): add SHMSlot and FramePointer message"
 - Create: `vms/ingestion/worker.py`
 - Create: `tests/test_ingestion_worker.py`
 
-- [ ] **Step 3.1: Write failing tests**
+- [x] **Step 3.1: Write failing tests**
 
 ```python
 # tests/test_ingestion_worker.py
@@ -578,13 +578,13 @@ async def test_ingestion_worker_skips_failed_read(
     assert call_count >= 2  # retried after failed read
 ```
 
-- [ ] **Step 3.2: Run tests — expect ImportError**
+- [x] **Step 3.2: Run tests — expect ImportError**
 ```powershell
 python -m pytest tests/test_ingestion_worker.py -v
 ```
 Expected: `ModuleNotFoundError: No module named 'vms.ingestion.worker'`
 
-- [ ] **Step 3.3: Implement `vms/ingestion/worker.py`**
+- [x] **Step 3.3: Implement `vms/ingestion/worker.py`**
 
 ```python
 """Ingestion worker: camera → shared memory → Redis Stream."""
@@ -667,19 +667,19 @@ class IngestionWorker:
             cap.release()
 ```
 
-- [ ] **Step 3.4: Run tests — expect 2 passed**
+- [x] **Step 3.4: Run tests — expect 2 passed**
 ```powershell
 python -m pytest tests/test_ingestion_worker.py -v
 ```
 Expected: `2 passed`
 
-- [ ] **Step 3.5: Lint + type-check**
+- [x] **Step 3.5: Lint + type-check**
 ```powershell
 ruff check vms/ingestion/worker.py tests/test_ingestion_worker.py
 mypy vms/ingestion/worker.py
 ```
 
-- [ ] **Step 3.6: Commit**
+- [x] **Step 3.6: Commit**
 ```powershell
 git add vms/ingestion/worker.py tests/test_ingestion_worker.py
 git commit -m "feat(ingestion): add IngestionWorker camera capture loop"
@@ -694,7 +694,7 @@ git commit -m "feat(ingestion): add IngestionWorker camera capture loop"
 - Create: `vms/inference/messages.py`
 - Create: `tests/test_inference_messages.py`
 
-- [ ] **Step 4.1: Write failing tests**
+- [x] **Step 4.1: Write failing tests**
 
 ```python
 # tests/test_inference_messages.py
@@ -751,18 +751,18 @@ def test_detection_frame_with_no_detections() -> None:
     assert recovered.face_embeddings == ()
 ```
 
-- [ ] **Step 4.2: Run tests — expect ImportError**
+- [x] **Step 4.2: Run tests — expect ImportError**
 ```powershell
 python -m pytest tests/test_inference_messages.py -v
 ```
 Expected: `ModuleNotFoundError: No module named 'vms.inference'`
 
-- [ ] **Step 4.3: Create `vms/inference/__init__.py`**
+- [x] **Step 4.3: Create `vms/inference/__init__.py`**
 ```python
 """Inference layer: SCRFD face detection, AdaFace embedding, YOLO+ByteTrack tracking."""
 ```
 
-- [ ] **Step 4.4: Implement `vms/inference/messages.py`**
+- [x] **Step 4.4: Implement `vms/inference/messages.py`**
 
 ```python
 """Inter-process message types for the inference layer."""
@@ -863,19 +863,19 @@ class DetectionFrame:
         )
 ```
 
-- [ ] **Step 4.5: Run tests — expect 4 passed**
+- [x] **Step 4.5: Run tests — expect 4 passed**
 ```powershell
 python -m pytest tests/test_inference_messages.py -v
 ```
 Expected: `4 passed`
 
-- [ ] **Step 4.6: Lint + type-check**
+- [x] **Step 4.6: Lint + type-check**
 ```powershell
 ruff check vms/inference/ tests/test_inference_messages.py
 mypy vms/inference/messages.py
 ```
 
-- [ ] **Step 4.7: Commit**
+- [x] **Step 4.7: Commit**
 ```powershell
 git add vms/inference/ tests/test_inference_messages.py
 git commit -m "feat(inference): add Tracklet, FaceWithEmbedding, DetectionFrame DTOs"
@@ -895,7 +895,7 @@ SCRFD 2.5g ONNX produces 6 outputs for a 640×640 input:
 
 Preprocessing: resize to 640×640, convert BGR→RGB, normalise `(pixel − 127.5) / 128.0`, transpose to `(1,3,640,640)`.
 
-- [ ] **Step 5.1: Write failing tests**
+- [x] **Step 5.1: Write failing tests**
 
 ```python
 # tests/test_inference_detector.py
@@ -966,13 +966,13 @@ def test_scrfd_detector_filters_below_min_face_px() -> None:
     assert detector.detect(frame) == []
 ```
 
-- [ ] **Step 5.2: Run tests — expect ImportError**
+- [x] **Step 5.2: Run tests — expect ImportError**
 ```powershell
 python -m pytest tests/test_inference_detector.py -v
 ```
 Expected: `ModuleNotFoundError: No module named 'vms.inference.detector'`
 
-- [ ] **Step 5.3: Implement `vms/inference/detector.py`**
+- [x] **Step 5.3: Implement `vms/inference/detector.py`**
 
 ```python
 """SCRFD 2.5g face detector (ONNX).
@@ -1106,19 +1106,19 @@ class SCRFDDetector:
         return results
 ```
 
-- [ ] **Step 5.4: Run tests — expect 3 passed**
+- [x] **Step 5.4: Run tests — expect 3 passed**
 ```powershell
 python -m pytest tests/test_inference_detector.py -v
 ```
 Expected: `3 passed`
 
-- [ ] **Step 5.5: Lint + type-check**
+- [x] **Step 5.5: Lint + type-check**
 ```powershell
 ruff check vms/inference/detector.py tests/test_inference_detector.py
 mypy vms/inference/detector.py
 ```
 
-- [ ] **Step 5.6: Commit**
+- [x] **Step 5.6: Commit**
 ```powershell
 git add vms/inference/detector.py tests/test_inference_detector.py
 git commit -m "feat(inference): add SCRFDDetector ONNX wrapper"
@@ -1134,7 +1134,7 @@ git commit -m "feat(inference): add SCRFDDetector ONNX wrapper"
 
 AdaFace IR50: input `(1,3,112,112)` float32 normalised `(pixel-127.5)/128`, output `(1,512)` float32.
 
-- [ ] **Step 6.1: Write failing tests**
+- [x] **Step 6.1: Write failing tests**
 
 ```python
 # tests/test_inference_embedder.py
@@ -1187,13 +1187,13 @@ def test_adaface_embedder_skips_small_face() -> None:
     sess.run.assert_not_called()
 ```
 
-- [ ] **Step 6.2: Run tests — expect ImportError**
+- [x] **Step 6.2: Run tests — expect ImportError**
 ```powershell
 python -m pytest tests/test_inference_embedder.py -v
 ```
 Expected: `ModuleNotFoundError: No module named 'vms.inference.embedder'`
 
-- [ ] **Step 6.3: Implement `vms/inference/embedder.py`**
+- [x] **Step 6.3: Implement `vms/inference/embedder.py`**
 
 ```python
 """AdaFace IR50 face embedder (ONNX).
@@ -1268,19 +1268,19 @@ class AdaFaceEmbedder:
         return np.transpose(face, (2, 0, 1))[None]
 ```
 
-- [ ] **Step 6.4: Run tests — expect 3 passed**
+- [x] **Step 6.4: Run tests — expect 3 passed**
 ```powershell
 python -m pytest tests/test_inference_embedder.py -v
 ```
 Expected: `3 passed`
 
-- [ ] **Step 6.5: Lint + type-check**
+- [x] **Step 6.5: Lint + type-check**
 ```powershell
 ruff check vms/inference/embedder.py tests/test_inference_embedder.py
 mypy vms/inference/embedder.py
 ```
 
-- [ ] **Step 6.6: Commit**
+- [x] **Step 6.6: Commit**
 ```powershell
 git add vms/inference/embedder.py tests/test_inference_embedder.py
 git commit -m "feat(inference): add AdaFaceEmbedder ONNX wrapper"
@@ -1296,7 +1296,7 @@ git commit -m "feat(inference): add AdaFaceEmbedder ONNX wrapper"
 
 `PerCameraTracker` wraps `ultralytics.YOLO.track()` — this performs both YOLOv8n person detection and ByteTrack tracking in one call, matching the legacy `scrfd_face.py` pattern.
 
-- [ ] **Step 7.1: Write failing tests**
+- [x] **Step 7.1: Write failing tests**
 
 ```python
 # tests/test_inference_tracker.py
@@ -1366,13 +1366,13 @@ def test_tracker_returns_empty_when_track_ids_none(tracker: PerCameraTracker) ->
     assert tracker.update(frame) == []
 ```
 
-- [ ] **Step 7.2: Run tests — expect ImportError**
+- [x] **Step 7.2: Run tests — expect ImportError**
 ```powershell
 python -m pytest tests/test_inference_tracker.py -v
 ```
 Expected: `ModuleNotFoundError: No module named 'vms.inference.tracker'`
 
-- [ ] **Step 7.3: Implement `vms/inference/tracker.py`**
+- [x] **Step 7.3: Implement `vms/inference/tracker.py`**
 
 ```python
 """Per-camera person tracker using ultralytics YOLOv8n + ByteTrack."""
@@ -1432,19 +1432,19 @@ class PerCameraTracker:
         return tracklets
 ```
 
-- [ ] **Step 7.4: Run tests — expect 3 passed**
+- [x] **Step 7.4: Run tests — expect 3 passed**
 ```powershell
 python -m pytest tests/test_inference_tracker.py -v
 ```
 Expected: `3 passed`
 
-- [ ] **Step 7.5: Lint + type-check**
+- [x] **Step 7.5: Lint + type-check**
 ```powershell
 ruff check vms/inference/tracker.py tests/test_inference_tracker.py
 mypy vms/inference/tracker.py
 ```
 
-- [ ] **Step 7.6: Commit**
+- [x] **Step 7.6: Commit**
 ```powershell
 git add vms/inference/tracker.py tests/test_inference_tracker.py
 git commit -m "feat(inference): add PerCameraTracker YOLO+ByteTrack wrapper"
@@ -1460,7 +1460,7 @@ git commit -m "feat(inference): add PerCameraTracker YOLO+ByteTrack wrapper"
 
 The engine reads from `frames:group{N}` streams, reads the SHM slot, runs SCRFD + AdaFace + Tracker, and publishes a `DetectionFrame` to the `detections` stream. Stale frames and frames below `min_blur` are skipped.
 
-- [ ] **Step 8.1: Write failing tests**
+- [x] **Step 8.1: Write failing tests**
 
 ```python
 # tests/test_inference_engine.py
@@ -1556,13 +1556,13 @@ async def test_engine_skips_stale_frame(fake_redis: fake_aioredis.FakeRedis) -> 
     assert published == []  # nothing published for stale frame
 ```
 
-- [ ] **Step 8.2: Run tests — expect ImportError**
+- [x] **Step 8.2: Run tests — expect ImportError**
 ```powershell
 python -m pytest tests/test_inference_engine.py -v
 ```
 Expected: `ModuleNotFoundError: No module named 'vms.inference.engine'`
 
-- [ ] **Step 8.3: Implement `vms/inference/engine.py`**
+- [x] **Step 8.3: Implement `vms/inference/engine.py`**
 
 ```python
 """Inference engine: reads frames stream → SCRFD + AdaFace + Tracker → detections stream."""
@@ -1657,19 +1657,19 @@ class InferenceEngine:
         await stream_add(self._redis, _DETECTIONS_STREAM, detection_frame.to_redis_fields())
 ```
 
-- [ ] **Step 8.4: Run tests — expect 2 passed**
+- [x] **Step 8.4: Run tests — expect 2 passed**
 ```powershell
 python -m pytest tests/test_inference_engine.py -v
 ```
 Expected: `2 passed`
 
-- [ ] **Step 8.5: Lint + type-check**
+- [x] **Step 8.5: Lint + type-check**
 ```powershell
 ruff check vms/inference/engine.py tests/test_inference_engine.py
 mypy vms/inference/engine.py
 ```
 
-- [ ] **Step 8.6: Commit**
+- [x] **Step 8.6: Commit**
 ```powershell
 git add vms/inference/engine.py tests/test_inference_engine.py
 git commit -m "feat(inference): add InferenceEngine stream reader + model orchestration"
@@ -1691,7 +1691,7 @@ git commit -m "feat(inference): add InferenceEngine stream reader + model orches
 - Create: `tests/test_api_deps.py`
 - Create: `tests/test_api_persons.py`
 
-- [ ] **Step 9.1: Write failing tests for health**
+- [x] **Step 9.1: Write failing tests for health**
 
 ```python
 # tests/test_api_health.py
@@ -1719,7 +1719,7 @@ async def test_health_response_has_status_ok() -> None:
     assert "version" in body
 ```
 
-- [ ] **Step 9.2: Write failing tests for JWT auth**
+- [x] **Step 9.2: Write failing tests for JWT auth**
 
 ```python
 # tests/test_api_deps.py
@@ -1742,7 +1742,7 @@ def test_decode_invalid_token_raises() -> None:
         decode_access_token("not.a.valid.token")
 ```
 
-- [ ] **Step 9.3: Write failing tests for person enrollment**
+- [x] **Step 9.3: Write failing tests for person enrollment**
 
 ```python
 # tests/test_api_persons.py
@@ -1822,18 +1822,18 @@ async def test_add_embedding_to_existing_person(db_session: Session) -> None:
     assert embed_resp.status_code == 201
 ```
 
-- [ ] **Step 9.4: Run all API tests — expect ImportError**
+- [x] **Step 9.4: Run all API tests — expect ImportError**
 ```powershell
 python -m pytest tests/test_api_health.py tests/test_api_deps.py tests/test_api_persons.py -v
 ```
 Expected: `ModuleNotFoundError: No module named 'vms.api'`
 
-- [ ] **Step 9.5: Create `vms/api/__init__.py`**
+- [x] **Step 9.5: Create `vms/api/__init__.py`**
 ```python
 """FastAPI application package."""
 ```
 
-- [ ] **Step 9.6: Implement `vms/api/schemas.py`**
+- [x] **Step 9.6: Implement `vms/api/schemas.py`**
 
 ```python
 """Pydantic request/response schemas for the VMS API."""
@@ -1881,7 +1881,7 @@ class HealthResponse(BaseModel):
     version: str
 ```
 
-- [ ] **Step 9.7: Implement `vms/api/deps.py`**
+- [x] **Step 9.7: Implement `vms/api/deps.py`**
 
 ```python
 """FastAPI dependencies: database session, JWT auth."""
@@ -1932,12 +1932,12 @@ def get_current_user(
         ) from exc
 ```
 
-- [ ] **Step 9.8: Create `vms/api/routes/__init__.py`**
+- [x] **Step 9.8: Create `vms/api/routes/__init__.py`**
 ```python
 """API route packages."""
 ```
 
-- [ ] **Step 9.9: Implement `vms/api/routes/health.py`**
+- [x] **Step 9.9: Implement `vms/api/routes/health.py`**
 
 ```python
 """Health check endpoint."""
@@ -1956,7 +1956,7 @@ async def health() -> HealthResponse:
     return HealthResponse(status="ok", version="0.1.0")
 ```
 
-- [ ] **Step 9.10: Implement `vms/api/routes/persons.py`**
+- [x] **Step 9.10: Implement `vms/api/routes/persons.py`**
 
 ```python
 """Person enrollment and search endpoints."""
@@ -2037,7 +2037,7 @@ def search_persons(
     )
 ```
 
-- [ ] **Step 9.11: Implement `vms/api/main.py`**
+- [x] **Step 9.11: Implement `vms/api/main.py`**
 
 ```python
 """FastAPI application entry point."""
@@ -2054,19 +2054,19 @@ app.include_router(health.router, prefix="/api")
 app.include_router(persons.router, prefix="/api")
 ```
 
-- [ ] **Step 9.12: Run all API tests — expect 7 passed**
+- [x] **Step 9.12: Run all API tests — expect 7 passed**
 ```powershell
 python -m pytest tests/test_api_health.py tests/test_api_deps.py tests/test_api_persons.py -v
 ```
 Expected: `7 passed`
 
-- [ ] **Step 9.13: Lint + type-check**
+- [x] **Step 9.13: Lint + type-check**
 ```powershell
 ruff check vms/api/ tests/test_api_health.py tests/test_api_deps.py tests/test_api_persons.py
 mypy vms/api/
 ```
 
-- [ ] **Step 9.14: Commit**
+- [x] **Step 9.14: Commit**
 ```powershell
 git add vms/api/ tests/test_api_health.py tests/test_api_deps.py tests/test_api_persons.py
 git commit -m "feat(api): add FastAPI app, health endpoint, JWT auth, and enrollment routes"
@@ -2083,7 +2083,7 @@ git commit -m "feat(api): add FastAPI app, health endpoint, JWT auth, and enroll
 
 The DB writer reads `DetectionFrame` events from the `detections` stream and batch-inserts `tracking_events` using `INSERT ... ON CONFLICT DO NOTHING` for idempotency (spec v1 §10, CLAUDE.md §6.3).
 
-- [ ] **Step 10.1: Write failing tests**
+- [x] **Step 10.1: Write failing tests**
 
 ```python
 # tests/test_writer_db_writer.py
@@ -2142,7 +2142,7 @@ def test_flush_detection_frame_no_op_for_empty_tracklets(db_session: Session) ->
     assert rows == []
 ```
 
-- [ ] **Step 10.2: Check the TrackingEvent model fields used above**
+- [x] **Step 10.2: Check the TrackingEvent model fields used above**
 
 Verify the ORM model has `camera_id`, `local_track_id`, `confidence`, and the idempotency constraint:
 ```powershell
@@ -2150,18 +2150,18 @@ python -c "from vms.db.models import TrackingEvent; print([c.name for c in Track
 ```
 Expected output includes: `camera_id`, `local_track_id`, `event_ts`, `confidence`, `bbox_x1`, etc.
 
-- [ ] **Step 10.3: Run tests — expect ImportError**
+- [x] **Step 10.3: Run tests — expect ImportError**
 ```powershell
 python -m pytest tests/test_writer_db_writer.py -v -m integration
 ```
 Expected: `ModuleNotFoundError: No module named 'vms.writer'`
 
-- [ ] **Step 10.4: Create `vms/writer/__init__.py`**
+- [x] **Step 10.4: Create `vms/writer/__init__.py`**
 ```python
 """DB writer: consumes detections stream and persists to tracking_events."""
 ```
 
-- [ ] **Step 10.5: Implement `vms/writer/db_writer.py`**
+- [x] **Step 10.5: Implement `vms/writer/db_writer.py`**
 
 ```python
 """Batch inserts DetectionFrame tracklets into tracking_events.
@@ -2259,32 +2259,32 @@ class DBWriter:
         self._running = False
 ```
 
-- [ ] **Step 10.6: Run tests — expect 3 passed**
+- [x] **Step 10.6: Run tests — expect 3 passed**
 ```powershell
 python -m pytest tests/test_writer_db_writer.py -v -m integration
 ```
 Expected: `3 passed`
 
-- [ ] **Step 10.7: Run full test suite — expect 57 + new tests all passing**
+- [x] **Step 10.7: Run full test suite — expect 57 + new tests all passing**
 ```powershell
 python -m pytest tests/ -q
 ```
 Expect all original tests + all new tests pass with no failures.
 
-- [ ] **Step 10.8: Lint + type-check**
+- [x] **Step 10.8: Lint + type-check**
 ```powershell
 black vms/ tests/
 ruff check vms/ tests/
 mypy vms/
 ```
 
-- [ ] **Step 10.9: Coverage check**
+- [x] **Step 10.9: Coverage check**
 ```powershell
 python -m pytest tests/ --cov=vms --cov-report=term-missing -q
 ```
 Target: ≥ 70% across `vms/ingestion/`, `vms/inference/`, `vms/writer/`, `vms/api/`
 
-- [ ] **Step 10.10: Commit**
+- [x] **Step 10.10: Commit**
 ```powershell
 git add vms/writer/ tests/test_writer_db_writer.py
 git commit -m "feat(writer): add DBWriter batch insert to tracking_events"

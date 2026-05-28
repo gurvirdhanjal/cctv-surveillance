@@ -1,6 +1,6 @@
 # VMS v2 Phase 1A — Database Schema, Project Scaffold, and Config
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Status: COMPLETE** — all 57 tests pass as of commit `4a4bc49`. See git log for delivered state.
 
@@ -86,7 +86,7 @@ Expected: `/var/run/postgresql:5432 - accepting connections`. The container is c
 - Modify: `requirements.txt`
 - Create: `requirements-dev.txt`, `pyproject.toml`, `.gitignore`, `vms/__init__.py`, `vms/db/__init__.py`, `tests/__init__.py`, `tests/conftest.py`
 
-- [ ] **Step 1.1: Replace `requirements.txt`**
+- [x] **Step 1.1: Replace `requirements.txt`**
 
 Replace the entire current contents (5 lines) with:
 
@@ -110,7 +110,7 @@ faiss-cpu==1.8.0
 
 Reasoning: this lists every runtime dep across the whole VMS, not just Phase 1A. Pinning early prevents version drift later. ONNX/Redis/CV2 are unused until Phase 1B+ but having them locked here means future tasks just `pip install -r requirements.txt` and go.
 
-- [ ] **Step 1.2: Create `requirements-dev.txt`**
+- [x] **Step 1.2: Create `requirements-dev.txt`**
 
 ```
 pytest==8.2.0
@@ -123,7 +123,7 @@ mypy==1.10.0
 sqlalchemy[mypy]==2.0.30
 ```
 
-- [ ] **Step 1.3: Create `pyproject.toml`**
+- [x] **Step 1.3: Create `pyproject.toml`**
 
 ```toml
 [build-system]
@@ -163,7 +163,7 @@ markers = [
 addopts = "-ra --strict-markers"
 ```
 
-- [ ] **Step 1.4: Update `.gitignore`**
+- [x] **Step 1.4: Update `.gitignore`**
 
 Append (create if not present):
 ```
@@ -182,7 +182,7 @@ venv/
 !.env.example
 ```
 
-- [ ] **Step 1.5: Create empty package files**
+- [x] **Step 1.5: Create empty package files**
 
 ```python
 # vms/__init__.py
@@ -200,7 +200,7 @@ __version__ = "0.1.0"
 # tests/__init__.py
 ```
 
-- [ ] **Step 1.6: Create `tests/conftest.py`**
+- [x] **Step 1.6: Create `tests/conftest.py`**
 
 ```python
 """Shared pytest fixtures for the VMS test suite."""
@@ -231,7 +231,7 @@ def _vms_env() -> Iterator[None]:
         yield
 ```
 
-- [ ] **Step 1.7: Install everything**
+- [x] **Step 1.7: Install everything**
 
 ```powershell
 python -m pip install -U pip
@@ -239,7 +239,7 @@ pip install -r requirements.txt -r requirements-dev.txt
 ```
 Expected: all packages install without error. `onnxruntime-gpu` requires CUDA — if unavailable, the install still succeeds; runtime fall-back to CPU is handled in later phases.
 
-- [ ] **Step 1.8: Smoke test the scaffold**
+- [x] **Step 1.8: Smoke test the scaffold**
 
 ```powershell
 python -c "import vms; print(vms.__version__)"
@@ -251,7 +251,7 @@ pytest -q
 ```
 Expected: `no tests ran` (no errors). Confirms pyproject is discoverable and conftest loads cleanly.
 
-- [ ] **Step 1.9: Commit**
+- [x] **Step 1.9: Commit**
 
 ```powershell
 git add requirements.txt requirements-dev.txt pyproject.toml .gitignore vms/__init__.py vms/db/__init__.py tests/__init__.py tests/conftest.py
@@ -265,7 +265,7 @@ git commit -m "chore: scaffold vms package, deps, and pytest config"
 **Files:**
 - Create: `vms/config.py`, `tests/test_config.py`
 
-- [ ] **Step 2.1: Write the failing test**
+- [x] **Step 2.1: Write the failing test**
 
 Create `tests/test_config.py`:
 
@@ -318,14 +318,14 @@ def test_missing_required_raises() -> None:
             Settings()  # type: ignore[call-arg]
 ```
 
-- [ ] **Step 2.2: Run — expect failure**
+- [x] **Step 2.2: Run — expect failure**
 
 ```powershell
 pytest tests/test_config.py -v
 ```
 Expected: `ModuleNotFoundError: No module named 'vms.config'`
 
-- [ ] **Step 2.3: Implement `vms/config.py`**
+- [x] **Step 2.3: Implement `vms/config.py`**
 
 ```python
 """Application settings, loaded from environment variables prefixed VMS_."""
@@ -382,14 +382,14 @@ def get_settings() -> Settings:
     return Settings()  # type: ignore[call-arg]
 ```
 
-- [ ] **Step 2.4: Run — expect pass**
+- [x] **Step 2.4: Run — expect pass**
 
 ```powershell
 pytest tests/test_config.py -v
 ```
 Expected: 5 passed.
 
-- [ ] **Step 2.5: Format + lint**
+- [x] **Step 2.5: Format + lint**
 
 ```powershell
 black vms/config.py tests/test_config.py
@@ -398,7 +398,7 @@ mypy vms/config.py
 ```
 All three should report clean.
 
-- [ ] **Step 2.6: Commit**
+- [x] **Step 2.6: Commit**
 
 ```powershell
 git add vms/config.py tests/test_config.py
@@ -412,7 +412,7 @@ git commit -m "feat(config): add Settings module backed by pydantic-settings"
 **Files:**
 - Create: `vms/db/session.py`, `tests/test_db_session.py`
 
-- [ ] **Step 3.1: Write the failing test**
+- [x] **Step 3.1: Write the failing test**
 
 Create `tests/test_db_session.py`:
 
@@ -450,14 +450,14 @@ def test_get_db_yields_and_closes() -> None:
         pass  # expected: generator exhausts after the single yield
 ```
 
-- [ ] **Step 3.2: Run — expect failure**
+- [x] **Step 3.2: Run — expect failure**
 
 ```powershell
 pytest tests/test_db_session.py -v
 ```
 Expected: `ImportError: cannot import name 'Base' from 'vms.db.session'`
 
-- [ ] **Step 3.3: Implement `vms/db/session.py`**
+- [x] **Step 3.3: Implement `vms/db/session.py`**
 
 ```python
 """SQLAlchemy engine, declarative Base, session factory, and FastAPI dependency."""
@@ -491,14 +491,14 @@ def get_db() -> Iterator[Session]:
         yield session
 ```
 
-- [ ] **Step 3.4: Run — expect pass**
+- [x] **Step 3.4: Run — expect pass**
 
 ```powershell
 pytest tests/test_db_session.py -v
 ```
 Expected: 4 passed.
 
-- [ ] **Step 3.5: Format, lint, commit**
+- [x] **Step 3.5: Format, lint, commit**
 
 ```powershell
 black vms/db/session.py tests/test_db_session.py
@@ -515,7 +515,7 @@ git commit -m "feat(db): add SQLAlchemy engine, Base, and SessionLocal"
 **Files:**
 - Create: `vms/db/models.py`, `tests/test_db_models_identity.py`
 
-- [ ] **Step 4.1: Write the failing test**
+- [x] **Step 4.1: Write the failing test**
 
 Create `tests/test_db_models_identity.py`:
 
@@ -605,14 +605,14 @@ def test_person_created_at_default_now() -> None:
         assert p.created_at.replace(tzinfo=None) >= before.replace(tzinfo=None)
 ```
 
-- [ ] **Step 4.2: Run — expect failure**
+- [x] **Step 4.2: Run — expect failure**
 
 ```powershell
 pytest tests/test_db_models_identity.py -v
 ```
 Expected: `ImportError: cannot import name 'Person' from 'vms.db.models'`
 
-- [ ] **Step 4.3: Implement `vms/db/models.py` — identity tables**
+- [x] **Step 4.3: Implement `vms/db/models.py` — identity tables**
 
 Start the file with the imports and Base re-export, then add the identity domain models. (More tables added in Tasks 5–10; keep the file growing — do not split prematurely. Threshold for splitting is ~600 lines.)
 
@@ -726,14 +726,14 @@ class UserCameraPermission(Base):
     camera_id: Mapped[int] = mapped_column(Integer, primary_key=True)
 ```
 
-- [ ] **Step 4.4: Run — expect pass**
+- [x] **Step 4.4: Run — expect pass**
 
 ```powershell
 pytest tests/test_db_models_identity.py -v
 ```
 Expected: 5 passed.
 
-- [ ] **Step 4.5: Format, lint, commit**
+- [x] **Step 4.5: Format, lint, commit**
 
 ```powershell
 black vms/db/models.py tests/test_db_models_identity.py
@@ -751,7 +751,7 @@ git commit -m "feat(db): add identity-domain ORM models (persons, embeddings, us
 - Modify: `vms/db/models.py` (append)
 - Create: `tests/test_db_models_topology.py`
 
-- [ ] **Step 5.1: Write the failing test**
+- [x] **Step 5.1: Write the failing test**
 
 Create `tests/test_db_models_topology.py`:
 
@@ -824,14 +824,14 @@ def test_zone_loiter_threshold_overridable() -> None:
         assert z.loiter_threshold_s == 600
 ```
 
-- [ ] **Step 5.2: Run — expect failure**
+- [x] **Step 5.2: Run — expect failure**
 
 ```powershell
 pytest tests/test_db_models_topology.py -v
 ```
 Expected: `ImportError: cannot import name 'Camera' from 'vms.db.models'`
 
-- [ ] **Step 5.3: Append camera + zone models to `vms/db/models.py`**
+- [x] **Step 5.3: Append camera + zone models to `vms/db/models.py`**
 
 Append after the identity domain block:
 
@@ -883,14 +883,14 @@ class Zone(Base):
     loiter_threshold_s: Mapped[int] = mapped_column(Integer, nullable=False, default=180)
 ```
 
-- [ ] **Step 5.4: Run — expect pass**
+- [x] **Step 5.4: Run — expect pass**
 
 ```powershell
 pytest tests/test_db_models_topology.py -v
 ```
 Expected: 4 passed.
 
-- [ ] **Step 5.5: Format, lint, commit**
+- [x] **Step 5.5: Format, lint, commit**
 
 ```powershell
 black vms/db/models.py tests/test_db_models_topology.py
@@ -908,7 +908,7 @@ git commit -m "feat(db): add camera + zone models with v2 capability tier and zo
 - Modify: `vms/db/models.py` (append)
 - Create: `tests/test_db_models_tracking.py`
 
-- [ ] **Step 6.1: Write the failing test**
+- [x] **Step 6.1: Write the failing test**
 
 ```python
 """Tests for tracking-domain ORM models."""
@@ -1004,14 +1004,14 @@ def test_zone_presence_open_until_exit() -> None:
         assert zp.exited_at is None
 ```
 
-- [ ] **Step 6.2: Run — expect failure**
+- [x] **Step 6.2: Run — expect failure**
 
 ```powershell
 pytest tests/test_db_models_tracking.py -v
 ```
 Expected: `ImportError: cannot import name 'TrackingEvent' from 'vms.db.models'`
 
-- [ ] **Step 6.3: Append tracking models to `vms/db/models.py`**
+- [x] **Step 6.3: Append tracking models to `vms/db/models.py`**
 
 ```python
 # ---------------------------------------------------------------------------
@@ -1087,14 +1087,14 @@ class ZonePresence(Base):
     exited_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 ```
 
-- [ ] **Step 6.4: Run — expect pass**
+- [x] **Step 6.4: Run — expect pass**
 
 ```powershell
 pytest tests/test_db_models_tracking.py -v
 ```
 Expected: 3 passed.
 
-- [ ] **Step 6.5: Format, lint, commit**
+- [x] **Step 6.5: Format, lint, commit**
 
 ```powershell
 black vms/db/models.py tests/test_db_models_tracking.py
@@ -1114,7 +1114,7 @@ git commit -m "feat(db): add tracking_events, reid_matches, zone_presence models
 - Modify: `vms/db/models.py` (append)
 - Create: `tests/test_db_models_alerts.py`
 
-- [ ] **Step 7.1: Write the failing test**
+- [x] **Step 7.1: Write the failing test**
 
 ```python
 """Tests for alert-domain ORM models including v2 dispatcher tables."""
@@ -1207,14 +1207,14 @@ def test_alert_dispatch_records_attempt() -> None:
         s.commit()
 ```
 
-- [ ] **Step 7.2: Run — expect failure**
+- [x] **Step 7.2: Run — expect failure**
 
 ```powershell
 pytest tests/test_db_models_alerts.py -v
 ```
 Expected: import error for `Alert`.
 
-- [ ] **Step 7.3: Append alert models to `vms/db/models.py`**
+- [x] **Step 7.3: Append alert models to `vms/db/models.py`**
 
 ```python
 # ---------------------------------------------------------------------------
@@ -1291,14 +1291,14 @@ class AlertDispatch(Base):
     response_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
 ```
 
-- [ ] **Step 7.4: Run — expect pass**
+- [x] **Step 7.4: Run — expect pass**
 
 ```powershell
 pytest tests/test_db_models_alerts.py -v
 ```
 Expected: 4 passed. (Task 9 should already be done per the dependency note at the top of this task — `MaintenanceWindow` is registered in `Base.metadata` so SQLAlchemy can resolve the `suppressed_by_window_id` FK.)
 
-- [ ] **Step 7.5: Format, lint, commit**
+- [x] **Step 7.5: Format, lint, commit**
 
 ```powershell
 black vms/db/models.py tests/test_db_models_alerts.py
@@ -1316,7 +1316,7 @@ git commit -m "feat(db): add alert + alert_routing + alert_dispatches models"
 - Modify: `vms/db/models.py` (append)
 - Create: `tests/test_db_models_anomaly.py`
 
-- [ ] **Step 8.1: Write the failing test**
+- [x] **Step 8.1: Write the failing test**
 
 ```python
 """Tests for anomaly_detectors model — registry of pluggable detector classes."""
@@ -1357,14 +1357,14 @@ def test_alert_type_must_be_unique() -> None:
             s.commit()
 ```
 
-- [ ] **Step 8.2: Run — expect failure**
+- [x] **Step 8.2: Run — expect failure**
 
 ```powershell
 pytest tests/test_db_models_anomaly.py -v
 ```
 Expected: import error.
 
-- [ ] **Step 8.3: Append `AnomalyDetector` model**
+- [x] **Step 8.3: Append `AnomalyDetector` model**
 
 ```python
 # ---------------------------------------------------------------------------
@@ -1391,14 +1391,14 @@ class AnomalyDetector(Base):
     )
 ```
 
-- [ ] **Step 8.4: Run — expect pass**
+- [x] **Step 8.4: Run — expect pass**
 
 ```powershell
 pytest tests/test_db_models_anomaly.py -v
 ```
 Expected: 2 passed.
 
-- [ ] **Step 8.5: Format, lint, commit**
+- [x] **Step 8.5: Format, lint, commit**
 
 ```powershell
 black vms/db/models.py tests/test_db_models_anomaly.py
@@ -1416,7 +1416,7 @@ git commit -m "feat(db): add anomaly_detectors registry model"
 - Modify: `vms/db/models.py` (append)
 - Create: `tests/test_db_models_maintenance.py`
 
-- [ ] **Step 9.1: Write the failing test**
+- [x] **Step 9.1: Write the failing test**
 
 ```python
 """Tests for maintenance_windows model + check constraints."""
@@ -1519,14 +1519,14 @@ def test_recurring_window_happy_path() -> None:
         assert w.is_active is True
 ```
 
-- [ ] **Step 9.2: Run — expect failure**
+- [x] **Step 9.2: Run — expect failure**
 
 ```powershell
 pytest tests/test_db_models_maintenance.py -v
 ```
 Expected: import error.
 
-- [ ] **Step 9.3: Append `MaintenanceWindow` model**
+- [x] **Step 9.3: Append `MaintenanceWindow` model**
 
 ```python
 # ---------------------------------------------------------------------------
@@ -1571,14 +1571,14 @@ class MaintenanceWindow(Base):
     )
 ```
 
-- [ ] **Step 9.4: Run — expect pass**
+- [x] **Step 9.4: Run — expect pass**
 
 ```powershell
 pytest tests/test_db_models_maintenance.py -v
 ```
 Expected: 4 passed. With `MaintenanceWindow` now in `Base.metadata`, **Task 7 (Alerts) can now be executed safely** — its FK to `maintenance_windows.window_id` will resolve.
 
-- [ ] **Step 9.5: Format, lint, commit**
+- [x] **Step 9.5: Format, lint, commit**
 
 ```powershell
 black vms/db/models.py tests/test_db_models_maintenance.py
@@ -1596,7 +1596,7 @@ git commit -m "feat(db): add maintenance_windows model with check constraints"
 - Modify: `vms/db/models.py` (append)
 - Create: `tests/test_db_models_forensic.py`
 
-- [ ] **Step 10.1: Write the failing test**
+- [x] **Step 10.1: Write the failing test**
 
 ```python
 """Tests for person_clip_embeddings model (v2 §F.2 forensic search)."""
@@ -1640,14 +1640,14 @@ def test_clip_embedding_persists() -> None:
         assert emb.clip_emb_id is not None
 ```
 
-- [ ] **Step 10.2: Run — expect failure**
+- [x] **Step 10.2: Run — expect failure**
 
 ```powershell
 pytest tests/test_db_models_forensic.py -v
 ```
 Expected: import error.
 
-- [ ] **Step 10.3: Append `PersonClipEmbedding`**
+- [x] **Step 10.3: Append `PersonClipEmbedding`**
 
 ```python
 # ---------------------------------------------------------------------------
@@ -1670,14 +1670,14 @@ class PersonClipEmbedding(Base):
     snapshot_path: Mapped[str] = mapped_column(String(500), nullable=False)
 ```
 
-- [ ] **Step 10.4: Run — expect pass**
+- [x] **Step 10.4: Run — expect pass**
 
 ```powershell
 pytest tests/test_db_models_forensic.py -v
 ```
 Expected: 1 passed.
 
-- [ ] **Step 10.5: Format, lint, commit**
+- [x] **Step 10.5: Format, lint, commit**
 
 ```powershell
 black vms/db/models.py tests/test_db_models_forensic.py
@@ -1695,7 +1695,7 @@ git commit -m "feat(db): add person_clip_embeddings model"
 - Modify: `vms/db/models.py` (append)
 - Create: `vms/db/audit.py`, `tests/test_db_models_audit.py`
 
-- [ ] **Step 11.1: Write the failing test**
+- [x] **Step 11.1: Write the failing test**
 
 ```python
 """Tests for audit_log model + hash-chain helper."""
@@ -1769,14 +1769,14 @@ def test_chain_links_correctly() -> None:
         assert r2.prev_hash == r1.row_hash
 ```
 
-- [ ] **Step 11.2: Run — expect failure**
+- [x] **Step 11.2: Run — expect failure**
 
 ```powershell
 pytest tests/test_db_models_audit.py -v
 ```
 Expected: import error.
 
-- [ ] **Step 11.3: Append `AuditLog` model**
+- [x] **Step 11.3: Append `AuditLog` model**
 
 ```python
 # ---------------------------------------------------------------------------
@@ -1802,7 +1802,7 @@ class AuditLog(Base):
     )
 ```
 
-- [ ] **Step 11.4: Create `vms/db/audit.py`**
+- [x] **Step 11.4: Create `vms/db/audit.py`**
 
 ```python
 """Hash-chain helpers for the immutable audit_log table (spec §F.3)."""
@@ -1896,14 +1896,14 @@ def write_audit_event(
     return row
 ```
 
-- [ ] **Step 11.5: Run — expect pass**
+- [x] **Step 11.5: Run — expect pass**
 
 ```powershell
 pytest tests/test_db_models_audit.py -v
 ```
 Expected: 4 passed.
 
-- [ ] **Step 11.6: Format, lint, commit**
+- [x] **Step 11.6: Format, lint, commit**
 
 ```powershell
 black vms/db/models.py vms/db/audit.py tests/test_db_models_audit.py
@@ -1917,14 +1917,14 @@ git commit -m "feat(db): add audit_log model + hash-chain write helper"
 
 ## Task 12: Run the full test suite as a coherence check
 
-- [ ] **Step 12.1: Run everything**
+- [x] **Step 12.1: Run everything**
 
 ```powershell
 pytest -v
 ```
 Expected: every test in tests/test_db_models_*.py + test_config.py + test_db_session.py passes. Tally ≈ 30 tests, all green.
 
-- [ ] **Step 12.2: Check coverage**
+- [x] **Step 12.2: Check coverage**
 
 ```powershell
 pytest --cov=vms --cov-report=term-missing
@@ -1933,7 +1933,7 @@ Expected: `vms/db/models.py` coverage ≥ 80%; `vms/config.py` 100%; `vms/db/ses
 
 If coverage falls below threshold, add a targeted test for the missing branch — do not lower the threshold.
 
-- [ ] **Step 12.3: Lint + type-check entire package**
+- [x] **Step 12.3: Lint + type-check entire package**
 
 ```powershell
 black --check vms/ tests/
@@ -1950,14 +1950,14 @@ All clean.
 - Create: `alembic.ini`, `alembic/env.py`, `alembic/script.py.mako`, `alembic/versions/0001_initial_schema.py`
 - Create: `tests/test_migration.py`
 
-- [ ] **Step 13.1: Initialise Alembic**
+- [x] **Step 13.1: Initialise Alembic**
 
 ```powershell
 alembic init alembic
 ```
 Expected: creates `alembic.ini`, `alembic/env.py`, `alembic/script.py.mako`, `alembic/versions/`. Note that alembic init writes default content — we replace the relevant files in the next steps.
 
-- [ ] **Step 13.2: Edit `alembic.ini`**
+- [x] **Step 13.2: Edit `alembic.ini`**
 
 Find the line `sqlalchemy.url =` and replace it with:
 
@@ -1993,7 +1993,7 @@ handlers =
 qualname = alembic
 ```
 
-- [ ] **Step 13.3: Replace `alembic/env.py` contents**
+- [x] **Step 13.3: Replace `alembic/env.py` contents**
 
 ```python
 """Alembic env wired to vms.config + vms.db.models."""
@@ -2052,7 +2052,7 @@ else:
     run_migrations_online()
 ```
 
-- [ ] **Step 13.4: Create the initial migration manually**
+- [x] **Step 13.4: Create the initial migration manually**
 
 We write the migration by hand rather than autogenerating, because:
 1. The first migration includes 17 tables — autogen output is verbose and we want clean ordering.
@@ -2524,14 +2524,14 @@ def test_downgrade_removes_all_tables() -> None:
     assert not tables, f"Tables still present after downgrade: {tables}"
 ```
 
-- [ ] **Step 13.9: Run the migration test**
+- [x] **Step 13.9: Run the migration test**
 
 ```powershell
 pytest tests/test_migration.py -v
 ```
 Expected: 2 passed.
 
-- [ ] **Step 13.10: Final lint + commit**
+- [x] **Step 13.10: Final lint + commit**
 
 ```powershell
 black alembic/ tests/test_migration.py
@@ -2552,20 +2552,20 @@ git commit -m "feat(db): alembic env + initial migration for full v2 schema"
 
 ## Wrap-up
 
-- [ ] **Run the entire test suite + coverage one last time**
+- [x] **Run the entire test suite + coverage one last time**
 
 ```powershell
 pytest --cov=vms --cov-report=term-missing
 ```
 Expected: ~32 tests pass, package coverage ≥ 85%.
 
-- [ ] **Diff summary**
+- [x] **Diff summary**
 
 ```powershell
 git log --oneline 2026-04-23-phase1-foundation..HEAD -- vms/ tests/ alembic/
 ```
 
-- [ ] **Final commit if any local-only files were left dirty**
+- [x] **Final commit if any local-only files were left dirty**
 
 ```powershell
 git status --short

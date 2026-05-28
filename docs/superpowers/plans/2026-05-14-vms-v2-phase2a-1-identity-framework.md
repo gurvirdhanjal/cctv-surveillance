@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
-> Steps use checkbox (`- [ ]`) syntax for tracking.
+> Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Status: COMPLETE**
 
@@ -55,25 +55,25 @@ tests/
 
 ## Pre-flight
 
-- [ ] **Add `faiss-cpu` to requirements.txt**
+- [x] **Add `faiss-cpu` to requirements.txt**
 
 Append:
 ```
 faiss-cpu==1.8.0
 ```
 
-- [ ] **Install**
+- [x] **Install**
 ```powershell
 pip install faiss-cpu==1.8.0
 ```
 
-- [ ] **Verify**
+- [x] **Verify**
 ```powershell
 python -c "import faiss; idx = faiss.IndexFlatIP(4); print('faiss ok, ntotal:', idx.ntotal)"
 ```
 Expected: `faiss ok, ntotal: 0`
 
-- [ ] **Baseline: 96 tests pass**
+- [x] **Baseline: 96 tests pass**
 ```powershell
 python -m pytest tests/ -q
 ```
@@ -89,7 +89,7 @@ python -m pytest tests/ -q
 `cameras.homography_matrix` — 3×3 row-major float64 stored as JSON string (9 floats).
 `zones.adjacent_zone_ids` — JSON array of `zone_id` integers for cross-zone re-ID pre-filter.
 
-- [ ] **Step 1.1: Add columns to ORM models**
+- [x] **Step 1.1: Add columns to ORM models**
 
 In `vms/db/models.py`, add to the `Camera` class after `worker_group`:
 ```python
@@ -101,12 +101,12 @@ Add to the `Zone` class after `polygon_json`:
 adjacent_zone_ids: Mapped[str | None] = mapped_column(Text, nullable=True)
 ```
 
-- [ ] **Step 1.2: Generate migration**
+- [x] **Step 1.2: Generate migration**
 ```powershell
 alembic revision -m "phase2a_add_homography_adjacent_zones"
 ```
 
-- [ ] **Step 1.3: Fill in migration body**
+- [x] **Step 1.3: Fill in migration body**
 
 Open the generated file. Replace the empty `upgrade`/`downgrade` with:
 ```python
@@ -124,20 +124,20 @@ def downgrade() -> None:
     op.drop_column("cameras", "homography_matrix")
 ```
 
-- [ ] **Step 1.4: Apply and round-trip test**
+- [x] **Step 1.4: Apply and round-trip test**
 ```powershell
 alembic upgrade head
 alembic downgrade -1
 alembic upgrade head
 ```
 
-- [ ] **Step 1.5: Full suite still passes**
+- [x] **Step 1.5: Full suite still passes**
 ```powershell
 python -m pytest tests/ -q
 ```
 Expected: 96 passed.
 
-- [ ] **Step 1.6: Commit**
+- [x] **Step 1.6: Commit**
 ```powershell
 git add vms/db/models.py alembic/versions/
 git commit -m "feat(identity): add Camera.homography_matrix + Zone.adjacent_zone_ids migration"
@@ -156,7 +156,7 @@ git commit -m "feat(identity): add Camera.homography_matrix + Zone.adjacent_zone
 
 **Note on pgvector read:** `PersonEmbedding.embedding` (a `Vector(512)` column) returns a Python `list[float]` when read via SQLAlchemy. Always convert with `np.array(r.embedding, dtype=np.float32)`.
 
-- [ ] **Step 2.1: Write failing tests**
+- [x] **Step 2.1: Write failing tests**
 
 ```python
 # tests/test_identity_faiss_index.py
@@ -247,18 +247,18 @@ def test_faiss_index_rebuild_excludes_inactive_persons(db_session: Session) -> N
     assert idx.count() == 0
 ```
 
-- [ ] **Step 2.2: Run — expect ImportError**
+- [x] **Step 2.2: Run — expect ImportError**
 ```powershell
 python -m pytest tests/test_identity_faiss_index.py -v
 ```
 Expected: `ModuleNotFoundError: No module named 'vms.identity'`
 
-- [ ] **Step 2.3: Create `vms/identity/__init__.py`**
+- [x] **Step 2.3: Create `vms/identity/__init__.py`**
 ```python
 """Identity layer: FAISS-based person recognition, cross-camera re-ID, zone presence."""
 ```
 
-- [ ] **Step 2.4: Implement `vms/identity/faiss_index.py`**
+- [x] **Step 2.4: Implement `vms/identity/faiss_index.py`**
 
 ```python
 """FAISS-backed embedding index for fast person identification.
@@ -353,18 +353,18 @@ class FaissIndex:
         return int(self._index.ntotal)
 ```
 
-- [ ] **Step 2.5: Run tests — expect 7 passed**
+- [x] **Step 2.5: Run tests — expect 7 passed**
 ```powershell
 python -m pytest tests/test_identity_faiss_index.py -v
 ```
 
-- [ ] **Step 2.6: Lint + type-check**
+- [x] **Step 2.6: Lint + type-check**
 ```powershell
 ruff check vms/identity/ tests/test_identity_faiss_index.py
 mypy vms/identity/faiss_index.py
 ```
 
-- [ ] **Step 2.7: Commit**
+- [x] **Step 2.7: Commit**
 ```powershell
 git add vms/identity/ tests/test_identity_faiss_index.py
 git commit -m "feat(identity): add FaissIndex with rebuild/add/remove/search"
@@ -382,7 +382,7 @@ git commit -m "feat(identity): add FaissIndex with rebuild/add/remove/search"
 1. `best_sim ≥ settings.adaface_min_sim` (0.72)
 2. `best_sim − second_sim ≥ settings.reid_margin` (0.08) — skipped when only one result exists
 
-- [ ] **Step 3.1: Write failing tests**
+- [x] **Step 3.1: Write failing tests**
 
 ```python
 # tests/test_identity_reid.py
@@ -434,12 +434,12 @@ def test_reid_returns_none_for_empty_index() -> None:
     assert svc.identify(_vec()) is None
 ```
 
-- [ ] **Step 3.2: Run — expect ImportError**
+- [x] **Step 3.2: Run — expect ImportError**
 ```powershell
 python -m pytest tests/test_identity_reid.py -v
 ```
 
-- [ ] **Step 3.3: Implement `vms/identity/reid.py`**
+- [x] **Step 3.3: Implement `vms/identity/reid.py`**
 
 ```python
 """FAISS-backed person identification with similarity + margin gates."""
@@ -483,18 +483,18 @@ class ReIdService:
         return best_id
 ```
 
-- [ ] **Step 3.4: Run — expect 5 passed**
+- [x] **Step 3.4: Run — expect 5 passed**
 ```powershell
 python -m pytest tests/test_identity_reid.py -v
 ```
 
-- [ ] **Step 3.5: Lint + type-check**
+- [x] **Step 3.5: Lint + type-check**
 ```powershell
 ruff check vms/identity/reid.py tests/test_identity_reid.py
 mypy vms/identity/reid.py
 ```
 
-- [ ] **Step 3.6: Commit**
+- [x] **Step 3.6: Commit**
 ```powershell
 git add vms/identity/reid.py tests/test_identity_reid.py
 git commit -m "feat(identity): add ReIdService with similarity + margin thresholds"
@@ -512,7 +512,7 @@ git commit -m "feat(identity): add ReIdService with similarity + margin threshol
 
 `project_to_floor` uses the **bottom-centre** of the bounding box as the foot position (more accurate for standing persons than the centroid).
 
-- [ ] **Step 4.1: Write failing tests**
+- [x] **Step 4.1: Write failing tests**
 
 ```python
 # tests/test_identity_homography.py
@@ -553,12 +553,12 @@ def test_project_to_floor_returns_none_for_no_matrix() -> None:
     assert project_to_floor((0, 0, 100, 200), None) is None
 ```
 
-- [ ] **Step 4.2: Run — expect ImportError**
+- [x] **Step 4.2: Run — expect ImportError**
 ```powershell
 python -m pytest tests/test_identity_homography.py -v
 ```
 
-- [ ] **Step 4.3: Implement `vms/identity/homography.py`**
+- [x] **Step 4.3: Implement `vms/identity/homography.py`**
 
 ```python
 """Floor-plane homography projection.
@@ -603,18 +603,18 @@ def project_to_floor(
     return float(out[0, 0, 0]), float(out[0, 0, 1])
 ```
 
-- [ ] **Step 4.4: Run — expect 4 passed**
+- [x] **Step 4.4: Run — expect 4 passed**
 ```powershell
 python -m pytest tests/test_identity_homography.py -v
 ```
 
-- [ ] **Step 4.5: Lint + type-check**
+- [x] **Step 4.5: Lint + type-check**
 ```powershell
 ruff check vms/identity/homography.py tests/test_identity_homography.py
 mypy vms/identity/homography.py
 ```
 
-- [ ] **Step 4.6: Commit**
+- [x] **Step 4.6: Commit**
 ```powershell
 git add vms/identity/homography.py tests/test_identity_homography.py
 git commit -m "feat(identity): add homography floor projection helper"
@@ -633,7 +633,7 @@ git commit -m "feat(identity): add homography floor projection helper"
 
 Consumers (identity services) read this stream and update their in-memory FAISS index without a full rebuild.
 
-- [ ] **Step 5.1: Write failing tests**
+- [x] **Step 5.1: Write failing tests**
 
 ```python
 # tests/test_identity_faiss_dirty.py
@@ -680,12 +680,12 @@ async def test_publish_remove_writes_correct_fields(
     assert json.loads(fields["embedding_ids"]) == [1, 2, 3]
 ```
 
-- [ ] **Step 5.2: Run — expect ImportError**
+- [x] **Step 5.2: Run — expect ImportError**
 ```powershell
 python -m pytest tests/test_identity_faiss_dirty.py -v
 ```
 
-- [ ] **Step 5.3: Implement `vms/identity/faiss_dirty.py`**
+- [x] **Step 5.3: Implement `vms/identity/faiss_dirty.py`**
 
 ```python
 """Redis Stream events for FAISS index synchronisation.
@@ -735,18 +735,18 @@ async def publish_remove(
     )
 ```
 
-- [ ] **Step 5.4: Run — expect 2 passed**
+- [x] **Step 5.4: Run — expect 2 passed**
 ```powershell
 python -m pytest tests/test_identity_faiss_dirty.py -v
 ```
 
-- [ ] **Step 5.5: Lint + type-check**
+- [x] **Step 5.5: Lint + type-check**
 ```powershell
 ruff check vms/identity/faiss_dirty.py tests/test_identity_faiss_dirty.py
 mypy vms/identity/faiss_dirty.py
 ```
 
-- [ ] **Step 5.6: Commit**
+- [x] **Step 5.6: Commit**
 ```powershell
 git add vms/identity/faiss_dirty.py tests/test_identity_faiss_dirty.py
 git commit -m "feat(identity): add faiss_dirty stream event publishers"
@@ -767,7 +767,7 @@ git commit -m "feat(identity): add faiss_dirty stream event publishers"
 [[0,0],[500,0],[500,500],[0,500]]
 ```
 
-- [ ] **Step 6.1: Write failing tests**
+- [x] **Step 6.1: Write failing tests**
 
 ```python
 # tests/test_identity_zone_presence.py
@@ -862,12 +862,12 @@ def test_tracker_ignores_tracklet_with_no_zone_match(
     assert rows == []
 ```
 
-- [ ] **Step 6.2: Run — expect ImportError**
+- [x] **Step 6.2: Run — expect ImportError**
 ```powershell
 python -m pytest tests/test_identity_zone_presence.py -v
 ```
 
-- [ ] **Step 6.3: Implement `vms/identity/zone_presence.py`**
+- [x] **Step 6.3: Implement `vms/identity/zone_presence.py`**
 
 ```python
 """Zone presence state machine.
@@ -959,18 +959,18 @@ class ZonePresenceTracker:
             row.exited_at = ts
 ```
 
-- [ ] **Step 6.4: Run — expect 6 passed**
+- [x] **Step 6.4: Run — expect 6 passed**
 ```powershell
 python -m pytest tests/test_identity_zone_presence.py -v
 ```
 
-- [ ] **Step 6.5: Lint + type-check**
+- [x] **Step 6.5: Lint + type-check**
 ```powershell
 ruff check vms/identity/zone_presence.py tests/test_identity_zone_presence.py
 mypy vms/identity/zone_presence.py
 ```
 
-- [ ] **Step 6.6: Commit**
+- [x] **Step 6.6: Commit**
 ```powershell
 git add vms/identity/zone_presence.py tests/test_identity_zone_presence.py
 git commit -m "feat(identity): add ZonePresenceTracker with point-in-polygon"
@@ -1003,7 +1003,7 @@ class _TrackletEntry:
 - If `best_sim ≥ settings.reid_cross_cam_sim` (0.65) AND `margin ≥ settings.reid_margin` (0.08): reuse that `global_track_id`.
 - Else: assign new UUID.
 
-- [ ] **Step 7.1: Write failing tests**
+- [x] **Step 7.1: Write failing tests**
 
 ```python
 # tests/test_identity_engine.py
@@ -1076,12 +1076,12 @@ def test_engine_identify_person_returns_none_for_empty_embedding() -> None:
     assert engine.identify_person(()) is None
 ```
 
-- [ ] **Step 7.2: Run — expect ImportError**
+- [x] **Step 7.2: Run — expect ImportError**
 ```powershell
 python -m pytest tests/test_identity_engine.py -v
 ```
 
-- [ ] **Step 7.3: Implement `vms/identity/engine.py`**
+- [x] **Step 7.3: Implement `vms/identity/engine.py`**
 
 ```python
 """Identity engine: tracklet registry, cross-camera re-ID, person identification.
@@ -1201,23 +1201,23 @@ class IdentityEngine:
         return best_gid
 ```
 
-- [ ] **Step 7.4: Run — expect 5 passed**
+- [x] **Step 7.4: Run — expect 5 passed**
 ```powershell
 python -m pytest tests/test_identity_engine.py -v
 ```
 
-- [ ] **Step 7.5: Run full suite**
+- [x] **Step 7.5: Run full suite**
 ```powershell
 python -m pytest tests/ -q
 ```
 
-- [ ] **Step 7.6: Lint + type-check**
+- [x] **Step 7.6: Lint + type-check**
 ```powershell
 ruff check vms/identity/engine.py tests/test_identity_engine.py
 mypy vms/identity/engine.py
 ```
 
-- [ ] **Step 7.7: Commit**
+- [x] **Step 7.7: Commit**
 ```powershell
 git add vms/identity/engine.py tests/test_identity_engine.py
 git commit -m "feat(identity): add IdentityEngine with cross-camera re-ID"
@@ -1239,7 +1239,7 @@ git commit -m "feat(identity): add IdentityEngine with cross-camera re-ID"
 - The `PersonEmbedding.embedding` column is `Vector(512)`. Zero it with `np.zeros(512, dtype=np.float32)`.
 - `faiss_dirty` publish is fire-and-forget background work; the FAISS index rebuilds on the next identity service restart. Phase 2b will wire up the async background publish.
 
-- [ ] **Step 8.1: Add `PurgeRequest` to schemas**
+- [x] **Step 8.1: Add `PurgeRequest` to schemas**
 
 In `vms/api/schemas.py`, append:
 ```python
@@ -1248,7 +1248,7 @@ class PurgeRequest(BaseModel):
     reason: str = Field(..., min_length=10, max_length=500)
 ```
 
-- [ ] **Step 8.2: Write failing tests**
+- [x] **Step 8.2: Write failing tests**
 
 Append to `tests/test_api_persons.py`:
 ```python
@@ -1297,13 +1297,13 @@ async def test_purge_person_rejects_wrong_confirmation(db_session: Session) -> N
     assert resp.status_code == 409
 ```
 
-- [ ] **Step 8.3: Run new tests — expect 3 failures**
+- [x] **Step 8.3: Run new tests — expect 3 failures**
 ```powershell
 python -m pytest tests/test_api_persons.py -v -k "purge"
 ```
 Expected: 3 failures (route does not exist yet).
 
-- [ ] **Step 8.4: Implement purge endpoint**
+- [x] **Step 8.4: Implement purge endpoint**
 
 Add to `vms/api/routes/persons.py` (after the existing imports):
 ```python
@@ -1359,23 +1359,23 @@ def purge_person(
     )
 ```
 
-- [ ] **Step 8.5: Run purge tests — expect 3 passed**
+- [x] **Step 8.5: Run purge tests — expect 3 passed**
 ```powershell
 python -m pytest tests/test_api_persons.py -v -k "purge"
 ```
 
-- [ ] **Step 8.6: Run full suite**
+- [x] **Step 8.6: Run full suite**
 ```powershell
 python -m pytest tests/ -q
 ```
 
-- [ ] **Step 8.7: Lint + type-check**
+- [x] **Step 8.7: Lint + type-check**
 ```powershell
 ruff check vms/api/routes/persons.py vms/api/schemas.py tests/test_api_persons.py
 mypy vms/api/routes/persons.py
 ```
 
-- [ ] **Step 8.8: Final quality gates**
+- [x] **Step 8.8: Final quality gates**
 ```powershell
 black vms/ tests/
 ruff check vms/ tests/
@@ -1383,7 +1383,7 @@ mypy vms/
 ```
 Expected: all clean.
 
-- [ ] **Step 8.9: Commit**
+- [x] **Step 8.9: Commit**
 ```powershell
 git add vms/api/routes/persons.py vms/api/schemas.py tests/test_api_persons.py
 git commit -m "feat(api): add GDPR purge endpoint DELETE /api/persons/{id}"
