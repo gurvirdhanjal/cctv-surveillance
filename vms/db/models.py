@@ -295,7 +295,10 @@ class TrackingEvent(Base):
     )
     # zone_id intentionally not FK'd: zones can reshape or be retired
     zone_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    event_ts: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    # primary_key=True here makes (event_id, event_ts) a composite PK, matching
+    # the PostgreSQL partitioning requirement that the partition key appear in
+    # every unique constraint on the parent table.
+    event_ts: Mapped[datetime] = mapped_column(DateTime, primary_key=True, nullable=False)
     ingest_ts: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     bbox_x1: Mapped[int] = mapped_column(Integer, nullable=False)
     bbox_y1: Mapped[int] = mapped_column(Integer, nullable=False)

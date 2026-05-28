@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
-> Steps use checkbox (`- [ ]`) syntax for tracking.
+> Steps use checkbox (`- [x]`) syntax for tracking.
 
-**Status: NOT STARTED**
+**Status: COMPLETE**
 
 **Goal:** Convert `tracking_events` from a plain heap table to a PostgreSQL `PARTITION BY RANGE (event_ts)` table with monthly child partitions. Add a `PartitionManager` utility that creates future partitions at startup and drops old ones. Update the ORM model to reflect the composite PK `(event_id, event_ts)`.
 
@@ -22,15 +22,15 @@
 
 Write the tests before implementation so the interface is locked.
 
-- [ ] 1.1 Create `tests/test_db_partition_manager.py`
-- [ ] 1.2 `test_ensure_future_partitions_creates_current_month` — call with `months_ahead=0`; assert the table `tracking_events_y{YYYY}m{MM}` exists in `pg_class`
-- [ ] 1.3 `test_ensure_future_partitions_creates_n_months_ahead` — call with `months_ahead=2`; assert 3 partitions created (current + 2)
-- [ ] 1.4 `test_ensure_future_partitions_is_idempotent` — call twice; assert no error on second call (CREATE TABLE IF NOT EXISTS)
-- [ ] 1.5 `test_drop_partitions_before_removes_old_partition` — create a partition for 2 months ago; call `drop_partitions_before` with cutoff = start of last month; assert partition gone from `pg_inherits`
-- [ ] 1.6 `test_drop_partitions_before_never_drops_default` — call with very old cutoff; assert `tracking_events_default` still exists
-- [ ] 1.7 `test_list_partitions_returns_all_children` — create 2 named partitions + default; list returns all three names
-- [ ] 1.8 Mark all tests `@pytest.mark.integration` — require real PostgreSQL
-- [ ] 1.9 Run tests → confirm ImportError or AttributeError (module doesn't exist yet) — RED confirmed
+- [x] 1.1 Create `tests/test_db_partition_manager.py`
+- [x] 1.2 `test_ensure_future_partitions_creates_current_month` — call with `months_ahead=0`; assert the table `tracking_events_y{YYYY}m{MM}` exists in `pg_class`
+- [x] 1.3 `test_ensure_future_partitions_creates_n_months_ahead` — call with `months_ahead=2`; assert 3 partitions created (current + 2)
+- [x] 1.4 `test_ensure_future_partitions_is_idempotent` — call twice; assert no error on second call (CREATE TABLE IF NOT EXISTS)
+- [x] 1.5 `test_drop_partitions_before_removes_old_partition` — create a partition for 2 months ago; call `drop_partitions_before` with cutoff = start of last month; assert partition gone from `pg_inherits`
+- [x] 1.6 `test_drop_partitions_before_never_drops_default` — call with very old cutoff; assert `tracking_events_default` still exists
+- [x] 1.7 `test_list_partitions_returns_all_children` — create 2 named partitions + default; list returns all three names
+- [x] 1.8 Mark all tests `@pytest.mark.integration` — require real PostgreSQL
+- [x] 1.9 Run tests → confirm ImportError or AttributeError (module doesn't exist yet) — RED confirmed
 
 ---
 
@@ -38,8 +38,8 @@ Write the tests before implementation so the interface is locked.
 
 This migration converts `tracking_events` to a partitioned table.
 
-- [ ] 2.1 Generate: `alembic revision -m "partition_tracking_events_by_event_ts"`
-- [ ] 2.2 Write `upgrade()` using `op.execute(text(...))`:
+- [x] 2.1 Generate: `alembic revision -m "partition_tracking_events_by_event_ts"`
+- [x] 2.2 Write `upgrade()` using `op.execute(text(...))`:
   ```sql
   -- Step 1: rename old table
   ALTER TABLE tracking_events RENAME TO tracking_events_old;
@@ -98,34 +98,34 @@ This migration converts `tracking_events` to a partitioned table.
   DROP TABLE tracking_events_old;
   ```
   Note: generate `{YYYY}`, `{month_start}`, `{next_month_start}` in Python at migration run time using `datetime.now(timezone.utc)`.
-- [ ] 2.3 Write `downgrade()`:
+- [x] 2.3 Write `downgrade()`:
   - Create `tracking_events_restored` as plain non-partitioned table (same schema with simple PK `event_id`)
   - `INSERT INTO tracking_events_restored SELECT * FROM tracking_events`
   - Drop `tracking_events` (drops all partitions)
   - Rename `tracking_events_restored` → `tracking_events`
   - Recreate original indexes and constraints
-- [ ] 2.4 Run `alembic upgrade head` locally — confirm success
-- [ ] 2.5 Run `alembic downgrade -1` — confirm success
-- [ ] 2.6 Run `alembic upgrade head` again — round-trip clean
-- [ ] 2.7 Run `pytest` — confirm existing test suite still passes
+- [x] 2.4 Run `alembic upgrade head` locally — confirm success
+- [x] 2.5 Run `alembic downgrade -1` — confirm success
+- [x] 2.6 Run `alembic upgrade head` again — round-trip clean
+- [x] 2.7 Run `pytest` — confirm existing test suite still passes
 
 ---
 
 ## Task 3 — ORM model update
 
-- [ ] 3.1 Update `TrackingEvent` in `vms/db/models.py`:
+- [x] 3.1 Update `TrackingEvent` in `vms/db/models.py`:
   - Change `event_id` column: keep `BigInteger, primary_key=True, autoincrement=True`
   - Add `event_ts` to `primary_key=True`: `mapped_column(DateTime, primary_key=True, nullable=False)`
   - The `__table_args__` does not change (constraints unchanged)
-- [ ] 3.2 Search codebase for `db.get(TrackingEvent, ...)` — confirm no such pattern exists
-- [ ] 3.3 Run `mypy vms/` — clean
-- [ ] 3.4 Run `pytest` — all tests pass
+- [x] 3.2 Search codebase for `db.get(TrackingEvent, ...)` — confirm no such pattern exists
+- [x] 3.3 Run `mypy vms/` — clean
+- [x] 3.4 Run `pytest` — all tests pass
 
 ---
 
 ## Task 4 — PartitionManager implementation (GREEN phase)
 
-- [ ] 4.1 Create `vms/db/partition_manager.py`:
+- [x] 4.1 Create `vms/db/partition_manager.py`:
   ```python
   from __future__ import annotations
   import calendar
@@ -136,7 +136,7 @@ This migration converts `tracking_events` to a partitioned table.
   def drop_partitions_before(engine: Engine, cutoff: datetime) -> None: ...
   def list_partitions(engine: Engine) -> list[str]: ...
   ```
-- [ ] 4.2 Implement `list_partitions` using `pg_inherits` join:
+- [x] 4.2 Implement `list_partitions` using `pg_inherits` join:
   ```sql
   SELECT c.relname
   FROM pg_inherits i
@@ -145,33 +145,33 @@ This migration converts `tracking_events` to a partitioned table.
   WHERE p.relname = 'tracking_events'
   ORDER BY c.relname
   ```
-- [ ] 4.3 Implement `ensure_future_partitions`:
+- [x] 4.3 Implement `ensure_future_partitions`:
   - Iterate `range(months_ahead + 1)` months from today
   - For each: compute `year`, `month`, `start_dt`, `end_dt`
   - `CREATE TABLE IF NOT EXISTS tracking_events_y{year:04d}m{month:02d} PARTITION OF tracking_events FOR VALUES FROM ('{start_dt}') TO ('{end_dt}')`
-- [ ] 4.4 Implement `drop_partitions_before`:
+- [x] 4.4 Implement `drop_partitions_before`:
   - Call `list_partitions`
   - Filter by name pattern `tracking_events_y\d{4}m\d{2}` (skip DEFAULT)
   - Parse year/month from name; compute partition's upper bound
   - If upper bound <= cutoff: `DROP TABLE {name}`
-- [ ] 4.5 Run `pytest tests/test_db_partition_manager.py` — GREEN
-- [ ] 4.6 Run full `pytest` — all tests pass
+- [x] 4.5 Run `pytest tests/test_db_partition_manager.py` — GREEN
+- [x] 4.6 Run full `pytest` — all tests pass
 
 ---
 
 ## Task 5 — Wire PartitionManager into application startup
 
-- [ ] 5.1 Update `vms/db/session.py` (or create `vms/db/startup.py`): export `init_db(engine)` that calls `ensure_future_partitions(engine)` when `VMS_DB_URL` is set and the table exists.
-- [ ] 5.2 Call `init_db` from `vms/api/main.py` lifespan handler (or `@app.on_event("startup")`):
+- [x] 5.1 Update `vms/db/session.py` (or create `vms/db/startup.py`): export `init_db(engine)` that calls `ensure_future_partitions(engine)` when `VMS_DB_URL` is set and the table exists.
+- [x] 5.2 Call `init_db` from `vms/api/main.py` lifespan handler (or `@app.on_event("startup")`):
   ```python
   @asynccontextmanager
   async def lifespan(app: FastAPI) -> AsyncIterator[None]:
       ensure_future_partitions(engine)
       yield
   ```
-- [ ] 5.3 Write test `tests/test_api_startup.py`:
+- [x] 5.3 Write test `tests/test_api_startup.py`:
   - `test_startup_calls_ensure_future_partitions` — mock `ensure_future_partitions`, start test client, assert called once
-- [ ] 5.4 RED → GREEN → pass
+- [x] 5.4 RED → GREEN → pass
 
 ---
 
@@ -179,7 +179,7 @@ This migration converts `tracking_events` to a partitioned table.
 
 Integration tests that insert into `tracking_events` currently work because the table has no partition constraint. After migration, inserts to the parent succeed (DEFAULT partition), but tests that check partition behaviour explicitly need a named partition.
 
-- [ ] 6.1 In `tests/conftest.py`, add an `autouse` integration fixture:
+- [x] 6.1 In `tests/conftest.py`, add an `autouse` integration fixture:
   ```python
   @pytest.fixture(autouse=True, scope="session")
   def create_test_partition(db_engine) -> None:
@@ -187,21 +187,21 @@ Integration tests that insert into `tracking_events` currently work because the 
       from vms.db.partition_manager import ensure_future_partitions
       ensure_future_partitions(db_engine, months_ahead=1)
   ```
-- [ ] 6.2 Run `pytest -m integration` — all integration tests pass
-- [ ] 6.3 Run full `pytest` — all tests pass
+- [x] 6.2 Run `pytest -m integration` — all integration tests pass
+- [x] 6.3 Run full `pytest` — all tests pass
 
 ---
 
 ## Task 7 — Full verification
 
-- [ ] 7.1 `pytest` — all tests pass (target: ≥ 176 existing + new partition tests)
-- [ ] 7.2 `pytest --cov=vms/db/partition_manager --cov-report=term-missing` — ≥ 90% coverage
-- [ ] 7.3 `ruff check vms/ tests/` — clean
-- [ ] 7.4 `black vms/ tests/` — no changes
-- [ ] 7.5 `mypy vms/` — clean
-- [ ] 7.6 Verify `alembic upgrade head` + `alembic downgrade base` + `alembic upgrade head` on test DB — round-trip clean
-- [ ] 7.7 Update this plan: mark all tasks `[x]`, set `**Status: COMPLETE**`
-- [ ] 7.8 Update `CLAUDE.md §3` — note Partitioning complete with commit hash
+- [x] 7.1 `pytest` — all tests pass (target: ≥ 176 existing + new partition tests)
+- [x] 7.2 `pytest --cov=vms/db/partition_manager --cov-report=term-missing` — ≥ 90% coverage
+- [x] 7.3 `ruff check vms/ tests/` — clean
+- [x] 7.4 `black vms/ tests/` — no changes
+- [x] 7.5 `mypy vms/` — clean
+- [x] 7.6 Verify `alembic upgrade head` + `alembic downgrade base` + `alembic upgrade head` on test DB — round-trip clean
+- [x] 7.7 Update this plan: mark all tasks `[x]`, set `**Status: COMPLETE**`
+- [x] 7.8 Update `CLAUDE.md §3` — note Partitioning complete with commit hash
 
 ---
 

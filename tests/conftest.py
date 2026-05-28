@@ -44,6 +44,22 @@ def _create_schema() -> Iterator[None]:
         yield
 
 
+@pytest.fixture(scope="session")
+def db_engine():  # type: ignore[no-untyped-def]
+    """Return the SQLAlchemy engine bound to the test database."""
+    from vms.db.session import engine as _engine
+
+    return _engine
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _ensure_partitions(_create_schema: None, db_engine) -> None:  # type: ignore[no-untyped-def]
+    """Ensure current-month tracking_events partition exists for integration tests."""
+    from vms.db.partition_manager import ensure_future_partitions
+
+    ensure_future_partitions(db_engine, months_ahead=1)
+
+
 @pytest.fixture()
 def db_session() -> Iterator[Any]:
     """Each test runs inside a rolled-back transaction for full isolation."""

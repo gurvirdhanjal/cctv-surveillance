@@ -1,8 +1,9 @@
-"""Tests for static media mount in vms.api.main."""
+"""Tests for static media mount and startup behaviour in vms.api.main."""
 
 from __future__ import annotations
 
 import pathlib
+from unittest.mock import patch
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -73,3 +74,12 @@ def test_media_mount_serves_static_files(tmp_path: pathlib.Path) -> None:
     media_routes = [r for r in test_app.routes if getattr(r, "path", None) == "/media"]
     assert len(media_routes) == 1
     assert isinstance(media_routes[0].app, StaticFiles)  # type: ignore[union-attr]
+
+
+def test_startup_calls_ensure_future_partitions() -> None:
+    """ensure_future_partitions is called once during app startup."""
+    from vms.api.main import _call_ensure_future_partitions
+
+    with patch("vms.api.main.ensure_future_partitions") as mock_ensure:
+        _call_ensure_future_partitions()
+    mock_ensure.assert_called_once()
