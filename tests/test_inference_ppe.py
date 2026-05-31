@@ -132,12 +132,14 @@ def test_ppe_model_score_crop_returns_none_when_unavailable() -> None:
 def test_ppe_model_all_four_target_classes_detected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    output = _make_output([
-        (_HELMET, 0.88),
-        (_VEST, 0.75),
-        (_GLOVES, 0.60),
-        (_MASK, 0.55),
-    ])
+    output = _make_output(
+        [
+            (_HELMET, 0.88),
+            (_VEST, 0.75),
+            (_GLOVES, 0.60),
+            (_MASK, 0.55),
+        ]
+    )
     model = _make_model_with_output(output, monkeypatch)
     result = model.score_crop(np.zeros((200, 100, 3), dtype=np.uint8))
     assert result is not None

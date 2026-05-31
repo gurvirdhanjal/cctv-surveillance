@@ -32,12 +32,18 @@ class Settings(BaseSettings):
     # OSNet AIN x1.0 msmt17 — body Re-ID, angle-invariant
     # Download: python scripts/download_osnet_ain_msmt17.py
     osnet_ain_model: str = "models/osnet_ain_x1_0_msmt17.pth"
-    # PPE compliance — YOLOv8x-CHV ONNX (empty = disabled)
-    # Download and place at this path before enabling.
+    # PPE compliance — YOLOv8l SH17 ONNX (empty = disabled)
+    # Export: from ultralytics import YOLO; YOLO('models/sh17_ppe_yolov8l.pt').export(format='onnx',imgsz=640,opset=11,simplify=True)
     ppe_model: str = ""
-    ppe_helmet_threshold: float = 0.5  # helmet_conf below this → violation
-    ppe_vest_threshold: float = 0.5  # vest_conf below this → violation
-    ppe_gate_min_persons: int = 1  # only run when >= N persons in frame
+    ppe_helmet_threshold: float = 0.5
+    ppe_vest_threshold: float = 0.5
+    ppe_gloves_threshold: float = 0.5
+    ppe_mask_threshold: float = 0.5
+    ppe_gate_min_persons: int = 1
+    ppe_conf_threshold: float = 0.25
+    ppe_nms_iou_threshold: float = 0.45
+    # SH17 class indices verified from notebook: helmet=10, vest=16, gloves=9, mask=5
+    ppe_class_map_json: str = '{"helmet":10,"vest":16,"gloves":9,"mask":5}'
 
     # auth
     jwt_algorithm: str = "HS256"

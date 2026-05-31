@@ -1,4 +1,4 @@
-"""PPE_VIOLATION detector. Reads ppe_helmet_conf/ppe_vest_conf from each Tracklet."""
+"""PPE_VIOLATION detector. Reads per-tracklet PPE scores from DetectionFrame."""
 
 from __future__ import annotations
 
@@ -22,19 +22,38 @@ class PPEDetector(AnomalyDetector):
 
     def __init__(self, config: dict[str, object]) -> None:
         super().__init__(config)
+        settings = get_settings()
+
         ht = config.get("helmet_threshold")
         vt = config.get("vest_threshold")
-        settings = get_settings()
+        gt = config.get("gloves_threshold")
+        mt = config.get("mask_threshold")
+
         self._helmet_threshold: float = (
             float(str(ht)) if ht is not None else settings.ppe_helmet_threshold
         )
         self._vest_threshold: float = (
             float(str(vt)) if vt is not None else settings.ppe_vest_threshold
         )
+        self._gloves_threshold: float = (
+            float(str(gt)) if gt is not None else settings.ppe_gloves_threshold
+        )
+        self._mask_threshold: float = (
+            float(str(mt)) if mt is not None else settings.ppe_mask_threshold
+        )
+
+        # Gloves and mask checking is opt-in — factories may not require them
+        cg = config.get("check_gloves")
+        cm = config.get("check_mask")
+        self._check_gloves: bool = bool(cg) if cg is not None else False
+        self._check_mask: bool = bool(cm) if cm is not None else False
 
     def should_run(self, ctx: DetectorContext) -> bool:
         return any(
-            t.ppe_helmet_conf is not None or t.ppe_vest_conf is not None
+            t.ppe_helmet_conf is not None
+            or t.ppe_vest_conf is not None
+            or t.ppe_gloves_conf is not None
+            or t.ppe_mask_conf is not None
             for t in ctx.frame.tracklets
         )
 
@@ -43,14 +62,24 @@ class PPEDetector(AnomalyDetector):
             tzinfo=None
         )
         for t in ctx.frame.tracklets:
-            if t.ppe_helmet_conf is None and t.ppe_vest_conf is None:
-                continue
-
             violations: list[str] = []
+
             if t.ppe_helmet_conf is not None and t.ppe_helmet_conf < self._helmet_threshold:
                 violations.append("helmet")
             if t.ppe_vest_conf is not None and t.ppe_vest_conf < self._vest_threshold:
                 violations.append("vest")
+            if (
+                self._check_gloves
+                and t.ppe_gloves_conf is not None
+                and t.ppe_gloves_conf < self._gloves_threshold
+            ):
+                violations.append("gloves")
+            if (
+                self._check_mask
+                and t.ppe_mask_conf is not None
+                and t.ppe_mask_conf < self._mask_threshold
+            ):
+                violations.append("mask")
 
             if not violations:
                 continue
@@ -69,6 +98,8 @@ class PPEDetector(AnomalyDetector):
                     "violations": violations,
                     "ppe_helmet_conf": t.ppe_helmet_conf,
                     "ppe_vest_conf": t.ppe_vest_conf,
+                    "ppe_gloves_conf": t.ppe_gloves_conf,
+                    "ppe_mask_conf": t.ppe_mask_conf,
                 },
             )
         return None

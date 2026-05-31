@@ -21,7 +21,6 @@ Graceful degradation:
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 from typing import Any
@@ -145,7 +144,6 @@ class PPEModel:
 
         filtered_boxes = boxes_cxcywh[keep_mask]
         filtered_scores = class_scores[keep_mask]
-        filtered_max = max_scores[keep_mask]
 
         # Convert cx,cy,w,h → x1,y1,x2,y2
         cx, cy, bw, bh = (
@@ -166,9 +164,7 @@ class PPEModel:
                 result[name] = 0.0
                 continue
 
-            cls_boxes = np.stack(
-                [x1[cls_mask], y1[cls_mask], x2[cls_mask], y2[cls_mask]], axis=1
-            )
+            cls_boxes = np.stack([x1[cls_mask], y1[cls_mask], x2[cls_mask], y2[cls_mask]], axis=1)
             cls_confs = filtered_scores[cls_mask, cls_idx].tolist()
 
             # NMS to deduplicate overlapping boxes for this class
@@ -182,7 +178,8 @@ class PPEModel:
             if len(indices) == 0:
                 result[name] = 0.0
             else:
-                kept = [cls_confs[i] for i in indices.flatten()]
+                flat = indices.flatten() if hasattr(indices, "flatten") else list(indices)
+                kept = [cls_confs[int(i)] for i in flat]
                 result[name] = float(max(kept))
 
         return result

@@ -107,6 +107,11 @@ def test_settings_ppe_defaults() -> None:
     assert s.ppe_helmet_threshold == 0.5
     assert s.ppe_vest_threshold == 0.5
     assert s.ppe_gate_min_persons == 1
+    assert s.ppe_conf_threshold == 0.25
+    assert s.ppe_nms_iou_threshold == 0.45
+    assert s.ppe_gloves_threshold == 0.5
+    assert s.ppe_mask_threshold == 0.5
+    assert s.ppe_class_map_json == '{"helmet":10,"vest":16,"gloves":9,"mask":5}'
 
 
 def test_phase2d_config_defaults() -> None:

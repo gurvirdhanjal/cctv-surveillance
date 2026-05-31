@@ -192,3 +192,103 @@ def test_ppe_detector_fsm_config() -> None:
     assert cfg.sustain_ms == 3_000
     assert cfg.cooldown_ms == 120_000
     assert cfg.dedup_window_ms == 120_000
+
+
+# ------------------------------------------------------------------
+# Gloves + mask support
+# ------------------------------------------------------------------
+
+
+def test_ppe_detector_helmet_violation_detected() -> None:
+    t = Tracklet(
+        local_track_id=1,
+        camera_id=1,
+        bbox=(0, 0, 50, 100),
+        confidence=0.9,
+        ppe_helmet_conf=0.1,
+        ppe_vest_conf=0.9,
+    )
+    event = _make_detector().evaluate(_make_ctx(tracklets=(t,)))
+    assert event is not None
+    assert "helmet" in event.payload["violations"]
+
+
+def test_ppe_detector_vest_violation_detected() -> None:
+    t = Tracklet(
+        local_track_id=2,
+        camera_id=1,
+        bbox=(0, 0, 50, 100),
+        confidence=0.9,
+        ppe_helmet_conf=0.9,
+        ppe_vest_conf=0.05,
+    )
+    event = _make_detector().evaluate(_make_ctx(tracklets=(t,)))
+    assert event is not None
+    assert "vest" in event.payload["violations"]
+
+
+def test_ppe_detector_gloves_skipped_when_not_configured() -> None:
+    """Gloves checking is opt-in (check_gloves=False by default)."""
+    t = Tracklet(
+        local_track_id=3,
+        camera_id=1,
+        bbox=(0, 0, 50, 100),
+        confidence=0.9,
+        ppe_helmet_conf=0.9,
+        ppe_vest_conf=0.9,
+        ppe_gloves_conf=0.0,  # would be a violation if checked
+        ppe_mask_conf=0.9,
+    )
+    det = _make_detector()  # check_gloves defaults False
+    assert det.evaluate(_make_ctx(tracklets=(t,))) is None
+
+
+def test_ppe_detector_gloves_violation_when_enabled() -> None:
+    t = Tracklet(
+        local_track_id=4,
+        camera_id=1,
+        bbox=(0, 0, 50, 100),
+        confidence=0.9,
+        ppe_helmet_conf=0.9,
+        ppe_vest_conf=0.9,
+        ppe_gloves_conf=0.1,
+        ppe_mask_conf=0.9,
+    )
+    det = _make_detector(check_gloves=True)
+    event = det.evaluate(_make_ctx(tracklets=(t,)))
+    assert event is not None
+    assert "gloves" in event.payload["violations"]
+
+
+def test_ppe_detector_mask_violation_when_enabled() -> None:
+    t = Tracklet(
+        local_track_id=5,
+        camera_id=1,
+        bbox=(0, 0, 50, 100),
+        confidence=0.9,
+        ppe_helmet_conf=0.9,
+        ppe_vest_conf=0.9,
+        ppe_gloves_conf=0.9,
+        ppe_mask_conf=0.05,
+    )
+    det = _make_detector(check_mask=True)
+    event = det.evaluate(_make_ctx(tracklets=(t,)))
+    assert event is not None
+    assert "mask" in event.payload["violations"]
+
+
+def test_ppe_detector_should_run_false_when_no_scores_any_field() -> None:
+    """should_run is False when all 4 PPE fields are None."""
+    t = Tracklet(local_track_id=1, camera_id=1, bbox=(0, 0, 50, 100), confidence=0.9)
+    assert _make_detector().should_run(_make_ctx(tracklets=(t,))) is False
+
+
+def test_ppe_detector_should_run_true_when_gloves_score_present() -> None:
+    t = Tracklet(
+        local_track_id=1,
+        camera_id=1,
+        bbox=(0, 0, 50, 100),
+        confidence=0.9,
+        ppe_gloves_conf=0.7,
+    )
+    assert _make_detector().should_run(_make_ctx(tracklets=(t,))) is True
