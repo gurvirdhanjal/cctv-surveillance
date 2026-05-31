@@ -108,11 +108,67 @@ class IdentityEngine:
         self._registry[key] = entry
         return gid
 
+    def assign_and_identify(
+        self,
+        camera_id: int,
+        local_track_id: int,
+        embedding: tuple[float, ...] | None,
+        body_embedding: tuple[float, ...] | None = None,
+    ) -> tuple[uuid.UUID, int | None]:
+        """Assign a global_track_id and attempt FAISS person identification in one call.
+
+        Returns (global_track_id, person_id).  person_id is None when:
+          - no face embedding is available, or
+          - the face does not match any enrolled employee above adaface_min_sim.
+
+        Once a person_id is resolved for a global_track_id, it propagates to ALL
+        registry entries sharing that gid (cross-camera identity anchoring).
+        """
+        gid = self.assign_global_track_id(camera_id, local_track_id, embedding, body_embedding)
+
+        # Try to identify via face embedding (FAISS only uses face, not body)
+        resolved_pid: int | None = None
+        if embedding:
+            resolved_pid = self._reid.identify(np.array(embedding, dtype=np.float32))
+
+        # If not identified via current embedding, check if another camera already resolved it
+        if resolved_pid is None:
+            resolved_pid = self._get_known_person_id(gid)
+
+        # Propagate person_id to ALL tracklets sharing this gid (cross-camera anchoring)
+        if resolved_pid is not None:
+            self._anchor_person_id(gid, resolved_pid)
+
+        return gid, resolved_pid
+
     def identify_person(self, embedding: tuple[float, ...]) -> int | None:
         """Return person_id from FAISS if embedding is non-empty, else None."""
         if not embedding:
             return None
         return self._reid.identify(np.array(embedding, dtype=np.float32))
+
+    def _get_known_person_id(self, gid: uuid.UUID) -> int | None:
+        """Return person_id if any registry entry for this gid has already been identified."""
+        for entry in self._registry.values():
+            if entry.global_track_id == gid and entry.person_id is not None:
+                return entry.person_id
+        return None
+
+    def _anchor_person_id(self, gid: uuid.UUID, person_id: int) -> None:
+        """Write person_id to every registry entry sharing this global_track_id.
+
+        This is the cross-camera identity anchor: once a person is identified on
+        any camera (e.g. the entry gate), every other camera tracking the same
+        global_track_id immediately knows who that person is.
+        """
+        for entry in self._registry.values():
+            if entry.global_track_id == gid:
+                entry.person_id = person_id
+
+    def get_person_id(self, camera_id: int, local_track_id: int) -> int | None:
+        """Return the resolved person_id for a (camera, track) pair, or None."""
+        entry = self._registry.get((camera_id, local_track_id))
+        return entry.person_id if entry is not None else None
 
     def faiss_apply_add(self, embedding_id: int, person_id: int, db: Session) -> None:
         """Fetch embedding from DB and add it to the FAISS index."""

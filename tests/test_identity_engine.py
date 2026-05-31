@@ -113,3 +113,81 @@ def test_evict_stale_uses_current_time_when_no_arg() -> None:
     )
     evicted = engine.evict_stale()  # no now_ms arg — should use current time
     assert evicted == 1
+
+
+# ---------------------------------------------------------------------------
+# assign_and_identify: cross-camera facial recognition anchoring
+# ---------------------------------------------------------------------------
+
+def test_assign_and_identify_returns_person_id_when_face_matches() -> None:
+    """Known employee identified on entry-gate camera gets person_id attached."""
+    reid = MagicMock(spec=ReIdService)
+    reid.identify.return_value = 7   # employee #7
+    engine = IdentityEngine(reid_service=reid)
+    emb = _unit_vec(seed=0)
+
+    gid, pid = engine.assign_and_identify(camera_id=1, local_track_id=1, embedding=emb)
+    assert pid == 7
+    assert engine._registry[(1, 1)].person_id == 7
+
+
+def test_assign_and_identify_returns_none_for_unknown_person() -> None:
+    """Unknown visitor: FAISS finds no match, person_id stays None."""
+    reid = MagicMock(spec=ReIdService)
+    reid.identify.return_value = None
+    engine = IdentityEngine(reid_service=reid)
+    emb = _unit_vec(seed=0)
+
+    gid, pid = engine.assign_and_identify(camera_id=1, local_track_id=1, embedding=emb)
+    assert pid is None
+    assert engine._registry[(1, 1)].person_id is None
+
+
+def test_assign_and_identify_anchors_person_id_across_cameras() -> None:
+    """Person identified on cam1 (entry gate) is auto-identified on cam2 (floor) via gid."""
+    reid = MagicMock(spec=ReIdService)
+    # Entry gate cam1: FAISS recognises employee #5
+    reid.identify.return_value = 5
+    engine = IdentityEngine(reid_service=reid)
+
+    face_emb = _unit_vec(seed=0)
+    # Nearly identical embedding — triggers cross-camera gallery match
+    arr = np.array(face_emb, dtype=np.float32)
+    arr += np.random.default_rng(99).standard_normal(512).astype(np.float32) * 0.001
+    arr /= np.linalg.norm(arr)
+    near_emb = tuple(float(x) for x in arr)
+
+    # Entry gate: identified as employee #5
+    gid1, pid1 = engine.assign_and_identify(camera_id=1, local_track_id=1, embedding=face_emb)
+    assert pid1 == 5
+
+    # Floor camera: FAISS won't run (no embedding passed), but person_id inherited via gid
+    reid.identify.return_value = None   # floor cam has no frontal face
+    gid2, pid2 = engine.assign_and_identify(camera_id=2, local_track_id=1, embedding=near_emb)
+    assert gid1 == gid2            # same person
+    assert pid2 == 5               # identity inherited across cameras
+
+
+def test_assign_and_identify_no_face_no_identification() -> None:
+    """Body-only tracklet (no face): person_id stays None unless anchored from elsewhere."""
+    engine = _make_engine()
+    body_emb = _unit_vec(seed=10)
+
+    gid, pid = engine.assign_and_identify(
+        camera_id=1, local_track_id=1, embedding=None, body_embedding=body_emb
+    )
+    assert pid is None
+
+
+def test_get_person_id_returns_resolved_value() -> None:
+    reid = MagicMock(spec=ReIdService)
+    reid.identify.return_value = 12
+    engine = IdentityEngine(reid_service=reid)
+
+    engine.assign_and_identify(camera_id=3, local_track_id=5, embedding=_unit_vec(seed=3))
+    assert engine.get_person_id(camera_id=3, local_track_id=5) == 12
+
+
+def test_get_person_id_returns_none_for_unknown_track() -> None:
+    engine = _make_engine()
+    assert engine.get_person_id(camera_id=99, local_track_id=99) is None
