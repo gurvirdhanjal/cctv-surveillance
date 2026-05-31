@@ -69,8 +69,11 @@ class IdentityEngine:
     ) -> uuid.UUID:
         """Return a stable global_track_id for (camera_id, local_track_id).
 
-        Face embedding takes priority for gallery storage.
-        Body embedding is used only when face is absent.
+        Matching priority:
+          1. Body Re-ID (OSNet) — angle-invariant, works from top-down CCTV views.
+          2. Face Re-ID (AdaFace) — used when body is absent (e.g. face-only crop).
+        Both galleries are maintained independently and searched when available.
+        Face wins for FAISS person identification; body wins for cross-camera tracking.
         """
         key = (camera_id, local_track_id)
         now_ms = time.time_ns() // 1_000_000
@@ -85,14 +88,15 @@ class IdentityEngine:
         emb_arr = np.array(embedding, dtype=np.float32) if embedding else None
         body_arr = np.array(body_embedding, dtype=np.float32) if body_embedding else None
 
-        # Cross-camera match: face preferred, body as fallback
-        query = emb_arr if emb_arr is not None else body_arr
-        query_type = "face" if emb_arr is not None else "body"
-        matched_gid = (
-            self._cross_camera_match(query, query_type, camera_id, now_ms)
-            if query is not None
-            else None
-        )
+        # Cross-camera match: body first (angle-invariant for CCTV), face as fallback.
+        # Two-pass search handles mixed scenarios where cam1 may have a face gallery
+        # but no body gallery (or vice versa). Body match wins if found; face match
+        # only runs if body finds nothing — ensuring we never miss an existing identity.
+        matched_gid: uuid.UUID | None = None
+        if body_arr is not None:
+            matched_gid = self._cross_camera_match(body_arr, "body", camera_id, now_ms)
+        if matched_gid is None and emb_arr is not None:
+            matched_gid = self._cross_camera_match(emb_arr, "face", camera_id, now_ms)
         gid = matched_gid if matched_gid is not None else uuid.uuid4()
         entry = _TrackletEntry(
             global_track_id=gid,
@@ -248,7 +252,16 @@ class IdentityEngine:
         best_gid, (best_sim, best_confirmed) = sorted_gids[0]
         second_sim = sorted_gids[1][1][0] if len(sorted_gids) >= 2 else -1.0
 
-        threshold = settings.reid_confirmed_sim if best_confirmed else settings.reid_cross_cam_sim
+        # Body Re-ID (OSNet) operates at higher similarity range than face Re-ID (AdaFace).
+        # Use separate thresholds so body matches are not penalised for being "too low"
+        # relative to the face baseline.
+        if query_type == "body":
+            threshold = (
+                settings.reid_body_confirmed_sim if best_confirmed
+                else settings.reid_body_cross_cam_sim
+            )
+        else:
+            threshold = settings.reid_confirmed_sim if best_confirmed else settings.reid_cross_cam_sim
         if best_sim < threshold:
             return None
         margin = best_sim - second_sim if second_sim > -1.0 else best_sim

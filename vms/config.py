@@ -44,9 +44,12 @@ class Settings(BaseSettings):
     reid_stale_ms: int = 300_000
     reid_gallery_size: int = 8
     reid_confirm_after_sightings: int = 3
-    reid_confirmed_sim: float = 0.60
+    reid_confirmed_sim: float = 0.60        # face gallery threshold (confirmed tracks)
     reid_confirmed_stale_ms: int = 600_000
     reid_camera_topology_json: str = "{}"
+    # Body Re-ID thresholds (OSNet — higher similarity range than AdaFace face embeddings)
+    reid_body_cross_cam_sim: float = 0.65   # body gallery, unconfirmed tracks
+    reid_body_confirmed_sim: float = 0.58   # body gallery, confirmed tracks
     zone_cache_ttl_s: int = 30
 
     # pipeline tuning
