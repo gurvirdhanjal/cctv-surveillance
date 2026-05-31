@@ -15,6 +15,7 @@ import numpy as np
 import redis.asyncio as aioredis
 
 from vms.config import get_settings
+from vms.inference.body_embedder import BodyEmbedder
 from vms.inference.detector import (
     SCRFDDetector,
     _InsightFaceBackend,
@@ -58,6 +59,39 @@ def _associate_faces(
     return result
 
 
+def _extract_body_embeddings(
+    frame_bgr: np.ndarray[Any, Any],
+    tracklets: tuple[Tracklet, ...],
+    body_embedder: BodyEmbedder | None,
+) -> tuple[Tracklet, ...]:
+    """Return tracklets with body_embedding populated from person bbox crops.
+
+    Bbox is clamped to frame dimensions before cropping.
+    Returns original tracklets unchanged when body_embedder is None.
+    """
+    if body_embedder is None:
+        return tracklets
+    h, w = frame_bgr.shape[:2]
+    result: list[Tracklet] = []
+    for t in tracklets:
+        x1, y1, x2, y2 = t.bbox
+        x1c, y1c = max(0, x1), max(0, y1)
+        x2c, y2c = min(w, x2), min(h, y2)
+        crop = frame_bgr[y1c:y2c, x1c:x2c]
+        body_emb = body_embedder.embed(crop) if crop.size > 0 else ()
+        result.append(
+            Tracklet(
+                local_track_id=t.local_track_id,
+                camera_id=t.camera_id,
+                bbox=t.bbox,
+                confidence=t.confidence,
+                embedding=t.embedding,
+                body_embedding=body_emb,
+            )
+        )
+    return tuple(result)
+
+
 class InferenceEngine:
     """Reads from frames:group{N} streams, runs model stack, publishes DetectionFrame."""
 
@@ -70,6 +104,7 @@ class InferenceEngine:
         trackers: dict[int, PerCameraTracker],
         redis_client: aioredis.Redis,
         violence: ViolenceModel | None = None,
+        body_embedder: BodyEmbedder | None = None,
     ) -> None:
         self._camera_ids = camera_ids
         self._stream_name = f"frames:group{worker_group}"
@@ -78,6 +113,7 @@ class InferenceEngine:
         self._trackers = trackers
         self._redis = redis_client
         self._violence = violence
+        self._body_embedder = body_embedder
         self._running = False
         self._last_id = "0-0"
 
@@ -127,6 +163,8 @@ class InferenceEngine:
             )
             for t in raw_tracklets
         )
+
+        enriched_tracklets = _extract_body_embeddings(frame_bgr, enriched_tracklets, self._body_embedder)
 
         violence_score = self._compute_violence_score(
             pointer.cam_id, frame_bgr, len(raw_tracklets), timestamp_ms

@@ -127,3 +127,55 @@ async def test_engine_skips_stale_frame(fake_redis: fake_aioredis.FakeRedis) -> 
         await engine._process_one_message("1-0", pointer.to_redis_fields())
 
     assert published == []  # nothing published for stale frame
+
+
+def test_extract_body_embeddings_populates_tracklets() -> None:
+    from unittest.mock import MagicMock
+    import numpy as np
+    from vms.inference.engine import _extract_body_embeddings
+    from vms.inference.messages import Tracklet
+
+    embedder = MagicMock()
+    embedder.embed.return_value = tuple([0.1] * 512)
+
+    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+    tracklets = (
+        Tracklet(local_track_id=1, camera_id=1, bbox=(10, 20, 60, 120), confidence=0.9),
+        Tracklet(local_track_id=2, camera_id=1, bbox=(200, 100, 280, 300), confidence=0.8),
+    )
+    result = _extract_body_embeddings(frame, tracklets, embedder)
+    assert len(result) == 2
+    assert result[0].body_embedding == tuple([0.1] * 512)
+    assert result[1].body_embedding == tuple([0.1] * 512)
+    assert embedder.embed.call_count == 2
+
+
+def test_extract_body_embeddings_no_embedder_returns_empty() -> None:
+    import numpy as np
+    from vms.inference.engine import _extract_body_embeddings
+    from vms.inference.messages import Tracklet
+
+    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+    tracklets = (
+        Tracklet(local_track_id=1, camera_id=1, bbox=(10, 20, 60, 120), confidence=0.9),
+    )
+    result = _extract_body_embeddings(frame, tracklets, None)
+    assert result[0].body_embedding == ()
+
+
+def test_extract_body_embeddings_clamps_bbox_to_frame() -> None:
+    """Out-of-bounds bbox is clamped -- no array index error."""
+    from unittest.mock import MagicMock
+    import numpy as np
+    from vms.inference.engine import _extract_body_embeddings
+    from vms.inference.messages import Tracklet
+
+    embedder = MagicMock()
+    embedder.embed.return_value = ()
+
+    frame = np.zeros((100, 100, 3), dtype=np.uint8)
+    tracklets = (
+        Tracklet(local_track_id=1, camera_id=1, bbox=(-10, -10, 200, 200), confidence=0.9),
+    )
+    result = _extract_body_embeddings(frame, tracklets, embedder)
+    assert len(result) == 1  # no crash

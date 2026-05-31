@@ -12,7 +12,7 @@ from typing import Any
 
 import cv2
 import numpy as np
-import onnxruntime as ort
+import onnxruntime as ort  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 
