@@ -108,19 +108,19 @@ class ViolenceModel:
 
             logger.info("Loading MoViNet A2 Stream from %s ...", path)
 
-            # Load encoder via hub.KerasLayer — no tf.keras.Model wrapper needed.
-            # The state tensor names contain '/' (e.g. state/b0/l0/pool_frame_count)
-            # which is illegal as a Keras Input name. Calling the encoder directly
-            # avoids that restriction entirely.
+            # Note: hub.KerasLayer is NOT compatible with the Keras 3.x functional API
+            # (tf.keras.Model + KerasTensors) because hub internally runs eager ops
+            # during graph construction. The correct approach for TF 2.21 + Keras 3 is
+            # to call the encoder directly — the calling convention is identical to the
+            # Kaggle model card's streaming loop: output, states = encoder({**s, 'image': f})
             encoder = hub.KerasLayer(path, trainable=False)
             init_states_fn = encoder.resolved_object.signatures["init_states"]
 
-            # Warm-up: discover how many state tensors the model uses
-            input_shape_spec = tf.constant([1, 1, _INPUT_H, _INPUT_W, 3])
-            n_states = len(init_states_fn(input_shape_spec))
+            # Warm-up call to confirm the encoder works and discover state count
+            test_states = init_states_fn(tf.constant([0, 0, 0, 0, 3]))
+            n_states = len(test_states)
 
-            # Store the encoder and init function; _model acts as the availability flag
-            self._model = encoder        # hub.KerasLayer, callable with dict inputs
+            self._model = encoder          # callable: encoder({**states, 'image': frame})
             self._init_states_fn = init_states_fn
             self._tf = tf
             logger.info(
@@ -141,9 +141,14 @@ class ViolenceModel:
         return self._model is not None
 
     def _init_camera_state(self, camera_id: int) -> None:
-        """Zero-initialise streaming state for a new camera."""
+        """Zero-initialise streaming state for a new camera.
+
+        Uses tf.shape-equivalent of [1, 1, H, W, 3] as in the model card:
+          init_states = init_states_fn(tf.shape(example_input))
+        """
         if self._init_states_fn is None:
             return
+        # Shape spec matching one streaming frame: (batch=1, time=1, H, W, C)
         input_shape_spec = self._tf.constant([1, 1, _INPUT_H, _INPUT_W, 3])
         self._states[camera_id] = self._init_states_fn(input_shape_spec)
 
@@ -176,21 +181,24 @@ class ViolenceModel:
             if camera_id not in self._states:
                 self._init_camera_state(camera_id)
 
-            # --- Streaming inference (from Kaggle model card) ---
-            # output, states = model({**states, 'image': frame})
+            # Streaming inference — mirrors the Kaggle model card loop:
+            #   output, states = model({**states, 'image': frame})
+            # hub.KerasLayer returns (logits_tensor, new_states_dict) tuple.
             result = self._model({**self._states[camera_id], "image": frame_tensor})
 
-            # Separate logit output from updated state tensors
-            state_keys = [k for k in result if k.startswith("state")]
-            logit_keys = [k for k in result if k not in state_keys]
+            # Unpack (output, new_states) tuple
+            if isinstance(result, (tuple, list)):
+                logits_tensor, new_states = result[0], result[1]
+            else:
+                # Fallback: dict output (older hub versions)
+                logits_tensor = result
+                new_states = self._states[camera_id]  # no state update
 
-            # Update per-camera state for the next frame
-            if state_keys:
-                self._states[camera_id] = {k: result[k] for k in state_keys}
+            # Update per-camera streaming state for the next frame
+            self._states[camera_id] = new_states
 
-            # Extract class logits → pick violence-adjacent classes → sigmoid score
-            logits_key = logit_keys[0] if logit_keys else next(iter(result))
-            logits: np.ndarray[Any, Any] = result[logits_key].numpy()[0]  # (600,)
+            # logits_tensor shape: (1, 600) — 600 Kinetics-600 class logits
+            logits: np.ndarray[Any, Any] = logits_tensor.numpy()[0]  # (600,)
             violence_logits = logits[_VIOLENCE_CLASS_INDICES]
             score = float(1.0 / (1.0 + np.exp(-float(np.max(violence_logits)))))
             return score
