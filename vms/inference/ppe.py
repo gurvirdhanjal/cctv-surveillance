@@ -1,20 +1,27 @@
-"""YOLOv8x-CHV PPE compliance classifier (ONNX).
+"""YOLOv8l SH17 PPE detection model (ONNX).
 
-Classifies whether each person is wearing a helmet and/or safety vest.
+Detects PPE items inside a person-crop using a YOLOv8l model trained on the
+SH17 dataset (17 classes).
 
 Model input:  (1, 3, 640, 640) float32, RGB, normalised to [0, 1], letterboxed.
-Model output: (1, 4) float32 logits — [no_helmet, helmet, no_vest, vest].
+Model output: (1, 21, 8400) — [cx, cy, w, h, class_0..class_16] per anchor.
 
-Returns per-tracklet (helmet_conf, vest_conf) where each is the softmax
-probability that the PPE item IS worn.  None when model is unavailable.
+Target classes (SH17 indices, confirmed from notebook):
+  helmet = 10,  vest = 16,  gloves = 9,  mask = 5
+
+Returns per-tracklet dict[str, float]:
+  {"helmet": max_conf, "vest": max_conf, "gloves": max_conf, "mask": max_conf}
+  0.0 means the item was not detected above conf_threshold.
+  None when model is unavailable or crop is too small.
 
 Graceful degradation:
-    If the ONNX file is absent or onnxruntime fails to load, score_crop()
-    returns None and PPEDetector silently disables itself via should_run().
+  If the ONNX file is absent or onnxruntime fails, score_crop() returns None
+  and PPEDetector disables itself via should_run().
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from typing import Any
@@ -25,47 +32,36 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 _INPUT_SIZE = 640
-_MIN_CROP = 32  # crops smaller than this are too small for reliable classification
+_MIN_CROP = 32
 
-
-def _softmax2(a: float, b: float) -> tuple[float, float]:
-    """Numerically-stable softmax for a 2-element pair."""
-    m = max(a, b)
-    ea, eb = (a - m), (b - m)
-    import math
-
-    denom = math.exp(ea) + math.exp(eb)
-    return math.exp(ea) / denom, math.exp(eb) / denom
+# SH17 class indices for the 4 factory-relevant PPE items
+_TARGET: dict[str, int] = {"helmet": 10, "vest": 16, "gloves": 9, "mask": 5}
 
 
 class PPEModel:
-    """YOLOv8x-CHV ONNX PPE classifier.
-
-    Stateless — no per-camera state.  Call score_crop() with any person crop.
+    """YOLOv8l SH17 ONNX PPE detector.  Stateless — no per-camera state.
 
     Usage:
         model = PPEModel(get_settings().ppe_model)
         if model.is_available:
-            result = model.score_crop(crop_bgr)   # (helmet_conf, vest_conf) | None
+            result = model.score_crop(crop_bgr)
+            # {"helmet": 0.87, "vest": 0.0, "gloves": 0.63, "mask": 0.0}
     """
 
     def __init__(self, model_path: str) -> None:
         self._path = model_path
         self._session: Any = None
-        self._input_name: str = "input"
+        self._input_name: str = "images"
+        self._conf_threshold: float = 0.25
+        self._nms_iou_threshold: float = 0.45
+        self._target: dict[str, int] = dict(_TARGET)
 
         if not model_path:
-            logger.info(
-                "VMS_PPE_MODEL not set — PPE detection disabled. "
-                "Set VMS_PPE_MODEL to an ONNX file path."
-            )
+            logger.info("VMS_PPE_MODEL not set — PPE detection disabled.")
             return
 
         if not os.path.isfile(model_path):
-            logger.warning(
-                "ppe_model path %r is not a file — PPE detection disabled.",
-                model_path,
-            )
+            logger.warning("ppe_model path %r is not a file — PPE detection disabled.", model_path)
             return
 
         self._load(model_path)
@@ -80,28 +76,23 @@ class PPEModel:
             self._session = sess
             logger.info("PPEModel loaded from %s", path)
         except Exception as exc:
-            logger.warning(
-                "PPEModel load failed (%s) — PPE detection disabled. "
-                "Install: pip install onnxruntime",
-                exc,
-            )
+            logger.warning("PPEModel load failed (%s) — PPE detection disabled.", exc)
             self._session = None
 
     @property
     def is_available(self) -> bool:
         return self._session is not None
 
-    def score_crop(self, crop_bgr: np.ndarray[Any, Any]) -> tuple[float, float] | None:
-        """Score a person crop.  Returns (helmet_conf, vest_conf) or None.
-
-        helmet_conf: probability in [0,1] that a helmet IS worn.
-        vest_conf:   probability in [0,1] that a safety vest IS worn.
+    def score_crop(self, crop_bgr: np.ndarray[Any, Any]) -> dict[str, float] | None:
+        """Run PPE detection on a person crop.
 
         Args:
-            crop_bgr: Person bounding-box crop, (H, W, 3) uint8 BGR.
+            crop_bgr: Person bbox crop, (H, W, 3) uint8 BGR.
 
         Returns:
-            (helmet_conf, vest_conf) or None when unavailable / crop too small.
+            Dict with keys "helmet", "vest", "gloves", "mask".
+            Each value is the max detection confidence (0.0 = not detected).
+            None when model unavailable or crop too small.
         """
         if self._session is None:
             return None
@@ -112,14 +103,8 @@ class PPEModel:
 
         try:
             tensor = self._preprocess(crop_bgr)
-            outputs = self._session.run(None, {self._input_name: tensor})
-            logits = outputs[0][0]  # shape (4,) — [no_helmet, helmet, no_vest, vest]
-
-            _, helmet_conf = _softmax2(float(logits[0]), float(logits[1]))
-            _, vest_conf = _softmax2(float(logits[2]), float(logits[3]))
-
-            return helmet_conf, vest_conf
-
+            raw = self._session.run(None, {self._input_name: tensor})
+            return self._postprocess(raw[0])
         except Exception as exc:
             logger.debug("PPEModel.score_crop error: %s", exc)
             return None
@@ -138,3 +123,66 @@ class PPEModel:
 
         rgb = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
         return np.transpose(rgb, (2, 0, 1))[np.newaxis]  # (1, 3, 640, 640)
+
+    def _postprocess(self, raw: np.ndarray[Any, Any]) -> dict[str, float]:
+        """Decode YOLOv8 output (1, 21, 8400) → max score per target class.
+
+        YOLOv8 ONNX output (no NMS): (1, 4+num_classes, num_anchors)
+          dims: [cx, cy, w, h, cls_0..cls_16] per anchor, transposed.
+        """
+        # raw shape: (1, 21, 8400) — batch=1, 4+17 values, 8400 anchors
+        # raw[0] shape: (21, 8400) — transpose to (8400, 21)
+        preds = raw[0].T  # (8400, 21)
+
+        boxes_cxcywh = preds[:, :4]  # (8400, 4)
+        class_scores = preds[:, 4:]  # (8400, 17)
+
+        # Max score per anchor (used as detection confidence gate)
+        max_scores = class_scores.max(axis=1)  # (8400,)
+        keep_mask = max_scores >= self._conf_threshold
+        if not np.any(keep_mask):
+            return {name: 0.0 for name in self._target}
+
+        filtered_boxes = boxes_cxcywh[keep_mask]
+        filtered_scores = class_scores[keep_mask]
+        filtered_max = max_scores[keep_mask]
+
+        # Convert cx,cy,w,h → x1,y1,x2,y2
+        cx, cy, bw, bh = (
+            filtered_boxes[:, 0],
+            filtered_boxes[:, 1],
+            filtered_boxes[:, 2],
+            filtered_boxes[:, 3],
+        )
+        x1 = cx - bw / 2
+        y1 = cy - bh / 2
+        x2 = cx + bw / 2
+        y2 = cy + bh / 2
+
+        result: dict[str, float] = {}
+        for name, cls_idx in self._target.items():
+            cls_mask = filtered_scores[:, cls_idx] >= self._conf_threshold
+            if not np.any(cls_mask):
+                result[name] = 0.0
+                continue
+
+            cls_boxes = np.stack(
+                [x1[cls_mask], y1[cls_mask], x2[cls_mask], y2[cls_mask]], axis=1
+            )
+            cls_confs = filtered_scores[cls_mask, cls_idx].tolist()
+
+            # NMS to deduplicate overlapping boxes for this class
+            boxes_xywh = [
+                [float(b[0]), float(b[1]), float(b[2] - b[0]), float(b[3] - b[1])]
+                for b in cls_boxes
+            ]
+            indices = cv2.dnn.NMSBoxes(
+                boxes_xywh, cls_confs, self._conf_threshold, self._nms_iou_threshold
+            )
+            if len(indices) == 0:
+                result[name] = 0.0
+            else:
+                kept = [cls_confs[i] for i in indices.flatten()]
+                result[name] = float(max(kept))
+
+        return result
