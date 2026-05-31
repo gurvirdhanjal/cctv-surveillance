@@ -138,9 +138,8 @@ class IdentityEngine:
         stale = [
             k
             for k, e in self._registry.items()
-            if now_ms - e.last_seen_ms > (
-                settings.reid_confirmed_stale_ms if e.confirmed else settings.reid_stale_ms
-            )
+            if now_ms - e.last_seen_ms
+            > (settings.reid_confirmed_stale_ms if e.confirmed else settings.reid_stale_ms)
         ]
         for k in stale:
             del self._registry[k]
@@ -174,7 +173,10 @@ class IdentityEngine:
 
         if embedding or body_embedding:
             entry.sighting_count += 1
-            if not entry.confirmed and entry.sighting_count >= settings.reid_confirm_after_sightings:
+            if (
+                not entry.confirmed
+                and entry.sighting_count >= settings.reid_confirm_after_sightings
+            ):
                 entry.confirmed = True
 
     def _gallery_sim(
@@ -206,10 +208,11 @@ class IdentityEngine:
         settings = get_settings()
         topology = self._get_topology()
         q = query / (np.linalg.norm(query) + 1e-8)
-        best_sim = -1.0
-        second_sim = -1.0
-        best_gid: uuid.UUID | None = None
-        best_confirmed = False
+
+        # Track best similarity per global_track_id (one person may appear on multiple cameras).
+        # Using per-gid tracking ensures the margin is computed across distinct identities,
+        # not across multiple tracklets of the same person on different cameras.
+        best_by_gid: dict[uuid.UUID, tuple[float, bool]] = {}  # gid -> (max_sim, confirmed)
 
         for (cam, _), entry in self._registry.items():
             if cam == camera_id:
@@ -233,13 +236,17 @@ class IdentityEngine:
                 continue
 
             sim = self._gallery_sim(q, target_gallery)
-            if sim > best_sim:
-                second_sim = best_sim
-                best_sim = sim
-                best_gid = entry.global_track_id
-                best_confirmed = entry.confirmed
-            elif sim > second_sim:
-                second_sim = sim
+            gid = entry.global_track_id
+            existing = best_by_gid.get(gid)
+            if existing is None or sim > existing[0]:
+                best_by_gid[gid] = (sim, entry.confirmed)
+
+        if not best_by_gid:
+            return None
+
+        sorted_gids = sorted(best_by_gid.items(), key=lambda x: x[1][0], reverse=True)
+        best_gid, (best_sim, best_confirmed) = sorted_gids[0]
+        second_sim = sorted_gids[1][1][0] if len(sorted_gids) >= 2 else -1.0
 
         threshold = settings.reid_confirmed_sim if best_confirmed else settings.reid_cross_cam_sim
         if best_sim < threshold:

@@ -47,9 +47,7 @@ class BodyEmbedder:
         chw = np.transpose(rgb, (2, 0, 1))
         chw = (chw - _MEAN) / _STD
         tensor = chw[np.newaxis]  # (1, 3, 256, 128)
-        output: list[np.ndarray[Any, Any]] = self._session.run(
-            None, {self._input_name: tensor}
-        )
+        output: list[np.ndarray[Any, Any]] = self._session.run(None, {self._input_name: tensor})
         vec = output[0][0].astype(np.float32)
         vec /= np.linalg.norm(vec) + 1e-8
         return tuple(float(x) for x in vec)

@@ -110,7 +110,10 @@ def test_tracklet_body_embedding_defaults_empty() -> None:
 
 def test_tracklet_body_embedding_stored() -> None:
     t = Tracklet(
-        local_track_id=1, camera_id=1, bbox=(0, 0, 100, 200), confidence=0.9,
+        local_track_id=1,
+        camera_id=1,
+        bbox=(0, 0, 100, 200),
+        confidence=0.9,
         body_embedding=(0.3, 0.4, 0.5),
     )
     assert t.body_embedding == (0.3, 0.4, 0.5)
@@ -118,7 +121,10 @@ def test_tracklet_body_embedding_stored() -> None:
 
 def test_detection_frame_body_embedding_redis_roundtrip() -> None:
     t = Tracklet(
-        local_track_id=2, camera_id=3, bbox=(10, 20, 50, 80), confidence=0.8,
+        local_track_id=2,
+        camera_id=3,
+        bbox=(10, 20, 50, 80),
+        confidence=0.8,
         embedding=(1.0, 2.0),
         body_embedding=(3.0, 4.0),
     )

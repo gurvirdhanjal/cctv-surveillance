@@ -39,7 +39,9 @@ def test_same_camera_always_allowed() -> None:
 
 
 def test_multiple_pairs() -> None:
-    t = CameraTopology('{"1-2": {"min_ms": 1000, "max_ms": 60000}, "2-3": {"min_ms": 5000, "max_ms": 30000}}')
+    t = CameraTopology(
+        '{"1-2": {"min_ms": 1000, "max_ms": 60000}, "2-3": {"min_ms": 5000, "max_ms": 30000}}'
+    )
     assert t.transit_ok(1, 2, elapsed_ms=5_000) is True
     assert t.transit_ok(2, 3, elapsed_ms=3_000) is False  # too fast for 2-3
-    assert t.transit_ok(1, 3, elapsed_ms=3_000) is True   # no rule for 1-3 → allow
+    assert t.transit_ok(1, 3, elapsed_ms=3_000) is True  # no rule for 1-3 → allow

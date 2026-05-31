@@ -34,9 +34,7 @@ class CameraTopology:
             return
         for key, val in raw.items():
             try:
-                self._pairs[key] = _PairWindow(
-                    min_ms=int(val["min_ms"]), max_ms=int(val["max_ms"])
-                )
+                self._pairs[key] = _PairWindow(min_ms=int(val["min_ms"]), max_ms=int(val["max_ms"]))
             except (KeyError, ValueError):
                 logger.warning("CameraTopology: skipping malformed pair entry %r", key)
 

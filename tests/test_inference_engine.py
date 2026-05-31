@@ -131,7 +131,9 @@ async def test_engine_skips_stale_frame(fake_redis: fake_aioredis.FakeRedis) -> 
 
 def test_extract_body_embeddings_populates_tracklets() -> None:
     from unittest.mock import MagicMock
+
     import numpy as np
+
     from vms.inference.engine import _extract_body_embeddings
     from vms.inference.messages import Tracklet
 
@@ -152,13 +154,12 @@ def test_extract_body_embeddings_populates_tracklets() -> None:
 
 def test_extract_body_embeddings_no_embedder_returns_empty() -> None:
     import numpy as np
+
     from vms.inference.engine import _extract_body_embeddings
     from vms.inference.messages import Tracklet
 
     frame = np.zeros((480, 640, 3), dtype=np.uint8)
-    tracklets = (
-        Tracklet(local_track_id=1, camera_id=1, bbox=(10, 20, 60, 120), confidence=0.9),
-    )
+    tracklets = (Tracklet(local_track_id=1, camera_id=1, bbox=(10, 20, 60, 120), confidence=0.9),)
     result = _extract_body_embeddings(frame, tracklets, None)
     assert result[0].body_embedding == ()
 
@@ -166,7 +167,9 @@ def test_extract_body_embeddings_no_embedder_returns_empty() -> None:
 def test_extract_body_embeddings_clamps_bbox_to_frame() -> None:
     """Out-of-bounds bbox is clamped -- no array index error."""
     from unittest.mock import MagicMock
+
     import numpy as np
+
     from vms.inference.engine import _extract_body_embeddings
     from vms.inference.messages import Tracklet
 
