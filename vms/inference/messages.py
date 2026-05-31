@@ -16,6 +16,7 @@ class Tracklet:
     bbox: tuple[int, int, int, int]  # x1, y1, x2, y2
     confidence: float
     embedding: tuple[float, ...] = ()
+    body_embedding: tuple[float, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -47,6 +48,7 @@ class DetectionFrame:
                     "bbox": list(t.bbox),
                     "confidence": t.confidence,
                     "embedding": list(t.embedding),
+                    "body_embedding": list(t.body_embedding),
                 }
                 for t in self.tracklets
             ]
@@ -84,6 +86,7 @@ class DetectionFrame:
                 bbox=cast(tuple[int, int, int, int], tuple(int(v) for v in t["bbox"])),
                 confidence=float(t["confidence"]),
                 embedding=tuple(float(v) for v in t.get("embedding", [])),
+                body_embedding=tuple(float(v) for v in t.get("body_embedding", [])),
             )
             for t in raw_tracklets
         )

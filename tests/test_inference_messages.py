@@ -101,3 +101,38 @@ def test_detection_frame_round_trips_tracklet_no_embedding() -> None:
     fields = frame.to_redis_fields()
     restored = DetectionFrame.from_redis_fields(fields)
     assert restored.tracklets[0].embedding == ()
+
+
+def test_tracklet_body_embedding_defaults_empty() -> None:
+    t = Tracklet(local_track_id=1, camera_id=1, bbox=(0, 0, 100, 200), confidence=0.9)
+    assert t.body_embedding == ()
+
+
+def test_tracklet_body_embedding_stored() -> None:
+    t = Tracklet(
+        local_track_id=1, camera_id=1, bbox=(0, 0, 100, 200), confidence=0.9,
+        body_embedding=(0.3, 0.4, 0.5),
+    )
+    assert t.body_embedding == (0.3, 0.4, 0.5)
+
+
+def test_detection_frame_body_embedding_redis_roundtrip() -> None:
+    t = Tracklet(
+        local_track_id=2, camera_id=3, bbox=(10, 20, 50, 80), confidence=0.8,
+        embedding=(1.0, 2.0),
+        body_embedding=(3.0, 4.0),
+    )
+    frame = DetectionFrame(
+        camera_id=3, seq_id=1, timestamp_ms=1000, tracklets=(t,), face_embeddings=()
+    )
+    restored = DetectionFrame.from_redis_fields(frame.to_redis_fields())
+    assert restored.tracklets[0].body_embedding == (3.0, 4.0)
+
+
+def test_detection_frame_body_embedding_absent_roundtrips_empty() -> None:
+    t = Tracklet(local_track_id=1, camera_id=1, bbox=(0, 0, 10, 10), confidence=0.9)
+    frame = DetectionFrame(
+        camera_id=1, seq_id=0, timestamp_ms=0, tracklets=(t,), face_embeddings=()
+    )
+    restored = DetectionFrame.from_redis_fields(frame.to_redis_fields())
+    assert restored.tracklets[0].body_embedding == ()
