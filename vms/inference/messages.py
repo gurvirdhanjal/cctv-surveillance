@@ -19,6 +19,8 @@ class Tracklet:
     body_embedding: tuple[float, ...] = ()
     keypoints: tuple[tuple[float, float, float], ...] = ()  # 17 COCO kpts: (x, y, conf)
     face_visible: bool = False  # True when nose + eye keypoints have sufficient confidence
+    ppe_helmet_conf: float | None = None  # probability helmet IS worn; None = model not run
+    ppe_vest_conf: float | None = None  # probability vest IS worn; None = model not run
 
 
 @dataclass(frozen=True)
@@ -53,6 +55,8 @@ class DetectionFrame:
                     "body_embedding": list(t.body_embedding),
                     "keypoints": [list(kp) for kp in t.keypoints],
                     "face_visible": t.face_visible,
+                    "ppe_helmet_conf": t.ppe_helmet_conf,
+                    "ppe_vest_conf": t.ppe_vest_conf,
                 }
                 for t in self.tracklets
             ]
@@ -96,6 +100,8 @@ class DetectionFrame:
                     for kp in t.get("keypoints", [])
                 ),
                 face_visible=bool(t.get("face_visible", False)),
+                ppe_helmet_conf=float(t["ppe_helmet_conf"]) if t.get("ppe_helmet_conf") is not None else None,
+                ppe_vest_conf=float(t["ppe_vest_conf"]) if t.get("ppe_vest_conf") is not None else None,
             )
             for t in raw_tracklets
         )
