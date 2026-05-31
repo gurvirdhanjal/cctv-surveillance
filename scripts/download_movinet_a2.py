@@ -5,8 +5,9 @@ VMS_VIOLENCE_MODEL=models/movinet_a2 (the default) will work with no further con
 
 Usage:
   # Option A — kagglehub (recommended, handles caching automatically):
-  pip install kagglehub tensorflow tensorflow-hub
+  pip install "kagglehub<1.0" tensorflow tensorflow-hub
   python scripts/download_movinet_a2.py
+  # NOTE: kagglehub>=1.0 has a kagglesdk dependency bug -- use <1.0
 
   # Option B — manual tar.gz (Kaggle API or curl download):
   curl -L -o ~/Downloads/model.tar.gz \\
@@ -43,17 +44,34 @@ def _find_saved_model(root_dir: str) -> str:
 
 
 def download_via_kagglehub() -> str:
-    """Download via kagglehub (caches in ~/.cache/kagglehub/), then copy to models/."""
+    """Download via kagglehub (caches in ~/.cache/kagglehub/), then copy to models/.
+
+    NOTE: use kagglehub<1.0  — version 1.0.x has a kagglesdk incompatibility.
+    Install: pip install "kagglehub<1.0" tensorflow tensorflow-hub
+    """
+    # Validate deps with specific errors — catch real import errors, not "not installed"
+    missing = []
     for pkg, install in [
-        ("kagglehub", "pip install kagglehub"),
+        ("kagglehub", 'pip install "kagglehub<1.0"'),
         ("tensorflow", "pip install tensorflow"),
         ("tensorflow_hub", "pip install tensorflow-hub"),
     ]:
         try:
             __import__(pkg)
-        except ImportError:
-            print(f"ERROR: {pkg} not installed.\nRun: {install}", file=sys.stderr)
+        except ModuleNotFoundError:
+            missing.append(f"  {pkg}: run  {install}")
+        except ImportError as exc:
+            # Installed but broken (e.g. kagglehub 1.0.x kagglesdk conflict)
+            print(
+                f"ERROR: {pkg} is installed but failed to import: {exc}\n"
+                f"Fix: pip install \"{pkg}<1.0\"  (1.0.x has a known dependency bug)",
+                file=sys.stderr,
+            )
             sys.exit(1)
+
+    if missing:
+        print("ERROR: Missing dependencies:\n" + "\n".join(missing), file=sys.stderr)
+        sys.exit(1)
 
     import kagglehub  # type: ignore[import-untyped]
 
@@ -130,7 +148,7 @@ def main() -> None:
     print()
     print("Models folder now contains:")
     for f in sorted(os.listdir("models")):
-        tag = " ← NEW" if "movinet" in f else ""
+        tag = "  <-- NEW" if "movinet" in f else ""
         print(f"  models/{f}{tag}")
     print("=" * 60)
 
