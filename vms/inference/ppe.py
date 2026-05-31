@@ -32,7 +32,6 @@ def _softmax2(a: float, b: float) -> tuple[float, float]:
     """Numerically-stable softmax for a 2-element pair."""
     m = max(a, b)
     ea, eb = (a - m), (b - m)
-    s = ea + eb  # log-space sum
     import math
 
     denom = math.exp(ea) + math.exp(eb)
@@ -126,7 +125,7 @@ class PPEModel:
             return None
 
     def _preprocess(self, crop_bgr: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
-        """Letterbox-resize to 640×640, RGB, normalise to [0,1], add batch dim."""
+        """Letterbox-resize to 640x640 RGB, normalise to [0,1], add batch dim."""
         h, w = crop_bgr.shape[:2]
         scale = _INPUT_SIZE / max(h, w)
         new_h, new_w = int(h * scale), int(w * scale)

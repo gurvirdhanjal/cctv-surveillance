@@ -35,9 +35,9 @@ class Settings(BaseSettings):
     # PPE compliance — YOLOv8x-CHV ONNX (empty = disabled)
     # Download and place at this path before enabling.
     ppe_model: str = ""
-    ppe_helmet_threshold: float = 0.5   # helmet_conf below this → violation
-    ppe_vest_threshold: float = 0.5     # vest_conf below this → violation
-    ppe_gate_min_persons: int = 1       # only run when >= N persons in frame
+    ppe_helmet_threshold: float = 0.5  # helmet_conf below this → violation
+    ppe_vest_threshold: float = 0.5  # vest_conf below this → violation
+    ppe_gate_min_persons: int = 1  # only run when >= N persons in frame
 
     # auth
     jwt_algorithm: str = "HS256"

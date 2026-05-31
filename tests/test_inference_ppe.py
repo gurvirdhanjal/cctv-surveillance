@@ -27,7 +27,7 @@ def test_ppe_model_score_crop_returns_none_when_unavailable() -> None:
 
 
 def test_ppe_model_score_crop_returns_none_on_tiny_crop() -> None:
-    """Crops smaller than 32×32 are too small for reliable PPE classification."""
+    """Crops smaller than 32x32 are too small for reliable PPE classification."""
     model = PPEModel("")
     assert model.score_crop(np.zeros((31, 31, 3), dtype=np.uint8)) is None
     assert model.score_crop(np.zeros((10, 50, 3), dtype=np.uint8)) is None
