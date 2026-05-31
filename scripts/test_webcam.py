@@ -43,6 +43,11 @@ _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
+# db_url and jwt_secret are required by Settings but unused in this standalone script.
+# Set dummy values so pydantic validation passes without a running server.
+os.environ.setdefault("VMS_DB_URL", "postgresql://localhost/vms_unused")
+os.environ.setdefault("VMS_JWT_SECRET", "webcam-test-dummy-secret")
+
 import argparse
 import time
 from collections import deque
