@@ -61,3 +61,10 @@ htmlcov/
 
 # Alembic compiled
 *.pyc
+
+# Test videos — large binaries, not committed (store in data/test_videos/)
+data/test_videos/
+*.mp4
+*.avi
+*.mov
+*.mkv
