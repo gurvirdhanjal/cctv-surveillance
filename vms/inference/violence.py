@@ -108,46 +108,24 @@ class ViolenceModel:
 
             logger.info("Loading MoViNet A2 Stream from %s ...", path)
 
-            # Build the streaming model using hub.KerasLayer exactly as shown in the
-            # Kaggle model card, using the local SavedModel directory as the hub URL.
+            # Load encoder via hub.KerasLayer — no tf.keras.Model wrapper needed.
+            # The state tensor names contain '/' (e.g. state/b0/l0/pool_frame_count)
+            # which is illegal as a Keras Input name. Calling the encoder directly
+            # avoids that restriction entirely.
             encoder = hub.KerasLayer(path, trainable=False)
-
-            # Image input: (batch, time, H, W, C) — we send 1 frame at a time
-            image_input = tf.keras.layers.Input(
-                shape=[None, None, None, 3],
-                dtype=tf.float32,
-                name="image",
-            )
-
-            # Discover the streaming state shapes using the model's init_states signature.
-            # Input shape spec: [batch, time, H, W, C]
             init_states_fn = encoder.resolved_object.signatures["init_states"]
+
+            # Warm-up: discover how many state tensors the model uses
             input_shape_spec = tf.constant([1, 1, _INPUT_H, _INPUT_W, 3])
-            state_shapes = {
-                name: ([s if s > 0 else None for s in state.shape], state.dtype)
-                for name, state in init_states_fn(input_shape_spec).items()
-            }
+            n_states = len(init_states_fn(input_shape_spec))
 
-            # One Keras Input per state tensor
-            states_input = {
-                name: tf.keras.Input(shape[1:], dtype=dtype, name=name)
-                for name, (shape, dtype) in state_shapes.items()
-            }
-
-            # Combine states + image → encoder → outputs
-            outputs = encoder({**states_input, "image": image_input})
-            self._model = tf.keras.Model(
-                inputs={**states_input, "image": image_input},
-                outputs=outputs,
-                name="movinet_a2_stream",
-            )
+            # Store the encoder and init function; _model acts as the availability flag
+            self._model = encoder        # hub.KerasLayer, callable with dict inputs
             self._init_states_fn = init_states_fn
             self._tf = tf
             logger.info(
                 "MoViNet A2 Stream ready — %dx%d input, %d streaming state tensors",
-                _INPUT_H,
-                _INPUT_W,
-                len(state_shapes),
+                _INPUT_H, _INPUT_W, n_states,
             )
 
         except Exception as exc:
