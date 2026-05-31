@@ -48,6 +48,13 @@ if _PROJECT_ROOT not in sys.path:
 os.environ.setdefault("VMS_DB_URL", "postgresql://localhost/vms_unused")
 os.environ.setdefault("VMS_JWT_SECRET", "webcam-test-dummy-secret")
 
+# CCTV-tuned thresholds matching proven legacy/scrfd_face.py values.
+# Lower conf (0.55 vs production 0.60) catches smaller/lower-quality faces.
+# Smaller min face (30px vs 40px) handles distance cameras.
+# These match what was validated in legacy/scrfd_face.py against real cameras.
+os.environ.setdefault("VMS_SCRFD_CONF", "0.55")
+os.environ.setdefault("VMS_MIN_FACE_PX", "30")
+
 import argparse
 import time
 from collections import deque
