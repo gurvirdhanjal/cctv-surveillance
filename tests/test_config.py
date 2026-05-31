@@ -101,6 +101,14 @@ def test_settings_gallery_defaults() -> None:
     assert s.reid_camera_topology_json == "{}"
 
 
+def test_settings_ppe_defaults() -> None:
+    s = Settings(db_url="postgresql://x", jwt_secret="x")  # type: ignore[call-arg]
+    assert s.ppe_model == ""
+    assert s.ppe_helmet_threshold == 0.5
+    assert s.ppe_vest_threshold == 0.5
+    assert s.ppe_gate_min_persons == 1
+
+
 def test_phase2d_config_defaults() -> None:
     s = Settings(db_url="postgresql://x", jwt_secret="x")  # type: ignore[call-arg]
     assert s.botsort_config == "botsort_custom.yaml"
