@@ -238,12 +238,20 @@ class IdentityEngine:
         body_embedding: tuple[float, ...] | None,
         settings: Any,
     ) -> None:
-        """Append to face gallery (priority) or body gallery (fallback). Update confirmed."""
+        """Append to face and/or body galleries. Update confirmed.
+
+        Both galleries are built independently when data is available.
+        Face gallery enables high-confidence facial identification.
+        Body gallery enables cross-camera matching on ceiling cams where face
+        is occluded — populated even when face is also present so that a person
+        identified at the entry gate can be re-matched on body appearance alone
+        once they leave the entry camera's field of view.
+        """
         if embedding:
             entry.gallery.append(np.array(embedding, dtype=np.float32))
             if len(entry.gallery) > settings.reid_gallery_size:
                 entry.gallery = entry.gallery[-settings.reid_gallery_size :]
-        elif body_embedding:
+        if body_embedding:
             entry.body_gallery.append(np.array(body_embedding, dtype=np.float32))
             if len(entry.body_gallery) > settings.reid_gallery_size:
                 entry.body_gallery = entry.body_gallery[-settings.reid_gallery_size :]
@@ -330,11 +338,14 @@ class IdentityEngine:
         # relative to the face baseline.
         if query_type == "body":
             threshold = (
-                settings.reid_body_confirmed_sim if best_confirmed
+                settings.reid_body_confirmed_sim
+                if best_confirmed
                 else settings.reid_body_cross_cam_sim
             )
         else:
-            threshold = settings.reid_confirmed_sim if best_confirmed else settings.reid_cross_cam_sim
+            threshold = (
+                settings.reid_confirmed_sim if best_confirmed else settings.reid_cross_cam_sim
+            )
         if best_sim < threshold:
             return None
         margin = best_sim - second_sim if second_sim > -1.0 else best_sim

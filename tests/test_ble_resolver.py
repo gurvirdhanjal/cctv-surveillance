@@ -53,6 +53,7 @@ def test_lookup_person_by_badge_not_found() -> None:
 
 def test_anchor_person_by_badge_fills_unidentified_entries() -> None:
     from unittest.mock import MagicMock
+
     from vms.identity.engine import IdentityEngine
     from vms.identity.reid import ReIdService
 
@@ -71,9 +72,11 @@ def test_anchor_person_by_badge_fills_unidentified_entries() -> None:
 
 def test_anchor_person_by_badge_does_not_overwrite_face_id() -> None:
     from unittest.mock import MagicMock
+
+    import numpy as np
+
     from vms.identity.engine import IdentityEngine
     from vms.identity.reid import ReIdService
-    import numpy as np
 
     reid = MagicMock(spec=ReIdService)
     reid.identify.return_value = 5  # face says person 5

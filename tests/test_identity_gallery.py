@@ -231,7 +231,7 @@ def test_face_takes_priority_over_body_for_gallery(monkeypatch: pytest.MonkeyPat
     gid1 = engine.assign_global_track_id(1, 1, embedding=face, body_embedding=body)
     engine.assign_global_track_id(1, 1, embedding=face, body_embedding=body)
     assert len(engine._registry[(1, 1)].gallery) == 2
-    assert engine._registry[(1, 1)].body_gallery == []
+    assert len(engine._registry[(1, 1)].body_gallery) == 2  # both galleries populate
 
     # Cam2: similar face → matches via face gallery
     gid2 = engine.assign_global_track_id(

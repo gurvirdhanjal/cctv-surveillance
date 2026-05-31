@@ -153,8 +153,12 @@ def test_tracklet_keypoints_defaults_empty() -> None:
 def test_tracklet_keypoints_redis_roundtrip() -> None:
     kpts = tuple((float(i), float(i * 2), 0.9) for i in range(17))
     t = Tracklet(
-        local_track_id=1, camera_id=1, bbox=(0, 0, 100, 200), confidence=0.9,
-        keypoints=kpts, face_visible=True,
+        local_track_id=1,
+        camera_id=1,
+        bbox=(0, 0, 100, 200),
+        confidence=0.9,
+        keypoints=kpts,
+        face_visible=True,
     )
     frame = DetectionFrame(
         camera_id=1, seq_id=0, timestamp_ms=0, tracklets=(t,), face_embeddings=()

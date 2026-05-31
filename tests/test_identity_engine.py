@@ -119,14 +119,15 @@ def test_evict_stale_uses_current_time_when_no_arg() -> None:
 # assign_and_identify: cross-camera facial recognition anchoring
 # ---------------------------------------------------------------------------
 
+
 def test_assign_and_identify_returns_person_id_when_face_matches() -> None:
     """Known employee identified on entry-gate camera gets person_id attached."""
     reid = MagicMock(spec=ReIdService)
-    reid.identify.return_value = 7   # employee #7
+    reid.identify.return_value = 7  # employee #7
     engine = IdentityEngine(reid_service=reid)
     emb = _unit_vec(seed=0)
 
-    gid, pid, via = engine.assign_and_identify(camera_id=1, local_track_id=1, embedding=emb)
+    _gid, pid, via = engine.assign_and_identify(camera_id=1, local_track_id=1, embedding=emb)
     assert pid == 7
     assert via == "face"
     assert engine._registry[(1, 1)].person_id == 7
@@ -139,7 +140,7 @@ def test_assign_and_identify_returns_none_for_unknown_person() -> None:
     engine = IdentityEngine(reid_service=reid)
     emb = _unit_vec(seed=0)
 
-    gid, pid, via = engine.assign_and_identify(camera_id=1, local_track_id=1, embedding=emb)
+    _gid, pid, via = engine.assign_and_identify(camera_id=1, local_track_id=1, embedding=emb)
     assert pid is None
     assert via == "unknown"
     assert engine._registry[(1, 1)].person_id is None
@@ -165,10 +166,10 @@ def test_assign_and_identify_anchors_person_id_across_cameras() -> None:
     assert via1 == "face"
 
     # Floor camera: FAISS won't run (no embedding passed), but person_id inherited via gid
-    reid.identify.return_value = None   # floor cam has no frontal face
+    reid.identify.return_value = None  # floor cam has no frontal face
     gid2, pid2, via2 = engine.assign_and_identify(camera_id=2, local_track_id=1, embedding=near_emb)
-    assert gid1 == gid2            # same person
-    assert pid2 == 5               # identity inherited across cameras
+    assert gid1 == gid2  # same person
+    assert pid2 == 5  # identity inherited across cameras
     assert via2 in ("face", "body")
 
 
@@ -177,7 +178,7 @@ def test_assign_and_identify_no_face_no_identification() -> None:
     engine = _make_engine()
     body_emb = _unit_vec(seed=10)
 
-    gid, pid, via = engine.assign_and_identify(
+    _gid, pid, _via = engine.assign_and_identify(
         camera_id=1, local_track_id=1, embedding=None, body_embedding=body_emb
     )
     assert pid is None
@@ -190,7 +191,6 @@ def test_get_person_id_returns_resolved_value() -> None:
 
     engine.assign_and_identify(camera_id=3, local_track_id=5, embedding=_unit_vec(seed=3))
     assert engine.get_person_id(camera_id=3, local_track_id=5) == 12
-
 
 
 def test_get_person_id_returns_none_for_unknown_track() -> None:

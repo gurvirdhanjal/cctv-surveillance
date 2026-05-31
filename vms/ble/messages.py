@@ -10,10 +10,10 @@ from dataclasses import dataclass
 class BleEvent:
     """One RSSI reading from a BLE reader for one badge."""
 
-    badge_id: str        # Bluetooth MAC address of employee badge
-    reader_id: str       # MAC address or name of the fixed BLE reader
-    rssi: int            # signal strength dBm (e.g. -65)
-    timestamp_ms: int    # UTC epoch milliseconds
+    badge_id: str  # Bluetooth MAC address of employee badge
+    reader_id: str  # MAC address or name of the fixed BLE reader
+    rssi: int  # signal strength dBm (e.g. -65)
+    timestamp_ms: int  # UTC epoch milliseconds
 
     def to_redis_fields(self) -> dict[str, str]:
         return {
@@ -39,6 +39,6 @@ class BleEvent:
         return cls(
             badge_id=str(data["badge_id"]),
             reader_id=str(data["reader_id"]),
-            rssi=int(data["rssi"]),  # type: ignore[arg-type]
+            rssi=int(str(data["rssi"])),
             timestamp_ms=timestamp_ms,
         )

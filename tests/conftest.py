@@ -35,16 +35,16 @@ def _create_schema() -> Iterator[None]:
     does not leave stale rows that cause unique-constraint failures in API tests.
     """
     try:
+        import contextlib
+
         from alembic.config import Config
 
         from alembic import command
 
         cfg = Config("alembic.ini")
         # Downgrade first: idempotent — safe even if no schema exists yet
-        try:
+        with contextlib.suppress(Exception):
             command.downgrade(cfg, "base")
-        except Exception:
-            pass  # first ever run — nothing to downgrade
         command.upgrade(cfg, "head")
         yield
         command.downgrade(cfg, "base")

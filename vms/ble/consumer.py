@@ -23,7 +23,7 @@ class BleConsumer:
     def __init__(
         self,
         redis_client: Any,
-        db_factory: Any,       # callable returning SQLAlchemy Session
+        db_factory: Any,  # callable returning SQLAlchemy Session
         identity_engine: Any,  # IdentityEngine
     ) -> None:
         self._redis = redis_client
@@ -41,9 +41,7 @@ class BleConsumer:
     async def run(self) -> None:
         self._running = True
         while self._running:
-            messages = await stream_read(
-                self._redis, _BLE_STREAM, last_id=self._last_id, count=50
-            )
+            messages = await stream_read(self._redis, _BLE_STREAM, last_id=self._last_id, count=50)
             for msg_id, fields in messages:
                 await self._process(fields)
                 self._last_id = msg_id

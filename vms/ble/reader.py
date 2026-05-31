@@ -32,7 +32,7 @@ class MqttBleReader:
             logger.info("BLE disabled — VMS_BLE_MQTT_BROKER not set")
             return
         try:
-            import paho.mqtt.client as mqtt  # type: ignore[import-untyped]
+            import paho.mqtt.client as mqtt  # type: ignore[import-not-found,import-untyped]
         except ImportError:
             logger.warning("paho-mqtt not installed — BLE disabled.  pip install paho-mqtt")
             return

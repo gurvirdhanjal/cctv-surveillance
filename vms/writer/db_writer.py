@@ -73,7 +73,8 @@ def flush_detection_frame(
 
         if identity is not None:
             gid, person_id, _ = identity.assign_and_identify(
-                t.camera_id, t.local_track_id,
+                t.camera_id,
+                t.local_track_id,
                 embedding=face_emb,
                 body_embedding=body_emb,
             )

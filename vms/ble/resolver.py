@@ -34,9 +34,5 @@ def lookup_person_by_badge(db: Session, badge_id: str) -> int | None:
     """Return person_id for the given badge_id, or None if not enrolled."""
     from vms.db.models import Person
 
-    row = (
-        db.query(Person)
-        .filter(Person.badge_id == badge_id, Person.is_active.is_(True))
-        .first()
-    )
+    row = db.query(Person).filter(Person.badge_id == badge_id, Person.is_active.is_(True)).first()
     return row.person_id if row is not None else None
