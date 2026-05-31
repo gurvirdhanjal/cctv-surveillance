@@ -150,21 +150,23 @@ def main() -> None:
     parser.add_argument("--height", type=int, default=480)
     args = parser.parse_args()
 
-    # ---- Load production models ----
+    # ---- Load models (all ONNX, no PyTorch required) ----
+    # Uses models already in models/:
+    #   models/scrfd_2.5g.onnx          — face detector (primary)
+    #   models/yolov8s-face-lindevs.onnx — face detector fallback (same as legacy/main.py)
+    #   models/adaface_ir50.onnx         — face embedder (recognition)
+    # No yolov8n.pt / PyTorch / ultralytics needed for this standalone test.
     print("Loading models...", flush=True)
     from vms.config import get_settings
     settings = get_settings()
 
     from vms.inference.detector import SCRFDDetector
     from vms.inference.embedder import AdaFaceEmbedder
-    from vms.inference.tracker import PerCameraTracker
 
     detector = SCRFDDetector.from_path(settings.scrfd_model)
     embedder = AdaFaceEmbedder.from_path(settings.adaface_model)
-    tracker  = PerCameraTracker.from_path(camera_id=0, model_path="yolov8n.pt")
-    print(f"  detector: {type(detector).__name__}")
-    print(f"  embedder: {type(embedder).__name__}")
-    print(f"  tracker:  {type(tracker).__name__}")
+    print(f"  detector: {type(detector).__name__} (ONNX)")
+    print(f"  embedder: {type(embedder).__name__} (ONNX)")
 
     # Violence model (optional)
     violence_model = None
@@ -214,6 +216,52 @@ def main() -> None:
     print("Controls: Q=quit  E=enroll face  R=reset enrolled  SPACE=pause")
     print("─" * 60)
 
+    # ---- Minimal IoU tracker (no PyTorch, no ultralytics) ----
+    # Mirrors legacy/main.py: each detected face = one tracked person.
+    # Stable track IDs are assigned by matching bboxes frame-to-frame via IoU.
+    _next_id = [1]
+    _tracks: dict[int, dict] = {}  # id → {bbox, last_frame, emb}
+
+    def _iou(a: tuple, b: tuple) -> float:
+        ax1, ay1, ax2, ay2 = a
+        bx1, by1, bx2, by2 = b
+        ix1, iy1 = max(ax1, bx1), max(ay1, by1)
+        ix2, iy2 = min(ax2, bx2), min(ay2, by2)
+        inter = max(0, ix2 - ix1) * max(0, iy2 - iy1)
+        if inter == 0:
+            return 0.0
+        union = (ax2-ax1)*(ay2-ay1) + (bx2-bx1)*(by2-by1) - inter
+        return inter / union if union else 0.0
+
+    def _update_tracks(detections: list, fi: int) -> list[dict]:
+        """Match detections to existing tracks; return list of active track dicts."""
+        used_tracks: set[int] = set()
+        result = []
+        for det in detections:
+            best_id, best_iou = -1, 0.3  # min IoU to consider a match
+            for tid, tr in _tracks.items():
+                if tid in used_tracks:
+                    continue
+                iou_val = _iou(det["bbox"], tr["bbox"])
+                if iou_val > best_iou:
+                    best_iou, best_id = iou_val, tid
+            if best_id == -1:
+                best_id = _next_id[0]
+                _next_id[0] += 1
+                _tracks[best_id] = {"bbox": det["bbox"], "last_frame": fi, "emb": ()}
+            else:
+                _tracks[best_id]["bbox"] = det["bbox"]
+                _tracks[best_id]["last_frame"] = fi
+            if det.get("emb"):
+                _tracks[best_id]["emb"] = det["emb"]
+            used_tracks.add(best_id)
+            result.append({"id": best_id, **_tracks[best_id]})
+        # Evict stale tracks (not seen for 10+ frames)
+        stale = [tid for tid, tr in _tracks.items() if fi - tr["last_frame"] > 10]
+        for tid in stale:
+            del _tracks[tid]
+        return result
+
     # ---- State ----
     alerts: deque[str] = deque(maxlen=5)
     paused = False
@@ -258,31 +306,22 @@ def main() -> None:
             fps = 15.0 / max(elapsed, 1e-6)
             t_fps = time.time()
 
-        # ---- Person tracking (YOLO + ByteTrack) ----
-        tracklets = tracker.update(frame)
-        head_count = len(tracklets)
-
-        # ---- Face detection + embedding ----
+        # ---- Face detection + embedding (ONNX only, same as legacy/main.py) ----
+        # SCRFDDetector uses scrfd_2.5g.onnx → falls back to yolov8s-face-lindevs.onnx
         faces = detector.detect(frame)
         last_face_embs = []
-        face_emb_map: dict[int, tuple[float, ...]] = {}  # track_id → embedding
+        detections_for_tracker = []
 
         for face in faces:
-            fx1, fy1, fx2, fy2 = face.bbox
-            fx = (fx1 + fx2) // 2
-            fy = (fy1 + fy2) // 2
-
             with_emb = embedder.embed(face, frame)
             emb = with_emb.embedding if with_emb else ()
             if emb:
                 last_face_embs.append(emb)
+            detections_for_tracker.append({"bbox": face.bbox, "emb": emb})
 
-            # Assign to nearest tracklet
-            for t in tracklets:
-                x1, y1, x2, y2 = t.bbox
-                if x1 <= fx <= x2 and y1 <= fy <= y2:
-                    face_emb_map[t.local_track_id] = emb
-                    break
+        # ---- IoU tracking — stable IDs across frames ----
+        active_tracks = _update_tracks(detections_for_tracker, frame_idx)
+        head_count = len(active_tracks)
 
         # ---- Violence scoring ----
         if violence_enabled and violence_model and violence_model.is_available \
@@ -295,25 +334,25 @@ def main() -> None:
                     alerts.append(msg)
                     print(f"  [ALERT] {msg}")
 
-        # ---- Draw tracklets ----
-        for t in tracklets:
-            x1, y1, x2, y2 = t.bbox
-            emb = face_emb_map.get(t.local_track_id, ())
+        # ---- Draw tracked faces ----
+        for tr in active_tracks:
+            x1, y1, x2, y2 = tr["bbox"]
+            emb = tr["emb"]
 
             if emb:
                 name, sim = _identify(emb)
                 if name == "UNKNOWN":
-                    color = (0, 0, 255)   # RED — UNKNOWN_PERSON
+                    color = (0, 0, 255)   # RED — unknown person
                     label = f"UNKNOWN ({sim:.2f})"
                     alert_msg = f"UNKNOWN @ {datetime.now().strftime('%H:%M:%S')}"
                     if alert_msg not in list(alerts):
                         alerts.append(alert_msg)
                 else:
-                    color = (0, 200, 0)   # GREEN — known identity
+                    color = (0, 200, 0)   # GREEN — recognised
                     label = f"{name} ({sim:.2f})"
             else:
-                color = (0, 140, 255)     # ORANGE — no face detected
-                label = f"ID:{t.local_track_id}"
+                color = (0, 140, 255)     # ORANGE — face detected, no embedding yet
+                label = f"Face #{tr['id']}"
 
             _draw_box(display, x1, y1, x2, y2, label, color)
 
