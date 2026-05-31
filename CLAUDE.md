@@ -5,7 +5,29 @@ You are working on a plant-floor **Video Management System** with facial recogni
 This file is read before every task. It encodes the binding rules of this project — read it, then read the spec.
 
 ---
+## 0. Behavioral Guidelines
 
+### 0.1 Think Before Coding
+Before implementing: state assumptions explicitly. If uncertain, ask.
+If multiple interpretations exist, present them — don't pick silently.
+If something is unclear, stop and name what's confusing.
+
+### 0.2 Simplicity First
+Minimum code that solves the problem. No features beyond what was asked.
+No abstractions for single-use code. No unrequested configurability.
+If you write 200 lines and it could be 50, rewrite it.
+
+### 0.3 Surgical Changes
+Touch only what you must. Don't improve adjacent code.
+Match existing style. Remove only imports/variables YOUR changes made unused.
+Every changed line should trace directly to the request.
+
+### 0.4 Goal-Driven Execution
+Transform tasks into verifiable goals before starting.
+For multi-step tasks, state a brief plan with verify steps:
+  1. [Step] → verify: [check]
+  2. [Step] → verify: [check]
+  
 ## 1. Spec hierarchy — read this BEFORE writing any code
 
 The design is split across multiple spec files. They are read together, not in isolation:
@@ -75,7 +97,20 @@ Legacy prototype code is in `legacy/`. Do not import.
 
 ## 3. Current phase
 
-We are at **Phase 2d: Multi-Modal Person Tracking Upgrade** (plan written — NOT STARTED). Plan: `docs/superpowers/plans/2026-05-31-vms-v2-phase2d-multimodal-tracking-upgrade.md`. Delivers: YOLOv8x-pose (keypoints + face visibility gate), BoT-SORT tracker, OSNet msmt17 body Re-ID, `FusionResolver` (Face ≻ Body ≻ BLE), BLE badge service (`vms/ble/`), DB migration (badge_id, ble_events, resolved_via), `assign_and_identify` returns `resolved_via` tag.
+We are at **Phase 2d: Multi-Modal Person Tracking Upgrade** (plan written — PARTIALLY COMPLETE). Plan: `docs/superpowers/plans/2026-05-31-vms-v2-phase2d-multimodal-tracking-upgrade.md`.
+
+**Completed so far (outside plan, as groundwork):**
+- `BodyEmbedder` (torchreid OSNet AIN x1.0 msmt17) — replaces ONNX, lazy import, `heavy_models` test marker
+- `FusionResolver` (`vms/identity/fusion.py`) — Face ≻ Body ≻ BLE priority, conflict logging
+- `assign_and_identify()` returns `(gid, person_id, resolved_via)` 3-tuple using FusionResolver
+- `flush_detection_frame` in `db_writer.py` wires both face + body embeddings into `assign_and_identify`
+- Body Re-ID thresholds calibrated from DukeMTMC-reID simulation: `reid_body_confirmed_sim=0.51`, `reid_body_cross_cam_sim=0.56`
+- `scripts/simulate_osnet_reid.py` — DukeMTMC benchmark (Rank-1=73%, mAP=58.8%, 8 cameras)
+- `scripts/download_osnet_ain_msmt17.py` — downloads weights from HuggingFace
+- `tests/conftest.py` downgrade-before-upgrade (prevents stale DB from crashed sessions)
+- `pyproject.toml` `heavy_models` marker excludes torch+TF tests from default `pytest` run
+
+**Remaining plan tasks:** YOLOv8x-pose + BoT-SORT tracker upgrade (Tasks 3–4), `vms/ble/` BLE badge service (Tasks 6–7), DB migration badge_id/ble_events/resolved_via (Task 8), E2E Brijesh tracking test (Task 10). Current test count: **345 passed, 5 deselected (heavy_models)**.
 
 **Phase 3** (Profiler + Dispatcher + Audit) not yet started — plan not written.
 
