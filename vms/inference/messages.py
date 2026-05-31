@@ -17,6 +17,8 @@ class Tracklet:
     confidence: float
     embedding: tuple[float, ...] = ()
     body_embedding: tuple[float, ...] = ()
+    keypoints: tuple[tuple[float, float, float], ...] = ()  # 17 COCO kpts: (x, y, conf)
+    face_visible: bool = False  # True when nose + eye keypoints have sufficient confidence
 
 
 @dataclass(frozen=True)
@@ -49,6 +51,8 @@ class DetectionFrame:
                     "confidence": t.confidence,
                     "embedding": list(t.embedding),
                     "body_embedding": list(t.body_embedding),
+                    "keypoints": [list(kp) for kp in t.keypoints],
+                    "face_visible": t.face_visible,
                 }
                 for t in self.tracklets
             ]
@@ -87,6 +91,11 @@ class DetectionFrame:
                 confidence=float(t["confidence"]),
                 embedding=tuple(float(v) for v in t.get("embedding", [])),
                 body_embedding=tuple(float(v) for v in t.get("body_embedding", [])),
+                keypoints=tuple(
+                    cast(tuple[float, float, float], tuple(float(v) for v in kp))
+                    for kp in t.get("keypoints", [])
+                ),
+                face_visible=bool(t.get("face_visible", False)),
             )
             for t in raw_tracklets
         )
