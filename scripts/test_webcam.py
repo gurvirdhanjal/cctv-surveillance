@@ -62,6 +62,22 @@ from datetime import datetime, timezone
 from typing import Any
 
 import cv2
+
+# Early sanity check — detect headless build before any window is attempted.
+# If this fails, re-run with the venv Python explicitly:
+#   .\venv\Scripts\python.exe scripts\test_webcam.py
+_CV2_HAS_GUI = hasattr(cv2, "imshow") and cv2.getBuildInformation().find("highgui") != -1
+if "headless" in cv2.__file__.lower() or not _CV2_HAS_GUI:
+    print(
+        f"ERROR: opencv-headless build detected ({cv2.__file__}).\n"
+        "Run: pip uninstall opencv-python-headless -y && pip install opencv-python\n"
+        f"Or use the venv Python directly:\n"
+        f"  .\\venv\\Scripts\\python.exe scripts\\test_webcam.py",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+# Show which cv2 is loaded so future users can diagnose quickly
+print(f"  cv2: {cv2.__version__} ({cv2.__file__})")
 import numpy as np
 
 # Silence TF/ONNX startup noise
