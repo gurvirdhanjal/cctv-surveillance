@@ -52,9 +52,13 @@ class Settings(BaseSettings):
     reid_confirmed_sim: float = 0.60        # face gallery threshold (confirmed tracks)
     reid_confirmed_stale_ms: int = 600_000
     reid_camera_topology_json: str = "{}"
-    # Body Re-ID thresholds (OSNet AIN — higher similarity range than AdaFace face embeddings)
-    reid_body_cross_cam_sim: float = 0.65   # body gallery, unconfirmed tracks
-    reid_body_confirmed_sim: float = 0.58   # body gallery, confirmed tracks
+    # Body Re-ID thresholds — calibrated on DukeMTMC-reID with OSNet AIN x1.0 msmt17
+    # Simulation: Rank-1=73%, mAP=58.8%, same-person p5=0.511, diff-person p99=0.713
+    # Conservative (95% recall): confirmed=0.51, cross-cam=0.56
+    # Balanced   (99% FP guard): confirmed=0.69, cross-cam=0.74
+    # See scripts/simulate_osnet_reid.py to re-calibrate on your camera setup.
+    reid_body_confirmed_sim: float = 0.51   # body gallery, confirmed tracks (95% recall)
+    reid_body_cross_cam_sim: float = 0.56   # body gallery, unconfirmed tracks
     # Keypoint-gated face detection (YOLOv8x-pose)
     face_kpt_min_conf: float = 0.5   # nose + eye confidence to trigger SCRFD+AdaFace
     # BLE badge fallback

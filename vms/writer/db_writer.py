@@ -68,11 +68,15 @@ def flush_detection_frame(
 
     rows = []
     for t in frame.tracklets:
-        embedding = t.embedding if t.embedding else None
+        face_emb = t.embedding if t.embedding else None
+        body_emb = t.body_embedding if t.body_embedding else None
 
         if identity is not None:
-            gid = identity.assign_global_track_id(t.camera_id, t.local_track_id, embedding)
-            person_id = identity.identify_person(embedding) if embedding else None
+            gid, person_id, _ = identity.assign_and_identify(
+                t.camera_id, t.local_track_id,
+                embedding=face_emb,
+                body_embedding=body_emb,
+            )
         else:
             gid = uuid.uuid4()
             person_id = None

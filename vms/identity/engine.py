@@ -114,32 +114,38 @@ class IdentityEngine:
         local_track_id: int,
         embedding: tuple[float, ...] | None,
         body_embedding: tuple[float, ...] | None = None,
-    ) -> tuple[uuid.UUID, int | None]:
-        """Assign a global_track_id and attempt FAISS person identification in one call.
+        ble_person_id: int | None = None,
+    ) -> tuple[uuid.UUID, int | None, str]:
+        """Assign a global_track_id and resolve person identity via FusionResolver.
 
-        Returns (global_track_id, person_id).  person_id is None when:
-          - no face embedding is available, or
-          - the face does not match any enrolled employee above adaface_min_sim.
+        Returns (global_track_id, person_id, resolved_via).
+        resolved_via: 'face' | 'body' | 'ble' | 'unknown'
 
-        Once a person_id is resolved for a global_track_id, it propagates to ALL
-        registry entries sharing that gid (cross-camera identity anchoring).
+        Priority: face (FAISS) > body gallery anchor > BLE badge.
+        Once resolved, person_id propagates to all tracklets sharing the gid.
         """
+        from vms.identity.fusion import FusionResolver
+
         gid = self.assign_global_track_id(camera_id, local_track_id, embedding, body_embedding)
 
-        # Try to identify via face embedding (FAISS only uses face, not body)
-        resolved_pid: int | None = None
+        # Face identification via FAISS
+        face_person_id: int | None = None
         if embedding:
-            resolved_pid = self._reid.identify(np.array(embedding, dtype=np.float32))
+            face_person_id = self._reid.identify(np.array(embedding, dtype=np.float32))
 
-        # If not identified via current embedding, check if another camera already resolved it
-        if resolved_pid is None:
-            resolved_pid = self._get_known_person_id(gid)
+        # Body gallery anchor — inherited from a previous camera's identification
+        body_anchored_id = self._get_known_person_id(gid)
 
-        # Propagate person_id to ALL tracklets sharing this gid (cross-camera anchoring)
-        if resolved_pid is not None:
-            self._anchor_person_id(gid, resolved_pid)
+        person_id, resolved_via = FusionResolver().resolve(
+            face_person_id=face_person_id,
+            body_anchored_id=body_anchored_id,
+            ble_person_id=ble_person_id,
+        )
 
-        return gid, resolved_pid
+        if person_id is not None:
+            self._anchor_person_id(gid, person_id)
+
+        return gid, person_id, resolved_via
 
     def identify_person(self, embedding: tuple[float, ...]) -> int | None:
         """Return person_id from FAISS if embedding is non-empty, else None."""
