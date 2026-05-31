@@ -75,7 +75,6 @@ def test_evict_stale_removes_old_entries() -> None:
     engine._registry[(1, 42)] = _TrackletEntry(
         global_track_id=uuid.uuid4(),
         person_id=None,
-        last_embedding=None,
         last_seen_ms=old_ms,
         camera_id=1,
     )
@@ -93,7 +92,6 @@ def test_evict_stale_keeps_fresh_entries() -> None:
     engine._registry[(1, 99)] = _TrackletEntry(
         global_track_id=uuid.uuid4(),
         person_id=None,
-        last_embedding=None,
         last_seen_ms=recent_ms,
         camera_id=1,
     )
@@ -110,7 +108,6 @@ def test_evict_stale_uses_current_time_when_no_arg() -> None:
     engine._registry[(2, 1)] = _TrackletEntry(
         global_track_id=uuid.uuid4(),
         person_id=None,
-        last_embedding=None,
         last_seen_ms=old_ms,
         camera_id=2,
     )
