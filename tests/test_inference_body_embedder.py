@@ -1,4 +1,9 @@
-"""Unit tests for BodyEmbedder. Mocks Torchreid FeatureExtractor — no model file required."""
+"""Unit tests for BodyEmbedder. Mocks Torchreid FeatureExtractor — no model file required.
+
+Run with: pytest -m heavy_models
+Excluded from default suite — importing torch alongside TensorFlow (MoViNet) in the same
+process causes OOM on limited VRAM. Run separately: pytest -m heavy_models
+"""
 
 from __future__ import annotations
 
@@ -6,11 +11,14 @@ from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
-import torch
+
+pytestmark = pytest.mark.heavy_models
 
 
 def _mock_extractor(out_dim: int = 512) -> MagicMock:
     """Return a mock FeatureExtractor instance whose __call__ returns (N, out_dim) tensor."""
+    import torch  # lazy — only loaded when tests actually execute (not at collection time)
+
     instance = MagicMock()
     instance.side_effect = lambda imgs: torch.from_numpy(
         np.random.default_rng(0).standard_normal((len(imgs), out_dim)).astype(np.float32)

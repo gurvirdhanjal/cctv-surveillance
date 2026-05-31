@@ -50,5 +50,9 @@ asyncio_mode = "auto"
 markers = [
     "unit: fast in-process tests (default)",
     "integration: requires real PostgreSQL/Redis",
+    "heavy_models: loads PyTorch + TensorFlow simultaneously — run separately to avoid OOM",
 ]
-addopts = "-ra --strict-markers"
+# Exclude heavy_models from default pytest run (they crash if run with full suite due to
+# PyTorch + TensorFlow coexisting in the same process on limited VRAM).
+# Run them separately: pytest -m heavy_models
+addopts = "-ra --strict-markers -m 'not heavy_models'"

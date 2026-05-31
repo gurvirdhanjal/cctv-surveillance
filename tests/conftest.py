@@ -29,13 +29,22 @@ os.environ.setdefault("VMS_BYTETRACK_CONFIG", "bytetrack_custom.yaml")
 
 @pytest.fixture(scope="session", autouse=True)
 def _create_schema() -> Iterator[None]:
-    """Run Alembic migrations once per test session; downgrade when done."""
+    """Run Alembic migrations once per test session; downgrade when done.
+
+    Downgrades first so that a previous session that crashed mid-run (e.g. OOM)
+    does not leave stale rows that cause unique-constraint failures in API tests.
+    """
     try:
         from alembic.config import Config
 
         from alembic import command
 
         cfg = Config("alembic.ini")
+        # Downgrade first: idempotent — safe even if no schema exists yet
+        try:
+            command.downgrade(cfg, "base")
+        except Exception:
+            pass  # first ever run — nothing to downgrade
         command.upgrade(cfg, "head")
         yield
         command.downgrade(cfg, "base")
