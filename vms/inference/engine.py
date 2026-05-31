@@ -142,15 +142,21 @@ class InferenceEngine:
 
         frame_bgr, seq_id, timestamp_ms = frame_result
 
-        raw_faces = self._detector.detect(frame_bgr)
-        face_embeddings = []
-        for face in raw_faces:
-            with_emb = self._embedder.embed(face, frame_bgr)
-            if with_emb is not None:
-                face_embeddings.append(with_emb)
-
         tracker = self._trackers.get(pointer.cam_id)
         raw_tracklets = tracker.update(frame_bgr) if tracker else []
+
+        # Keypoint gate: only run SCRFD+AdaFace when at least one tracklet has a
+        # visible frontal face (nose+eye confidence >= face_kpt_min_conf).
+        # On ceiling cameras showing top-of-head, this skips face detection entirely,
+        # saving ~30% GPU and eliminating spurious low-confidence face embeddings.
+        any_face_visible = any(t.face_visible for t in raw_tracklets)
+        face_embeddings: list[FaceWithEmbedding] = []
+        if any_face_visible:
+            raw_faces = self._detector.detect(frame_bgr)
+            for face in raw_faces:
+                with_emb = self._embedder.embed(face, frame_bgr)
+                if with_emb is not None:
+                    face_embeddings.append(with_emb)
 
         emb_map = _associate_faces(tuple(raw_tracklets), tuple(face_embeddings))
         enriched_tracklets = tuple(
@@ -160,6 +166,8 @@ class InferenceEngine:
                 bbox=t.bbox,
                 confidence=t.confidence,
                 embedding=emb_map.get(t.local_track_id, ()),
+                keypoints=t.keypoints,
+                face_visible=t.face_visible,
             )
             for t in raw_tracklets
         )
