@@ -148,6 +148,8 @@ def test_tracklet_ppe_fields_default_none() -> None:
     t = Tracklet(local_track_id=1, camera_id=1, bbox=(0, 0, 100, 200), confidence=0.9)
     assert t.ppe_helmet_conf is None
     assert t.ppe_vest_conf is None
+    assert t.ppe_gloves_conf is None
+    assert t.ppe_mask_conf is None
 
 
 def test_tracklet_ppe_fields_serialize_roundtrip() -> None:
@@ -158,13 +160,18 @@ def test_tracklet_ppe_fields_serialize_roundtrip() -> None:
         confidence=0.85,
         ppe_helmet_conf=0.92,
         ppe_vest_conf=0.11,
+        ppe_gloves_conf=0.75,
+        ppe_mask_conf=0.0,
     )
     frame = DetectionFrame(
         camera_id=1, seq_id=0, timestamp_ms=0, tracklets=(t,), face_embeddings=()
     )
     restored = DetectionFrame.from_redis_fields(frame.to_redis_fields())
-    assert abs(restored.tracklets[0].ppe_helmet_conf - 0.92) < 1e-6
-    assert abs(restored.tracklets[0].ppe_vest_conf - 0.11) < 1e-6
+    r = restored.tracklets[0]
+    assert abs(r.ppe_helmet_conf - 0.92) < 1e-6
+    assert abs(r.ppe_vest_conf - 0.11) < 1e-6
+    assert abs(r.ppe_gloves_conf - 0.75) < 1e-6
+    assert r.ppe_mask_conf == 0.0
 
 
 def test_tracklet_ppe_fields_absent_in_old_frame_returns_none() -> None:
@@ -174,18 +181,20 @@ def test_tracklet_ppe_fields_absent_in_old_frame_returns_none() -> None:
         camera_id=1, seq_id=0, timestamp_ms=0, tracklets=(t,), face_embeddings=()
     ).to_redis_fields()
 
-    # Simulate an old frame: strip ppe keys from the serialized tracklet JSON
     import json
 
     raw = json.loads(fields["tracklets"])
     for tl in raw:
-        tl.pop("ppe_helmet_conf", None)
-        tl.pop("ppe_vest_conf", None)
+        for key in ("ppe_helmet_conf", "ppe_vest_conf", "ppe_gloves_conf", "ppe_mask_conf"):
+            tl.pop(key, None)
     fields["tracklets"] = json.dumps(raw)
 
     restored = DetectionFrame.from_redis_fields(fields)
-    assert restored.tracklets[0].ppe_helmet_conf is None
-    assert restored.tracklets[0].ppe_vest_conf is None
+    r = restored.tracklets[0]
+    assert r.ppe_helmet_conf is None
+    assert r.ppe_vest_conf is None
+    assert r.ppe_gloves_conf is None
+    assert r.ppe_mask_conf is None
 
 
 def test_tracklet_keypoints_defaults_empty() -> None:
