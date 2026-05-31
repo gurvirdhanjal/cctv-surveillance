@@ -75,7 +75,9 @@ Legacy prototype code is in `legacy/`. Do not import.
 
 ## 3. Current phase
 
-We are at **Phase 3: Profiler + Dispatcher + Audit** (not yet started — plan not written).
+We are at **Phase 2d: Multi-Modal Person Tracking Upgrade** (plan written — NOT STARTED). Plan: `docs/superpowers/plans/2026-05-31-vms-v2-phase2d-multimodal-tracking-upgrade.md`. Delivers: YOLOv8x-pose (keypoints + face visibility gate), BoT-SORT tracker, OSNet msmt17 body Re-ID, `FusionResolver` (Face ≻ Body ≻ BLE), BLE badge service (`vms/ble/`), DB migration (badge_id, ble_events, resolved_via), `assign_and_identify` returns `resolved_via` tag.
+
+**Phase 3** (Profiler + Dispatcher + Audit) not yet started — plan not written.
 
 **Phase 2c** (Cross-Camera Identity Hardening) is **COMPLETE** — 342 tests passing. Plan: `docs/superpowers/plans/2026-05-31-vms-v2-phase2c-cross-camera-identity-hardening.md`. Delivered: rolling gallery buffer (N=8 per tracklet), confirmed track promotion after N sightings (lower sim threshold + 10-min stale TTL), `CameraTopology` spatial-temporal gate (JSON-configurable per camera pair), `BodyEmbedder` (OSNet ONNX) as face-absent fallback with `Tracklet.body_embedding` field wired into `InferenceEngine`. Per-gid margin computation fix prevents false margin failures when same person has multiple camera tracklets. No schema migration required.
 
