@@ -42,6 +42,11 @@ class Settings(BaseSettings):
 
     # identity
     reid_stale_ms: int = 300_000
+    reid_gallery_size: int = 8
+    reid_confirm_after_sightings: int = 3
+    reid_confirmed_sim: float = 0.60
+    reid_confirmed_stale_ms: int = 600_000
+    reid_camera_topology_json: str = "{}"
     zone_cache_ttl_s: int = 30
 
     # pipeline tuning

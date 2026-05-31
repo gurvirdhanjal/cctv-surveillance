@@ -90,3 +90,12 @@ def test_anomaly_defaults() -> None:
     assert s.maintenance_cache_ttl_s == 30
     assert s.anomaly_max_consecutive_errors == 5
     assert s.alerts_stream_maxlen == 10_000
+
+
+def test_settings_gallery_defaults() -> None:
+    s = Settings(db_url="postgresql://x", jwt_secret="x")  # type: ignore[call-arg]
+    assert s.reid_gallery_size == 8
+    assert s.reid_confirm_after_sightings == 3
+    assert s.reid_confirmed_sim == 0.60
+    assert s.reid_confirmed_stale_ms == 600_000
+    assert s.reid_camera_topology_json == "{}"
