@@ -110,6 +110,7 @@ class Person(Base):
     employee_id: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    badge_id: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
     thumbnail_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     purged_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow_naive)
@@ -324,6 +325,37 @@ class TrackingEvent(Base):
     floor_x: Mapped[float | None] = mapped_column(Float, nullable=True)
     floor_y: Mapped[float | None] = mapped_column(Float, nullable=True)
     seq_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    resolved_via: Mapped[str | None] = mapped_column(
+        String(16),
+        CheckConstraint(
+            "resolved_via IN ('face','body','ble','unknown')",
+            name="chk_tracking_resolved_via",
+        ),
+        nullable=True,
+    )
+
+
+class BleEvent(Base):
+    """Records a BLE badge detection near a fixed reader."""
+
+    __tablename__ = "ble_events"
+    __table_args__ = (
+        Index("ix_ble_events_person_id", "person_id"),
+        Index("ix_ble_events_badge_id", "badge_id"),
+        Index("ix_ble_events_event_ts", "event_ts"),
+    )
+
+    event_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    person_id: Mapped[int | None] = mapped_column(
+        ForeignKey("persons.person_id", ondelete="SET NULL"), nullable=True
+    )
+    badge_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    zone_id: Mapped[int | None] = mapped_column(
+        ForeignKey("zones.zone_id", ondelete="SET NULL"), nullable=True
+    )
+    rssi: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    reader_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    event_ts: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow_naive)
 
 
 class ReidMatch(Base):

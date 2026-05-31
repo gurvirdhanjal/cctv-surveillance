@@ -171,6 +171,17 @@ class IdentityEngine:
             if entry.global_track_id == gid:
                 entry.person_id = person_id
 
+    def anchor_person_by_badge(self, person_id: int, badge_id: str) -> None:
+        """Propagate person_id to registry entries that have no identification yet.
+
+        Called by BleConsumer when a badge is detected near a BLE reader.
+        Only fills entries without an existing person_id to avoid overwriting
+        a higher-confidence face identification.
+        """
+        for entry in self._registry.values():
+            if entry.person_id is None:
+                entry.person_id = person_id
+
     def get_person_id(self, camera_id: int, local_track_id: int) -> int | None:
         """Return the resolved person_id for a (camera, track) pair, or None."""
         entry = self._registry.get((camera_id, local_track_id))
