@@ -16,7 +16,6 @@ import redis.asyncio as aioredis
 
 from vms.config import get_settings
 from vms.inference.body_embedder import BodyEmbedder
-from vms.inference.ppe import PPEModel
 from vms.inference.detector import (
     SCRFDDetector,
     _InsightFaceBackend,
@@ -25,6 +24,7 @@ from vms.inference.detector import (
 )
 from vms.inference.embedder import AdaFaceEmbedder, _InsightFaceEmbedder, _NullEmbedder
 from vms.inference.messages import DetectionFrame, FaceWithEmbedding, Tracklet
+from vms.inference.ppe import PPEModel
 from vms.inference.tracker import PerCameraTracker
 from vms.inference.violence import ViolenceModel
 from vms.ingestion.messages import FramePointer
@@ -113,8 +113,6 @@ def _score_ppe(
         x2c, y2c = min(w, x2), min(h, y2)
         crop = frame_bgr[y1c:y2c, x1c:x2c]
         scores = ppe_model.score_crop(crop) if crop.size > 0 else None
-        helmet_conf = scores[0] if scores is not None else None
-        vest_conf = scores[1] if scores is not None else None
         result.append(
             Tracklet(
                 local_track_id=t.local_track_id,
@@ -125,8 +123,10 @@ def _score_ppe(
                 body_embedding=t.body_embedding,
                 keypoints=t.keypoints,
                 face_visible=t.face_visible,
-                ppe_helmet_conf=helmet_conf,
-                ppe_vest_conf=vest_conf,
+                ppe_helmet_conf=scores["helmet"] if scores is not None else None,
+                ppe_vest_conf=scores["vest"] if scores is not None else None,
+                ppe_gloves_conf=scores["gloves"] if scores is not None else None,
+                ppe_mask_conf=scores["mask"] if scores is not None else None,
             )
         )
     return tuple(result)
