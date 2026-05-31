@@ -164,6 +164,65 @@ def test_extract_body_embeddings_no_embedder_returns_empty() -> None:
     assert result[0].body_embedding == ()
 
 
+def test_score_ppe_returns_tracklets_unchanged_when_model_none() -> None:
+    import numpy as np
+
+    from vms.inference.engine import _score_ppe
+    from vms.inference.messages import Tracklet
+
+    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+    tracklets = (
+        Tracklet(local_track_id=1, camera_id=1, bbox=(10, 20, 60, 120), confidence=0.9),
+    )
+    result = _score_ppe(frame, tracklets, None)
+    assert result[0].ppe_helmet_conf is None
+    assert result[0].ppe_vest_conf is None
+
+
+def test_score_ppe_populates_ppe_fields() -> None:
+    from unittest.mock import MagicMock
+
+    import numpy as np
+
+    from vms.inference.engine import _score_ppe
+    from vms.inference.messages import Tracklet
+
+    ppe_model = MagicMock()
+    ppe_model.is_available = True
+    ppe_model.score_crop.return_value = (0.88, 0.73)
+
+    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+    tracklets = (
+        Tracklet(local_track_id=1, camera_id=1, bbox=(10, 20, 60, 120), confidence=0.9),
+    )
+    result = _score_ppe(frame, tracklets, ppe_model)
+    assert abs(result[0].ppe_helmet_conf - 0.88) < 1e-6
+    assert abs(result[0].ppe_vest_conf - 0.73) < 1e-6
+    assert ppe_model.score_crop.call_count == 1
+
+
+def test_score_ppe_handles_none_return_from_model() -> None:
+    """When score_crop returns None (e.g. crop too small), ppe fields stay None."""
+    from unittest.mock import MagicMock
+
+    import numpy as np
+
+    from vms.inference.engine import _score_ppe
+    from vms.inference.messages import Tracklet
+
+    ppe_model = MagicMock()
+    ppe_model.is_available = True
+    ppe_model.score_crop.return_value = None
+
+    frame = np.zeros((100, 100, 3), dtype=np.uint8)
+    tracklets = (
+        Tracklet(local_track_id=1, camera_id=1, bbox=(0, 0, 10, 10), confidence=0.8),
+    )
+    result = _score_ppe(frame, tracklets, ppe_model)
+    assert result[0].ppe_helmet_conf is None
+    assert result[0].ppe_vest_conf is None
+
+
 def test_extract_body_embeddings_clamps_bbox_to_frame() -> None:
     """Out-of-bounds bbox is clamped -- no array index error."""
     from unittest.mock import MagicMock

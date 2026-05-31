@@ -16,6 +16,7 @@ import redis.asyncio as aioredis
 
 from vms.config import get_settings
 from vms.inference.body_embedder import BodyEmbedder
+from vms.inference.ppe import PPEModel
 from vms.inference.detector import (
     SCRFDDetector,
     _InsightFaceBackend,
@@ -92,6 +93,45 @@ def _extract_body_embeddings(
     return tuple(result)
 
 
+def _score_ppe(
+    frame_bgr: np.ndarray[Any, Any],
+    tracklets: tuple[Tracklet, ...],
+    ppe_model: PPEModel | None,
+) -> tuple[Tracklet, ...]:
+    """Return tracklets with ppe_helmet_conf/ppe_vest_conf populated from person crops.
+
+    Returns original tracklets unchanged when ppe_model is None.
+    Bbox is clamped to frame dimensions before cropping.
+    """
+    if ppe_model is None:
+        return tracklets
+    h, w = frame_bgr.shape[:2]
+    result: list[Tracklet] = []
+    for t in tracklets:
+        x1, y1, x2, y2 = t.bbox
+        x1c, y1c = max(0, x1), max(0, y1)
+        x2c, y2c = min(w, x2), min(h, y2)
+        crop = frame_bgr[y1c:y2c, x1c:x2c]
+        scores = ppe_model.score_crop(crop) if crop.size > 0 else None
+        helmet_conf = scores[0] if scores is not None else None
+        vest_conf = scores[1] if scores is not None else None
+        result.append(
+            Tracklet(
+                local_track_id=t.local_track_id,
+                camera_id=t.camera_id,
+                bbox=t.bbox,
+                confidence=t.confidence,
+                embedding=t.embedding,
+                body_embedding=t.body_embedding,
+                keypoints=t.keypoints,
+                face_visible=t.face_visible,
+                ppe_helmet_conf=helmet_conf,
+                ppe_vest_conf=vest_conf,
+            )
+        )
+    return tuple(result)
+
+
 class InferenceEngine:
     """Reads from frames:group{N} streams, runs model stack, publishes DetectionFrame."""
 
@@ -105,6 +145,7 @@ class InferenceEngine:
         redis_client: aioredis.Redis,
         violence: ViolenceModel | None = None,
         body_embedder: BodyEmbedder | None = None,
+        ppe: PPEModel | None = None,
     ) -> None:
         self._camera_ids = camera_ids
         self._stream_name = f"frames:group{worker_group}"
@@ -114,6 +155,7 @@ class InferenceEngine:
         self._redis = redis_client
         self._violence = violence
         self._body_embedder = body_embedder
+        self._ppe = ppe
         self._running = False
         self._last_id = "0-0"
 
@@ -175,6 +217,7 @@ class InferenceEngine:
         enriched_tracklets = _extract_body_embeddings(
             frame_bgr, enriched_tracklets, self._body_embedder
         )
+        enriched_tracklets = _score_ppe(frame_bgr, enriched_tracklets, self._ppe)
 
         violence_score = self._compute_violence_score(
             pointer.cam_id, frame_bgr, len(raw_tracklets), timestamp_ms
