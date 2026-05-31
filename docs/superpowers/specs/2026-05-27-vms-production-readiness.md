@@ -1,5 +1,5 @@
 # VMS Production Readiness Specification
-**Design Specification** · 2026-05-27
+**Design Specification** · 2026-05-27 · **Last updated: 2026-06-01**
 **Status:** Approved
 
 This document enumerates the exit criteria for a v1 GA ("sellable") deployment.
@@ -80,7 +80,7 @@ These numbers are targets validated by the Phase 5 soak test. Until soak passes,
 | Metric | Target | GPU SKU | Notes |
 |---|---|---|---|
 | Max concurrent cameras | 52 | NVIDIA A4000 16 GB | 1 InferenceEngine per 8-camera group |
-| Frame throughput | 25 fps per camera | A4000 | SCRFD 2.5G + ByteTrack |
+| Frame throughput | 25 fps per camera | A4000 | SCRFD 2.5G + YOLOv8x-pose + BoT-SORT |
 | Inference latency p99 | < 300 ms per frame | A4000 | End-to-end frame → TrackingEvent |
 | FAISS search latency | < 5 ms for 100K embeddings | CPU | L2-normalized flat index |
 | DB write throughput | 1,300 rows/s | PostgreSQL 16 + NVMe | tracking_events with pgvector |
@@ -91,14 +91,16 @@ These numbers are targets validated by the Phase 5 soak test. Until soak passes,
 
 ## 7. Per-Phase Gate-Closing Matrix
 
-| Gate category | 1A.1 | 1A.2 | 1B.1 | 1B.2 | 2a.1 | 2a.2 | Foundation | 2b | 3 | 4 | 5 | 6 |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| SLOs (basic) | | | ✓ | | | | | | | | ✓ | |
-| Security basics | | | ✓ | ✓ | | | | | | | ✓ | |
-| GDPR basics | ✓ | ✓ | | ✓ | | | | | ✓ | | ✓ | |
-| Operational docs | | | | | | | ✓ | | | | | |
-| 24h soak | | | | | | | | | | | ✓ | |
-| 52-cam rollout | | | | | | | | | | | | ✓ |
+Phases 1A.1 through 2d are **COMPLETE** as of 2026-06-01 (405 tests passing). Phases 3–6 are pending.
+
+| Gate category | 1A.1 ✓ | 1A.2 ✓ | 1B.1 ✓ | 1B.2 ✓ | 2a.1 ✓ | 2a.2 ✓ | Foundation ✓ | 2b ✓ | 2c ✓ | 2d ✓ | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| SLOs (basic) | | | ✓ | | | | | | | | | | ✓ | |
+| Security basics | | | ✓ | ✓ | | | | | | | | | ✓ | |
+| GDPR basics | ✓ | ✓ | | ✓ | | | | | | | ✓ | | ✓ | |
+| Operational docs | | | | | | | ✓ | | | | | | | |
+| 24h soak | | | | | | | | | | | | | ✓ | |
+| 52-cam rollout | | | | | | | | | | | | | | ✓ |
 
 ---
 
@@ -106,7 +108,7 @@ These numbers are targets validated by the Phase 5 soak test. Until soak passes,
 
 A deployment is **GA-ready** when:
 
-1. All COMPLETE phases above have passing test suites (current: 171 tests)
+1. All COMPLETE phases above have passing test suites (current: **405 tests**, 5 deselected `heavy_models`)
 2. Security review clean (Phase 5)
 3. GDPR purge end-to-end proven in staging (Phase 1B.2 ✓)
 4. Install runbook validated by external tester (Phase 4)

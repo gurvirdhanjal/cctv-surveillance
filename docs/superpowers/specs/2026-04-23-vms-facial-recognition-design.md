@@ -4,6 +4,8 @@
 
 > **DATABASE NOTE:** This v1 spec used MSSQL Server + pyodbc. The project now uses **PostgreSQL 16 + pgvector** exclusively. All MSSQL references in this file are historical. The authoritative schema is `vms/db/models.py` + `alembic/versions/0001_initial_schema.py`.
 
+> **TRACKER NOTE (2026-06-01):** ByteTrack has been replaced by **BoT-SORT** (camera motion compensation + better occlusion handling). The person detector has been upgraded from YOLOv8n to **YOLOv8x-pose** (adds 17 COCO keypoints per tracklet). Config: `botsort_custom.yaml`. All ByteTrack references in this file are historical.
+
 ---
 
 ## 1. Overview

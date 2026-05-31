@@ -1,6 +1,6 @@
 # VMS v2 — Hardened Design (Existing-Camera Retrofit + Anomaly Suite + Maintenance + Scaling)
 
-**Design Specification** · 2026-05-01
+**Design Specification** · 2026-05-01 · **Last updated: 2026-06-01**
 **Status:** Approved · Supersedes the v1 baseline for in-scope sections; v1 sections marked *unchanged* below remain authoritative.
 **Supersedes (in part):** `docs/superpowers/specs/2026-04-23-vms-facial-recognition-design.md`
 
@@ -20,7 +20,9 @@
 | Audit log | Not in scope | Immutable append-only `audit_log` with hash-chain tamper detection |
 | Capacity planning | "Multi-node upgrade path" mentioned | Concrete per-GPU-SKU capacity table + 3-step scaling runbook (single-GPU → two-node → Kafka) |
 | Production hardening | Implicit | 12 explicit failure modes covered (clock skew, embedding drift, GDPR erasure, anti-spoofing hook, model rollback, privacy-at-rest, etc.) |
-| Theft / harassment / mobile app / SaaS / PPE / shift emails / klaxon / CAD heatmap / tampering detection | — | All explicitly **deferred to v2.x** to keep v1 shippable |
+| Theft / harassment / mobile app / SaaS / shift emails / klaxon / CAD heatmap / tampering detection | — | All explicitly **deferred to v2.x** to keep v1 shippable |
+| **PPE compliance (helmet/vest/gloves/mask)** | Not in v1 | **Delivered post-Phase 2d** — `PPEDetector` + `PPEModel` (YOLOv8l SH17 ONNX). See §C detector matrix. |
+| **Multi-modal person Re-ID** | ByteTrack + face-only | **Delivered Phase 2d** — YOLOv8x-pose (keypoints) + BoT-SORT + OSNet AIN x1.0 msmt17 (body Re-ID) + BLE badge fallback + `FusionResolver` (Face ≻ Body ≻ BLE) |
 | Model lifecycle | Models bundled with code | **Models downloaded on first run** from a manifest (HF Hub or customer mirror, SHA-256 verified). Fine-tunable on customer data via reference recipes. Per-camera version + threshold overrides. CLI: `vms-models download / verify / pin / swap` |
 | Scheduled jobs | Implicit, scattered | **§M centralises** all 12 production cron jobs under `vms.scheduler` with idempotency, audit logging, and timeout/failure handling |
 | Real-time state | Frontend referenced `/api/state/snapshot` and `head_count` WebSocket event with no spec backing | **§N defines** `HeadCountAggregator` component, full snapshot response schema, and adds `head_count`, `alert_state_changed`, `degraded_mode` to the event matrix |
@@ -50,7 +52,6 @@
 - Harassment detection (action recognition immaturity)
 - Mobile companion app
 - Multi-tenant SaaS variant
-- PPE compliance (helmet/vest)
 - Plant-floor klaxon / GPIO relay output
 - CAD heatmap export
 - Shift-end auto-email reports
@@ -123,25 +124,30 @@ GET    /api/sites/readiness-report.pdf?site=  # generates signed PDF
 
 ```python
 class AnomalyDetector(ABC):
-    alert_type: str                  # e.g. "VIOLENCE"
-    severity: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
-    requires_models: list[str]       # ["yolo_person", "violence_classifier"]
-    requires_tier: list[str]         # ["FULL", "MID"] — tier gate
+    alert_type: str                    # e.g. "VIOLENCE"
+    severity: Severity                 # LOW | MEDIUM | HIGH | CRITICAL
+    requires_models: tuple[str, ...]   # ("violence",) — gate check
+    requires_tier: tuple[str, ...]     # ("FULL", "MID") — tier gate
+
+    def __init__(self, config: dict[str, Any]) -> None: ...
 
     @abstractmethod
-    def should_run(self, frame_meta: FrameMeta, prior_outputs: dict) -> bool:
-        """Trigger gate. Return False to skip on this frame."""
+    def should_run(self, ctx: DetectorContext) -> bool:
+        """Cheap CPU-side gate. Return False to skip evaluate()."""
 
     @abstractmethod
-    def evaluate(self, frame: np.ndarray, prior_outputs: dict) -> AnomalyEvent | None:
-        """Run model + emit candidate event."""
+    def evaluate(self, ctx: DetectorContext) -> AnomalyEvent | None:
+        """Run rule/model. Return candidate event or None."""
 
     @abstractmethod
     def fsm_config(self) -> FSMConfig:
-        """Sustain duration, cooldown, dedup window, severity escalation rules."""
+        """Sustain duration, cooldown, dedup window."""
 ```
 
-Adding theft / harassment / PPE / fall detection in v2.x = one new class + one row in `anomaly_detectors`. **Core architecture never changes.**
+`DetectorContext` carries `frame: DetectionFrame`, `zone_lookup`, `active_track_zones`, `head_count`, and `violence_score` — everything a detector needs without accessing the DB or Redis directly.
+
+Adding theft / harassment / fall detection in v2.x = one new class + one row in `anomaly_detectors`. **Core architecture never changes.**
+PPE compliance is already delivered (see detector matrix below).
 
 ### Detector registry (DB)
 
@@ -158,23 +164,28 @@ CREATE TABLE anomaly_detectors (
 );
 ```
 
-### v1 detector matrix
+### Detector matrix (as implemented)
 
 | `alert_type` | Model / mechanism | Trigger gate | Sustained | Cooldown | Severity | Tier required |
 |---|---|---|---|---|---|---|
-| `UNKNOWN_PERSON` | Existing pipeline | Person tracklet without `person_id` | >500ms in frame | 60s/zone | HIGH | FULL |
+| `UNKNOWN_PERSON` | FAISS identity pipeline | Person tracklet without `person_id` | >500ms in frame | 60s/zone | HIGH | FULL |
 | `PERSON_LOST` | Tracker state | `global_track_id` absent everywhere | >30s | 120s | MEDIUM | FULL |
-| `CROWD_DENSITY` | YOLO count + zone | `count > zone.max_capacity` | >10s continuous | 300s/zone | MEDIUM | FULL, MID |
-| `INTRUSION` | YOLO + zone + schedule | Person enters `is_restricted=true` zone outside `zones.allowed_hours` | >2s | 60s/zone | CRITICAL | FULL, MID, LOW |
-| `VIOLENCE` | MoViNet-A0 (ONNX, pre-trained on RWF-2000) | YOLO sees ≥2 persons in frame; run model on rolling 16-frame clip every 1s | confidence >0.65 sustained over 2 consecutive clips | 30s/zone | CRITICAL | FULL, MID |
-| `LOITERING` | Tracker dwell | Single tracklet in zone >`zones.loiter_threshold_s` (default 180s) | continuous | 600s/zone | LOW | FULL, MID |
+| `CROWD_DENSITY` | YOLO head count + zone | `count > zone.max_capacity` | >10s continuous | 300s/zone | MEDIUM | FULL, MID |
+| `INTRUSION` | Zone + schedule rule | Person enters `is_restricted=true` zone outside `zones.allowed_hours` | >2s | 60s/zone | CRITICAL | FULL, MID, LOW |
+| `VIOLENCE` | **MoViNet A2 Stream** (TF SavedModel) | YOLOv8x-pose sees ≥2 persons in frame | confidence >0.65 sustained 2s | 30s/zone | CRITICAL | FULL, MID |
+| `LOITERING` | Tracker dwell via ZonePresence DB | Single tracklet in zone >`zones.loiter_threshold_s` (default 180s) | continuous | 600s/zone | LOW | FULL, MID |
+| `PPE_VIOLATION` | **YOLOv8l SH17** (ONNX, 17-class) — helmet(10), vest(16), gloves(9), mask(5) | Per-tracklet: `ppe_helmet_conf < threshold` OR `ppe_vest_conf < threshold` (gloves/mask opt-in) | >3s continuous | 120s/track | HIGH | FULL, MID |
+
+**Note on VIOLENCE model:** The implementation uses **MoViNet A2 Stream** (not A0 as originally specced). A2 provides streaming-frame inference (~4ms/frame on CPU) via a stateful per-camera context, avoiding the 16-frame clip batch approach. Accuracy: 78.6% Top-1 on Kinetics-400. A0 was the original design choice; A2 was adopted for latency and state management advantages.
 
 ### Trigger-gated execution
 
 The `InferenceEngine` separates models into two pools:
 
-- **Always-on pool:** SCRFD (face), YOLOv8n (person). Run on every frame at the camera's configured fps.
-- **Gated pool:** AdaFace (only on faces ≥`MIN_FACE_PX`), MoViNet violence (only when YOLO output passes the gate condition for that camera/frame).
+- **Always-on pool:** SCRFD (face detection), **YOLOv8x-pose** (person detection + 17 COCO keypoints), **BoT-SORT** tracker. Run on every frame.
+- **Gated pool:** AdaFace face embedding (only when keypoint confidence indicates a frontal face — nose + eye conf ≥ `face_kpt_min_conf=0.5`); MoViNet A2 Stream violence (only when ≥2 persons detected); PPEModel (only when configured and persons present); OSNet AIN body Re-ID (per-person crop, only when `VMS_PPE_MODEL` / `VMS_OSNet_MODEL` set).
+
+**Keypoint gate (Phase 2d addition):** YOLOv8x-pose provides 17 COCO keypoints per tracklet. If nose/eye keypoints have low confidence (person facing away, helmet covering face, top-down angle), SCRFD + AdaFace are skipped entirely. This saves ~30% GPU on ceiling cameras where frontal faces are rare.
 
 Gate predicates run in a CPU-side rule layer between model passes — cost ~0ms. The framework calls `should_run()` on every detector before invoking `evaluate()`.
 
@@ -903,6 +914,49 @@ When the system is in degraded mode, `degraded` is non-null:
 ### N.4 Implementation note
 
 `HeadCountAggregator` lives in **Phase 2** (alongside the alert FSM); the `/api/state/snapshot` endpoint ships in **Phase 1B** initially with a stub head_count, upgraded to real values in Phase 2.
+
+---
+
+## §O. Multi-Modal Person Tracking (Phase 2c/2d — delivered)
+
+This section documents design decisions made and implemented after the original v2 spec was written.
+
+### §O.1 Tracker upgrade
+
+| Component | Original spec | Implemented |
+|---|---|---|
+| Person detector | YOLOv8n | **YOLOv8x-pose** (person + 17 COCO keypoints) |
+| Tracker | ByteTrack | **BoT-SORT** (camera motion compensation via sparse optical flow) |
+| Config | `bytetrack_custom.yaml` | `botsort_custom.yaml` |
+
+### §O.2 Body Re-ID (OSNet)
+
+Cross-camera re-identification now uses body appearance as the **primary** signal and face as secondary. This is the correct priority for factory ceiling cameras where frontal faces are rarely visible.
+
+| Model | OSNet AIN x1.0 msmt17 |
+|---|---|
+| Output | 512-dim L2-normalised body embedding |
+| Training data | MSMT17 (15 diverse datasets, 1,041 identities) |
+| Rank-1 accuracy | 73% on DukeMTMC-reID (8 cameras, calibrated 2026-06-01) |
+| Thresholds | `reid_body_confirmed_sim=0.51` (95% recall), `reid_body_cross_cam_sim=0.56` |
+
+### §O.3 FusionResolver — multi-modal identity
+
+Once a person is identified (at entry gate via face, or via BLE badge), their `person_id` propagates to all cameras tracking the same `global_track_id` via body Re-ID.
+
+Priority order: **Face (FAISS) ≻ Body gallery anchor ≻ BLE badge**
+
+`assign_and_identify()` returns `(global_track_id, person_id, resolved_via)` where `resolved_via` is one of `'face' | 'body' | 'ble' | 'unknown'`. This is written to `tracking_events.resolved_via` for audit.
+
+### §O.4 BLE badge fallback
+
+When camera-based Re-ID fails (person in a dead zone, occluded, or too small), a Bluetooth Low Energy badge reader confirms zone-level presence. MQTT-based reader → Redis stream → `BleConsumer` → `anchor_person_by_badge()` in IdentityEngine.
+
+Config: `VMS_BLE_MQTT_BROKER`, `VMS_BLE_ZONE_READER_MAP_JSON`. Empty broker = BLE disabled (default).
+
+### §O.5 PPE Compliance (delivered, not deferred)
+
+See §C detector matrix (`PPE_VIOLATION` row). The implementation uses YOLOv8l trained on SH17 (17 classes). Factory-relevant classes: helmet(10), vest(16), gloves(9), mask(5) — verified from model.names. Gloves and mask checking is **opt-in** via `check_gloves=True` / `check_mask=True` in the detector config row.
 
 ---
 

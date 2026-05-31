@@ -1,10 +1,36 @@
 # VMS v2 — Frontend Design Specification
 
-**Design Specification** · 2026-05-01
+**Design Specification** · 2026-05-01 · **Last updated: 2026-06-01**
 **Status:** Approved · Companion to `2026-05-01-vms-v2-hardened-design.md` §12 (high-level frontend)
 **Audience:** Frontend engineers implementing the React app in Phase 4.
 
+> **Implementation status (2026-06-01): Frontend is DEFERRED — not starting until Phase 3 (Dispatcher + Profiler + Audit) backend work is complete.** The design below is correct and ready to build from; the sequencing decision is that Phase 3 API surface must exist before frontend development begins. See §0 for prerequisites.
+
 This document is the source of truth for the frontend. Every component, screen, and interaction below should be implementable without further design discussion.
+
+---
+
+## §0. Backend Prerequisites (must exist before frontend starts)
+
+The frontend spec assumes the following backend capabilities. As of 2026-06-01, items marked ✗ are not yet implemented and block the indicated views.
+
+| Prerequisite | Blocks | Status |
+|---|---|---|
+| `GET /api/persons`, `POST /api/persons`, enrollment API | Admin persons view | ✓ Done |
+| JWT auth, role-based access | All views | ✓ Done |
+| `GET /api/alerts` (paginated, filtered) | Alert history, analytics | ✗ Phase 3 |
+| `GET /api/cameras`, `POST /api/cameras`, `PATCH /api/cameras/{id}` | Admin cameras view | ✗ Phase 3 |
+| `GET /api/zones`, `POST /api/zones`, zone CRUD | Admin zone editor | ✗ Phase 3 |
+| `GET /api/anomaly-detectors`, `PATCH` enable/disable + config | Admin detector config | ✗ Phase 3 |
+| `GET /api/state/snapshot` (head count, active tracks) | Guard live floor plan | ✗ Phase 3 |
+| **WebSocket / Socket.io server** bridging Redis alert stream | Guard real-time alerts | ✗ Phase 3 |
+| **RTSP → HLS transcoder** (separate service: FFmpeg / MediaMTX) | Guard live video feeds | ✗ Infrastructure — not in any current plan |
+| Alert dispatcher (email/Slack/Telegram/webhook) | Admin alert-routing | ✗ Phase 3 |
+| Camera profiler API | Admin camera profiling | ✗ Phase 3 |
+| `GET /api/tracking/timeline` (time-series query) | Analytics timeline | ✗ Phase 5 |
+| Forensic CLIP search API | Forensic view | ✗ Phase 5 |
+
+**Critical blocker:** HLS video streaming for the Guard live view requires a separate infrastructure service (FFmpeg pipeline or MediaMTX). This is not a backend code change — it is a deployment architecture decision that must be made before Phase 4.
 
 ---
 
@@ -517,7 +543,7 @@ Office HR Door     adaface_ir50_acme_v2     default        adaface_min_sim=0.78
 | Event | Direction | Payload | Throttling |
 |---|---|---|---|
 | `person_location` | server → client | `{global_track_id, person_id, camera_id, bbox, floor_x, floor_y, ts}` | 5fps per `global_track_id`, diff-only |
-| `alert_fired` | server → client | `{alert_id, alert_type, severity, camera_id, zone_id, snapshot_url, ts}` | immediate |
+| `alert_fired` | server → client | `{alert_id, alert_type, severity, camera_id, zone_id, global_track_id, snapshot_url, ts}` — `alert_type` includes `PPE_VIOLATION` | immediate |
 | `alert_state_changed` | server → client | `{alert_id, new_state, actor_user_id, ts}` | immediate |
 | `track_corrected` | server → client | `{global_track_id, new_person_id, ts}` | immediate |
 | `camera_snapshot` | server → client | `{camera_id, url, ts}` | 2s per subscribed camera |
