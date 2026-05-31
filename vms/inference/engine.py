@@ -164,7 +164,9 @@ class InferenceEngine:
             for t in raw_tracklets
         )
 
-        enriched_tracklets = _extract_body_embeddings(frame_bgr, enriched_tracklets, self._body_embedder)
+        enriched_tracklets = _extract_body_embeddings(
+            frame_bgr, enriched_tracklets, self._body_embedder
+        )
 
         violence_score = self._compute_violence_score(
             pointer.cam_id, frame_bgr, len(raw_tracklets), timestamp_ms

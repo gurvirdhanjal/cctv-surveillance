@@ -120,12 +120,14 @@ class ViolenceModel:
             test_states = init_states_fn(tf.constant([0, 0, 0, 0, 3]))
             n_states = len(test_states)
 
-            self._model = encoder          # callable: encoder({**states, 'image': frame})
+            self._model = encoder  # callable: encoder({**states, 'image': frame})
             self._init_states_fn = init_states_fn
             self._tf = tf
             logger.info(
                 "MoViNet A2 Stream ready — %dx%d input, %d streaming state tensors",
-                _INPUT_H, _INPUT_W, n_states,
+                _INPUT_H,
+                _INPUT_W,
+                n_states,
             )
 
         except Exception as exc:

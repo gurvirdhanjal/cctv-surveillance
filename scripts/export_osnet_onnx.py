@@ -1,7 +1,12 @@
-"""Download pretrained OSNet x1.0 (Market-1501) and export to ONNX.
+"""SUPERSEDED — OSNet is now loaded directly via torchreid (no ONNX export needed).
 
-OSNet is a person Re-ID model trained on body appearance — angle-invariant,
-works from top-down CCTV views. Rank-1 accuracy 94.2% on Market-1501.
+Use instead:  python scripts/download_osnet_ain_msmt17.py
+That script downloads osnet_ain_x1_0 msmt17 weights (.pth) from HuggingFace and
+verifies them via torchreid.utils.FeatureExtractor.
+
+This file is kept for reference only.
+-----------------------------------------------------------------------
+Original: Download pretrained OSNet x1.0 (Market-1501) and export to ONNX.
 
 Usage:
     pip install torchreid torch onnx

@@ -43,6 +43,11 @@ import numpy as np
 
 sys.path.insert(0, str(os.path.join(os.path.dirname(__file__), "..")))
 
+# Satisfy pydantic-settings required fields before any VMS import triggers get_settings().
+# The script never connects to a DB — these are placeholders only.
+os.environ.setdefault("VMS_DB_URL", "postgresql://localhost/vms_simulate_dummy")
+os.environ.setdefault("VMS_JWT_SECRET", "simulate-script-not-a-real-secret")
+
 from vms.config import get_settings
 from vms.identity.engine import IdentityEngine
 from vms.identity.faiss_index import FaissIndex

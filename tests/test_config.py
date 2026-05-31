@@ -99,3 +99,15 @@ def test_settings_gallery_defaults() -> None:
     assert s.reid_confirmed_sim == 0.60
     assert s.reid_confirmed_stale_ms == 600_000
     assert s.reid_camera_topology_json == "{}"
+
+
+def test_phase2d_config_defaults() -> None:
+    s = Settings(db_url="postgresql://x", jwt_secret="x")  # type: ignore[call-arg]
+    assert s.botsort_config == "botsort_custom.yaml"
+    assert s.yolov8x_pose_model == "models/yolov8x-pose.pt"
+    assert s.osnet_ain_model == "models/osnet_ain_x1_0_msmt17.pth"
+    assert s.face_kpt_min_conf == 0.5
+    assert s.ble_mqtt_broker == ""
+    assert s.ble_mqtt_topic == "vms/ble/events"
+    assert s.ble_stream_maxlen == 10_000
+    assert s.ble_zone_reader_map_json == "{}"

@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     scrfd_model: str = "models/scrfd_2.5g.onnx"
     adaface_model: str = "models/adaface_ir50.onnx"
     bytetrack_config: str = "bytetrack_custom.yaml"
+    botsort_config: str = "botsort_custom.yaml"
+    yolov8x_pose_model: str = "models/yolov8x-pose.pt"
+    # OSNet AIN x1.0 msmt17 — body Re-ID, angle-invariant
+    # Download: python scripts/download_osnet_ain_msmt17.py
+    osnet_ain_model: str = "models/osnet_ain_x1_0_msmt17.pth"
 
     # auth
     jwt_algorithm: str = "HS256"
@@ -47,9 +52,17 @@ class Settings(BaseSettings):
     reid_confirmed_sim: float = 0.60        # face gallery threshold (confirmed tracks)
     reid_confirmed_stale_ms: int = 600_000
     reid_camera_topology_json: str = "{}"
-    # Body Re-ID thresholds (OSNet — higher similarity range than AdaFace face embeddings)
+    # Body Re-ID thresholds (OSNet AIN — higher similarity range than AdaFace face embeddings)
     reid_body_cross_cam_sim: float = 0.65   # body gallery, unconfirmed tracks
     reid_body_confirmed_sim: float = 0.58   # body gallery, confirmed tracks
+    # Keypoint-gated face detection (YOLOv8x-pose)
+    face_kpt_min_conf: float = 0.5   # nose + eye confidence to trigger SCRFD+AdaFace
+    # BLE badge fallback
+    ble_mqtt_broker: str = ""          # empty = BLE disabled
+    ble_mqtt_port: int = 1883
+    ble_mqtt_topic: str = "vms/ble/events"
+    ble_stream_maxlen: int = 10_000
+    ble_zone_reader_map_json: str = "{}"   # {"reader_mac": zone_id, ...}
     zone_cache_ttl_s: int = 30
 
     # pipeline tuning

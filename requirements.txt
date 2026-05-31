@@ -14,3 +14,7 @@ numpy>=1.26.0
 onnxruntime==1.18.0
 ultralytics==8.2.0
 faiss-cpu==1.8.0
+huggingface-hub>=0.23.0
+torch>=2.0.0
+torchvision>=0.15.0
+# torchreid: clone https://github.com/KaiyangZhou/deep-person-reid.git + pip install -e . --no-build-isolation
