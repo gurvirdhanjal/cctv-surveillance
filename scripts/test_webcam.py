@@ -5,30 +5,45 @@ Uses the same production code (SCRFDDetector, AdaFaceEmbedder, PerCameraTracker,
 ViolenceModel, ViolenceDetector) that the deployed system uses.
 
 Usage:
-  python scripts/test_webcam.py                      # webcam index 0
-  python scripts/test_webcam.py --camera 1           # webcam index 1
-  python scripts/test_webcam.py --rtsp rtsp://...    # RTSP stream
-  python scripts/test_webcam.py --no-violence        # skip MoViNet (faster)
+  python scripts/test_webcam.py                           # webcam index 0
+  python scripts/test_webcam.py --camera 1                # webcam index 1
+  python scripts/test_webcam.py --rtsp rtsp://...         # RTSP stream
+  python scripts/test_webcam.py --no-violence             # skip MoViNet (faster)
+  python scripts/test_webcam.py --violence-threshold 0.5  # tune sensitivity
+
+Violence detection is configurable at three levels:
+  1. This script flag:  --no-violence        skip entirely for this run
+  2. Threshold flag:    --violence-threshold  0.0–1.0, lower = more sensitive
+  3. Permanent config:  set VMS_VIOLENCE_MODEL=""  in .env to disable for all processes
+                        set VMS_VIOLENCE_THRESHOLD=0.5 to tune permanently
 
 Screen overlay:
   GREEN box  = tracked person with known identity
   RED box    = tracked person with UNKNOWN identity  (triggers UNKNOWN_PERSON alert)
   ORANGE box = tracked person, face not detected / blurry
-  Top-left   = violence score, FPS, head count
-  Top-right  = alert log (last 5)
+  Top-left   = violence score bar, FPS, head count
+  Top-right  = rolling alert log (last 5)
 
 Controls:
   Q      quit
-  E      enroll face — look at camera, press E, type name in terminal
+  E      enrol face — look at camera, press E, type name in terminal
   R      reset enrolled faces (session only)
   SPACE  pause / resume
+  V      toggle violence detection on/off mid-session
+  +/-    raise/lower violence threshold by 0.05
 """
 
 from __future__ import annotations
 
-import argparse
+# --- Make 'vms' importable when running as a script from any working directory ---
 import os
 import sys
+
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
+
+import argparse
 import time
 from collections import deque
 from datetime import datetime, timezone
@@ -83,11 +98,14 @@ def _overlay_hud(
     ]
     if violence_score is not None:
         bar_color = (0, 0, 255) if violence_score >= violence_thresh else (0, 200, 0)
-        lines.append(f"Violence: {violence_score:.2f}")
+        lines.append(f"Violence: {violence_score:.2f} (thr:{violence_thresh:.2f})")
         # Score bar
         bar_w = int(violence_score * 150)
         cv2.rectangle(frame, (10, 80), (160, 95), (60, 60, 60), -1)
         cv2.rectangle(frame, (10, 80), (10 + bar_w, 95), bar_color, -1)
+        # Threshold marker
+        thr_x = 10 + int(violence_thresh * 150)
+        cv2.line(frame, (thr_x, 78), (thr_x, 97), (255, 255, 0), 2)
     if paused:
         lines.insert(0, "PAUSED")
 
@@ -118,7 +136,11 @@ def main() -> None:
     parser.add_argument("--rtsp", type=str, default=None,
                         help="RTSP URL (overrides --camera)")
     parser.add_argument("--no-violence", action="store_true",
-                        help="Disable MoViNet violence scoring (faster)")
+                        help="Disable MoViNet violence scoring for this run (faster)")
+    parser.add_argument("--violence-threshold", type=float, default=None,
+                        help="Override violence fire threshold 0.0-1.0 "
+                             "(default: VMS_VIOLENCE_THRESHOLD env / config value). "
+                             "Lower = more sensitive. Adjustable live with +/- keys.")
     parser.add_argument("--width", type=int, default=640)
     parser.add_argument("--height", type=int, default=480)
     args = parser.parse_args()
@@ -194,8 +216,12 @@ def main() -> None:
     fps = 0.0
     t_fps = time.time()
     violence_score: float | None = None
-    violence_thresh = settings.violence_threshold
+    # Allow CLI override; otherwise use config value (VMS_VIOLENCE_THRESHOLD env var)
+    violence_thresh = args.violence_threshold if args.violence_threshold is not None \
+                      else settings.violence_threshold
     gate_min = settings.violence_gate_min_persons
+    violence_enabled = violence_model is not None and not args.no_violence
+    print(f"  violence threshold: {violence_thresh:.2f}  (change live with +/- keys, V to toggle)")
 
     # For enrolment: capture the last detected face embeddings
     last_face_embs: list[tuple[float, ...]] = []
@@ -254,7 +280,8 @@ def main() -> None:
                     break
 
         # ---- Violence scoring ----
-        if violence_model and violence_model.is_available and head_count >= gate_min:
+        if violence_enabled and violence_model and violence_model.is_available \
+                and head_count >= gate_min:
             vs = violence_model.score_frame(camera_id=0, frame_bgr=frame)
             if vs is not None:
                 violence_score = vs
@@ -286,7 +313,8 @@ def main() -> None:
             _draw_box(display, x1, y1, x2, y2, label, color)
 
         # ---- HUD ----
-        _overlay_hud(display, fps, head_count, violence_score,
+        _overlay_hud(display, fps, head_count,
+                     violence_score if violence_enabled else None,
                      violence_thresh, alerts, paused)
 
         # ---- Enrolment info bar ----
@@ -306,6 +334,21 @@ def main() -> None:
         elif key == ord("r"):
             enrolled.clear()
             print("  Enrolled faces cleared.")
+
+        elif key == ord("v"):
+            violence_enabled = not violence_enabled
+            state = "ON" if violence_enabled else "OFF"
+            print(f"  Violence detection toggled {state}")
+            if not violence_enabled:
+                violence_score = None
+
+        elif key == ord("+") or key == ord("="):
+            violence_thresh = min(1.0, round(violence_thresh + 0.05, 2))
+            print(f"  Violence threshold raised to {violence_thresh:.2f}")
+
+        elif key == ord("-"):
+            violence_thresh = max(0.0, round(violence_thresh - 0.05, 2))
+            print(f"  Violence threshold lowered to {violence_thresh:.2f}")
 
         elif key == ord("e"):
             # Enrol the currently visible face
