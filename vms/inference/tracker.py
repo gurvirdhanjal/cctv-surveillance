@@ -31,7 +31,7 @@ class PerCameraTracker:
 
     @classmethod
     def from_path(cls, camera_id: int, model_path: str) -> PerCameraTracker:
-        from ultralytics import YOLO  # type: ignore[import-untyped]  # lazy; no GPU in tests
+        from ultralytics import YOLO  # type: ignore[attr-defined]  # lazy; no GPU in tests
 
         return cls(camera_id=camera_id, model=YOLO(model_path))
 
