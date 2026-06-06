@@ -173,3 +173,43 @@ class CameraResponse(BaseModel):
     profiled_at: datetime | None
     model_overrides: str | None
     worker_group: int | None
+
+
+class CameraHardwareUpdate(BaseModel):
+    shutter_type: str = Field(..., pattern="^(rolling|global|unknown)$")
+    capability_tier: str | None = Field(default=None, pattern="^(FULL|MID|LOW)$")
+
+
+class CameraOverridesUpdate(BaseModel):
+    models: dict[str, Any] | None = None
+    thresholds: dict[str, Any] | None = None
+
+
+class ResolvedSettingItem(BaseModel):
+    value: Any
+    source: str
+
+
+class ResolvedConfigResponse(BaseModel):
+    camera_id: int
+    settings: dict[str, ResolvedSettingItem]
+
+
+class ProfileData(BaseModel):
+    resolution_w: int | None = None
+    resolution_h: int | None = None
+    fps_measured: float | None = None
+    focus_score: float | None = None
+    shutter_suggestion: str | None = Field(default=None, pattern="^(rolling|global|unknown)$")
+    shutter_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    suggested_tier: str | None = Field(default=None, pattern="^(FULL|MID|LOW)$")
+
+
+class ProfileResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=False)
+
+    camera_id: int
+    profile_data: ProfileData | None
+    profiled_at: datetime | None
+    capability_tier: str
+    shutter_type: str

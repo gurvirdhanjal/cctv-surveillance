@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from prometheus_client import make_asgi_app
 
-from vms.api.routes import alerts, anomaly_detectors, auth, health, maintenance, persons, state
+from vms.api.routes import alerts, anomaly_detectors, auth, cameras, health, maintenance, persons, state
 from vms.config import Settings, get_settings
 from vms.db.partition_manager import ensure_future_partitions
 from vms.db.session import engine
@@ -33,6 +33,7 @@ app.include_router(state.router, prefix="/api")
 app.include_router(alerts.router, prefix="/api")
 app.include_router(anomaly_detectors.router, prefix="/api")
 app.include_router(maintenance.router, prefix="/api")
+app.include_router(cameras.router, prefix="/api")
 
 # Prometheus metrics endpoint (standard /metrics path, no /api prefix)
 app.mount("/metrics", make_asgi_app())
