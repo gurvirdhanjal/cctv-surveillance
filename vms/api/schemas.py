@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class PersonCreate(BaseModel):
@@ -107,3 +107,69 @@ class SnapshotResponse(BaseModel):
     active_alerts: list[AlertResponse]
     cameras: list[dict[str, Any]]
     degraded: dict[str, Any] | None = None
+
+
+# ── Camera schemas ──────────────────────────────────────────────────────────
+
+VALID_TIERS = frozenset({"FULL", "MID", "LOW"})
+VALID_SHUTTER_TYPES = frozenset({"rolling", "global", "unknown"})
+
+
+class CameraCreate(BaseModel):
+    name: str = Field(..., max_length=200)
+    rtsp_url: str = Field(..., max_length=500)
+    capability_tier: str = Field("FULL")
+    shutter_type: str = Field("unknown")
+    worker_group: int | None = None
+
+    @field_validator("capability_tier")
+    @classmethod
+    def validate_tier(cls, v: str) -> str:
+        if v not in VALID_TIERS:
+            raise ValueError(f"capability_tier must be one of {sorted(VALID_TIERS)}")
+        return v
+
+    @field_validator("shutter_type")
+    @classmethod
+    def validate_shutter(cls, v: str) -> str:
+        if v not in VALID_SHUTTER_TYPES:
+            raise ValueError(f"shutter_type must be one of {sorted(VALID_SHUTTER_TYPES)}")
+        return v
+
+
+class CameraUpdate(BaseModel):
+    name: str | None = Field(None, max_length=200)
+    rtsp_url: str | None = Field(None, max_length=500)
+    is_active: bool | None = None
+    capability_tier: str | None = None
+    shutter_type: str | None = None
+    worker_group: int | None = None
+
+    @field_validator("capability_tier")
+    @classmethod
+    def validate_tier(cls, v: str | None) -> str | None:
+        if v is not None and v not in VALID_TIERS:
+            raise ValueError(f"capability_tier must be one of {sorted(VALID_TIERS)}")
+        return v
+
+    @field_validator("shutter_type")
+    @classmethod
+    def validate_shutter(cls, v: str | None) -> str | None:
+        if v is not None and v not in VALID_SHUTTER_TYPES:
+            raise ValueError(f"shutter_type must be one of {sorted(VALID_SHUTTER_TYPES)}")
+        return v
+
+
+class CameraResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    camera_id: int
+    name: str
+    rtsp_url: str
+    is_active: bool
+    capability_tier: str
+    shutter_type: str
+    profile_data: str | None
+    profiled_at: datetime | None
+    model_overrides: str | None
+    worker_group: int | None
