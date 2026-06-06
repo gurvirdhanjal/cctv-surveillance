@@ -40,6 +40,9 @@ class Camera(Base):
     __tablename__ = "cameras"
     __table_args__ = (
         CheckConstraint("capability_tier IN ('FULL', 'MID', 'LOW')", name="chk_camera_tier"),
+        CheckConstraint(
+            "shutter_type IN ('rolling', 'global', 'unknown')", name="chk_camera_shutter"
+        ),
     )
 
     camera_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -49,6 +52,7 @@ class Camera(Base):
     capability_tier: Mapped[str] = mapped_column(String(10), nullable=False, default="FULL")
     profile_data: Mapped[str | None] = mapped_column(Text, nullable=True)
     profiled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    shutter_type: Mapped[str] = mapped_column(String(10), nullable=False, default="unknown")
     model_overrides: Mapped[str | None] = mapped_column(Text, nullable=True)
     worker_group: Mapped[int | None] = mapped_column(Integer, nullable=True)
     homography_matrix: Mapped[str | None] = mapped_column(Text, nullable=True)
