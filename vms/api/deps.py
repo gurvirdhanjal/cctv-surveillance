@@ -85,6 +85,27 @@ def decode_access_token(token: str) -> dict[str, Any]:
     return dict(jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm]))
 
 
+def require_role(*allowed_roles: str) -> Any:
+    """Return a FastAPI Depends that allows only the specified roles.
+
+    Usage: ``user: dict = require_role("admin", "super_admin")``
+    FastAPI resolves the inner _check function; the outer Depends wrapper
+    tells FastAPI to treat the return value as a dependency, not a literal.
+    """
+
+    def _check(
+        current_user: dict[str, Any] = Depends(get_current_user),  # noqa: B008
+    ) -> dict[str, Any]:
+        if current_user["role"] not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions",
+            )
+        return current_user
+
+    return Depends(_check)
+
+
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),  # noqa: B008
 ) -> dict[str, Any]:
