@@ -73,9 +73,7 @@ def resolve_camera_config(
         "adaface_min_sim": _resolve(
             "adaface_min_sim", base_adaface_min_sim, delta=_ROLLING_DELTAS["adaface_min_sim"]
         ),
-        "scrfd_conf": _resolve(
-            "scrfd_conf", base_scrfd_conf, delta=_ROLLING_DELTAS["scrfd_conf"]
-        ),
+        "scrfd_conf": _resolve("scrfd_conf", base_scrfd_conf, delta=_ROLLING_DELTAS["scrfd_conf"]),
         "burst_frames": _resolve(
             "burst_frames", base_burst_frames, absolute=_ROLLING_ABSOLUTES["burst_frames"]
         ),

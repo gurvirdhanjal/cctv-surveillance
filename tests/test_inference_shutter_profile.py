@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import json
+
 import pytest
 
 from vms.inference.shutter_profile import ResolvedSetting, resolve_camera_config
-
 
 BASE = {
     "base_adaface_min_sim": 0.72,

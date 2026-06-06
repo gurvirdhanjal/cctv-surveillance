@@ -27,7 +27,30 @@ Transform tasks into verifiable goals before starting.
 For multi-step tasks, state a brief plan with verify steps:
   1. [Step] → verify: [check]
   2. [Step] → verify: [check]
-  
+
+### 0.5 Escalation — When Stuck, Use /advisor
+
+When you hit any of the following, **stop and invoke `/advisor` before writing code**:
+
+- Architecture trade-offs with no clear winner (e.g. two valid DB designs)
+- Spec contradictions that can't be resolved by reading the hierarchy in §1
+- Complex concurrency, partitioning, or security design decisions
+- A bug whose root cause isn't clear after two attempts
+- Any decision where getting it wrong means a migration or breaking change
+
+**How `/advisor` works:**
+`/advisor` spawns a Claude Opus 4.8 agent with full project context and your specific
+question. Opus has deeper reasoning than Sonnet and is the right tool for hard decisions.
+It returns a recommendation you can either accept or push back on — you stay in control.
+
+**Trigger phrase examples:**
+- "I'm stuck on X, use /advisor"
+- "/advisor — should we do A or B for the topology join?"
+- "/advisor — this spec section contradicts the migration, what wins?"
+
+**When NOT to use it:** Routine implementation, green-field tasks with a clear plan,
+or anything the spec already answers. Overusing Opus burns tokens for no gain.
+
 ## 1. Spec hierarchy — read this BEFORE writing any code
 
 The design is split across multiple spec files. They are read together, not in isolation:

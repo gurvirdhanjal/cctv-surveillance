@@ -484,7 +484,7 @@ Light theme. Sidebar navigation; main pane is the active section.
 |---|---|---|
 | Dashboard | `/admin` | Worker health, GPU util, PostgreSQL write queue depth, Redis stream lag, latest schema migration, model versions |
 | Persons | `/admin/persons` | List + enrolment wizard (4-step: name/ID → capture → quality check → save) |
-| Cameras | `/admin/cameras` | List + add/edit; per-row "Run profiler" CTA, capability tier badge, calibration wizard launch |
+| Cameras | `/admin/cameras` | List + add/edit; per-row tier badge + shutter type chip; "Run profiler" CTA. Detail page at `/admin/cameras/{id}` — tabbed layout (see `<CameraDetail />` below) |
 | Zones | `/admin/zones` | Polygon editor on the floor-plan image; allowed_hours editor; max_capacity; loiter threshold |
 | Users | `/admin/users` | CRUD + permission toggle matrix (zones × users) |
 | Maintenance | `/admin/maintenance` | Calendar widget (Gantt) + create/edit/delete; one-time + cron |
@@ -498,6 +498,35 @@ Light theme. Sidebar navigation; main pane is the active section.
 - **Wizard steps** — multi-step modals with explicit progress indicator. "Cancel" requires confirmation if any field has been edited.
 - **Inline edit + undo** — table cells become inputs on click; Esc cancels, Enter saves; toast with Undo for 6s.
 - **Soft delete only** — destructive actions (deactivate camera, archive zone, delete user) require typed confirmation matching the entity name.
+
+### `<CameraDetail />` — tabbed layout (`/admin/cameras/{id}`)
+
+Five tabs. Role column = minimum role to **edit** that tab (all tabs are readable by Admin+).
+
+| Tab | Edit role | Contents |
+|---|---|---|
+| Overview | Admin+ | Live thumbnail, tier badge, shutter chip, status, last profiled timestamp, quick action buttons |
+| Hardware | **Super Admin** | Profiler CTA + suggestion banner; shutter type confirm/override dropdown; capability tier display; measured properties table (resolution, fps, focus score) |
+| Overrides | Admin+ | Diff view sourced from `GET /api/cameras/{id}/resolved-config`; shows only rows where `source != "global_default"` by default; "Show all settings" toggle; "+Add Override" button; amber banner when shutter adjustments are active |
+| Maintenance | Admin+ | Maintenance windows scoped to this camera; reuses `<MaintenanceCalendar />` filtered by `scope_type=camera, scope_id={id}` |
+| Calibration | Admin+ | Homography calibration wizard — see `<HomographyCalibrator />` below |
+
+**Hardware tab detail — shutter type UX:**
+- "Run Profiler" button triggers `POST /api/cameras/{id}/profile` (async; progress shown inline).
+- On completion, if detected shutter type differs from current `shutter_type`, a suggestion banner appears: `"Profiler detected: Rolling Shutter (confidence 87%) — Confirm · Override"`.
+- Confirm → `PATCH /api/cameras/{id}/hardware { shutter_type: "rolling" }`.
+- Override → dropdown (Rolling / Global / Unknown) → same PATCH.
+- Hardware tab fields are read-only for Admin role; Super Admin sees edit controls.
+
+**Overrides tab detail — diff view:**
+- On mount: `GET /api/cameras/{id}/resolved-config`.
+- Render only rows with `source !== "global_default"` (the diff).
+- Amber label on rows with `source` starting with `"shutter:"` — tooltip explains the adjustment.
+- "Show all settings" checkbox reveals the full list with inherited values muted.
+- "+Add Override" opens a key-picker modal (validated against known settings keys).
+- Save → `PATCH /api/cameras/{id}/overrides`.
+
+**Role gating implementation:** Hardware tab's edit form renders `disabled` (read-only) when `currentUser.role !== 'super_admin'`. A muted label reads "Super Admin required to edit hardware settings." No separate route — same component, conditional controls.
 
 ### `<HomographyCalibrator />` flow
 

@@ -106,15 +106,50 @@ ALTER TABLE cameras ADD profile_data NVARCHAR(MAX) NULL;     -- JSON of measured
 ALTER TABLE cameras ADD profiled_at DATETIME2 NULL;
 ALTER TABLE cameras ADD CONSTRAINT chk_camera_tier
     CHECK (capability_tier IN ('FULL', 'MID', 'LOW'));
+
+-- Shutter type: detected by CameraProfiler, confirmed/overridden by Super Admin.
+-- 'unknown' treated conservatively as 'rolling' in InferenceEngine.
+ALTER TABLE cameras ADD shutter_type NVARCHAR(10) NOT NULL DEFAULT 'unknown';
+ALTER TABLE cameras ADD CONSTRAINT chk_camera_shutter
+    CHECK (shutter_type IN ('rolling', 'global', 'unknown'));
 ```
 
 ### API
 
 ```
-POST   /api/cameras/{id}/profile               # re-runs profiler; useful when a camera is replaced
-GET    /api/cameras/{id}/profile               # returns last profile data + tier reason
+# Camera CRUD (Admin+)
+GET    /api/cameras                             # list: id, name, tier, shutter_type, is_active, status
+POST   /api/cameras                             # create camera
+GET    /api/cameras/{id}                        # full detail
+PATCH  /api/cameras/{id}                        # core fields: name, is_active, rtsp_url
+PATCH  /api/cameras/{id}/hardware               # shutter_type + tier override (Super Admin only)
+PATCH  /api/cameras/{id}/overrides              # model_overrides JSON (Admin+)
+GET    /api/cameras/{id}/resolved-config        # full config with source labels — powers Overrides diff view
+
+# Camera profiling (Admin+)
+POST   /api/cameras/{id}/profile               # re-runs profiler; detects shutter_type + tier
+GET    /api/cameras/{id}/profile               # returns last profile data + tier reason + shutter suggestion
 GET    /api/sites/readiness-report.pdf?site=  # generates signed PDF
 ```
+
+Every `PATCH /hardware` or `PATCH /overrides` request:
+1. Writes to `audit_log` (`event_type = CAMERA_HARDWARE_UPDATED` or `CAMERA_OVERRIDES_UPDATED`) with `{actor, camera_id, from, to}`.
+2. Publishes `camera_config_changed:{camera_id}` to Redis so `InferenceEngine` hot-reloads that camera's config without a full worker restart.
+
+`GET /api/cameras/{id}/resolved-config` response shape:
+```json
+{
+  "camera_id": 3,
+  "settings": {
+    "adaface_min_sim": { "value": 0.68, "source": "shutter:rolling" },
+    "scrfd_conf":      { "value": 0.45, "source": "shutter:rolling" },
+    "burst_frames":    { "value": 5,    "source": "shutter:rolling" },
+    "violence_model":  { "value": "movinet_a2", "source": "global_default" },
+    "loitering_s":     { "value": 300,  "source": "global_default" }
+  }
+}
+```
+`source` values: `"manual_override"` | `"shutter:rolling"` | `"shutter:global"` | `"detector_config"` | `"env_var"` | `"global_default"`.
 
 ---
 
@@ -525,6 +560,8 @@ All v2 schema changes summarised. Canonical DDL lives in the referenced sections
 | Change | Section with full DDL |
 |---|---|
 | `cameras` ALTERs (`capability_tier`, `profile_data`, `profiled_at`, CHECK) | §B |
+| `cameras` ALTER (`shutter_type`, CHECK `chk_camera_shutter`) | §B, §L.3.1 |
+| `cameras` ALTER (`model_overrides`) | §L.3 |
 | `CREATE TABLE anomaly_detectors` | §C |
 | `zones` ALTERs (`allowed_hours`, `loiter_threshold_s`) | §C |
 | `CREATE TABLE maintenance_windows` | §D |
@@ -543,6 +580,15 @@ All new tables follow the v2 conventions (BIGSERIAL PK on high-write tables, SER
 ## §J. API delta (consolidated)
 
 ```
+# §B: camera CRUD + hardware config
+GET    /api/cameras
+POST   /api/cameras
+GET    /api/cameras/{id}
+PATCH  /api/cameras/{id}
+PATCH  /api/cameras/{id}/hardware              # Super Admin only
+PATCH  /api/cameras/{id}/overrides             # Admin+
+GET    /api/cameras/{id}/resolved-config       # Admin+
+
 # §B: camera profiling
 POST   /api/cameras/{id}/profile
 GET    /api/cameras/{id}/profile
@@ -717,16 +763,36 @@ ALTER TABLE cameras ADD model_overrides NVARCHAR(MAX) NULL;
 
 `InferenceEngine` resolves overrides at camera-config-load time and routes that camera's frames to the appropriate model instance. Models are loaded once and shared across cameras that use them — no per-camera GPU memory blowup.
 
+Manual overrides in `model_overrides` always win over shutter-type adjustments (§L.3.1) — an operator can restore a rolling-shutter camera to global thresholds if they know the specific camera handles motion well.
+
+### L.3.1 ShutterProfile — pipeline adjustments by shutter type
+
+`cameras.shutter_type` is detected by `CameraProfiler` (motion-skew analysis on a 30-frame clip) and confirmed/overridden by a Super Admin via `PATCH /api/cameras/{id}/hardware`. `unknown` is treated conservatively as `rolling`.
+
+**Threshold adjustments applied when `shutter_type = 'rolling'`:**
+
+| Setting | Global default | Rolling adjustment | Reason |
+|---|---|---|---|
+| `adaface_min_sim` | 0.78 | **0.68** | Face geometry distortion lowers embedding fidelity |
+| `scrfd_conf` | 0.55 | **0.45** | Skewed bounding boxes reduce detector confidence |
+| `burst_frames` | 1 | **5** | Pick highest-SCRFD-confidence frame from 5 consecutive frames (InferenceEngine config, not a DB column) |
+| FusionResolver body weight | 1.0× | **1.2×** | Body Re-ID (OSNet) is distortion-tolerant; upweight it |
+
+When `shutter_type = 'global'`: all settings use global defaults; single-frame face ID is reliable.
+
+**Detection heuristic** (CameraProfiler): captures 30 frames with a subject walking laterally at ~1.5 m/s; measures horizontal skew variance of SCRFD bounding boxes across frames. Skew variance > 0.04 → suggest `rolling` (confidence = 1 − variance/0.10, clamped to 60–95%). Operator sees the suggestion with confidence score and clicks Confirm or overrides in the Hardware tab.
+
 ### L.4 Configuration storage hierarchy
 
 ```
-1. Per-camera override                (cameras.model_overrides — both models and thresholds)
-2. Per-detector global config         (anomaly_detectors.config_json + .model_version)
-3. Global env vars / settings.toml    (VMS_ADAFACE_MIN_SIM, VMS_SCRFD_CONF, ...)
-4. Hard-coded defaults                (vms/config.py)
+1. Per-camera manual override    (cameras.model_overrides — models + thresholds)
+2. Shutter-type adjustment       (cameras.shutter_type → ShutterProfile, see §L.3.1)
+3. Per-detector global config    (anomaly_detectors.config_json + .model_version)
+4. Global env vars / settings    (VMS_ADAFACE_MIN_SIM, VMS_SCRFD_CONF, ...)
+5. Hard-coded defaults           (vms/config.py)
 ```
 
-First match wins. Admin UI shows the **resolved value + which level it came from** — operators always see what the system is actually using. "Reset to defaults" button on every override.
+First match wins. `GET /api/cameras/{id}/resolved-config` (§B API) shows the **resolved value + which level it came from** for every setting — operators always see what the system is actually using. "Reset to defaults" button on every override.
 
 ### L.5 Versioning, rollback, audit
 

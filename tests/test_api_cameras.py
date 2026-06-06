@@ -163,6 +163,7 @@ async def test_patch_camera_updates_name(db_session: Session) -> None:
 @pytest.mark.asyncio
 async def test_patch_hardware_requires_super_admin(db_session: Session) -> None:
     import fakeredis.aioredis
+
     from vms.api.deps import get_api_redis, get_db
 
     cam = Camera(name="H1", rtsp_url="rtsp://h1", capability_tier="FULL")
@@ -187,6 +188,7 @@ async def test_patch_hardware_requires_super_admin(db_session: Session) -> None:
 @pytest.mark.asyncio
 async def test_patch_hardware_super_admin_updates_shutter_type(db_session: Session) -> None:
     import fakeredis.aioredis
+
     from vms.api.deps import get_api_redis, get_db
 
     cam = Camera(name="H2", rtsp_url="rtsp://h2", capability_tier="FULL")
@@ -212,6 +214,7 @@ async def test_patch_hardware_super_admin_updates_shutter_type(db_session: Sessi
 @pytest.mark.asyncio
 async def test_patch_hardware_rejects_invalid_shutter_type(db_session: Session) -> None:
     import fakeredis.aioredis
+
     from vms.api.deps import get_api_redis, get_db
 
     cam = Camera(name="H3", rtsp_url="rtsp://h3", capability_tier="FULL")
@@ -241,6 +244,7 @@ async def test_patch_hardware_rejects_invalid_shutter_type(db_session: Session) 
 @pytest.mark.asyncio
 async def test_patch_overrides_saves_model_overrides_json(db_session: Session) -> None:
     import fakeredis.aioredis
+
     from vms.api.deps import get_api_redis, get_db
 
     cam = Camera(name="O1", rtsp_url="rtsp://o1", capability_tier="FULL")
@@ -267,6 +271,7 @@ async def test_patch_overrides_saves_model_overrides_json(db_session: Session) -
 @pytest.mark.asyncio
 async def test_patch_overrides_admin_allowed(db_session: Session) -> None:
     import fakeredis.aioredis
+
     from vms.api.deps import get_api_redis, get_db
 
     cam = Camera(name="O2", rtsp_url="rtsp://o2", capability_tier="FULL")
