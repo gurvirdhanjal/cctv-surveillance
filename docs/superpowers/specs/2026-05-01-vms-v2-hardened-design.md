@@ -1026,6 +1026,88 @@ See §C detector matrix (`PPE_VIOLATION` row). The implementation uses YOLOv8l t
 
 ---
 
+## §P. Future Development — Post-Phase 5 *(NOT scheduled — record for next design cycle)*
+
+This section captures known limitations identified during Phase 2d/3 implementation that are out of scope for Phase 5 but must not be forgotten. Each item has a concrete trigger condition that should prompt a design session before implementation.
+
+---
+
+### §P.1 Appearance Drift — Returning Person After Long Absence
+
+**Problem.** A person who was last seen weeks or months ago may have changed appearance significantly (weight loss/gain, haircut, facial hair, ageing). The current gallery system stores embeddings as an unweighted buffer (N=8 most recent per tracklet, Phase 2c). After a long gap the buffer holds only stale embeddings, and cosine similarity at re-entry may fall below the `adaface_min_sim` threshold even though the person is genuinely the same individual.
+
+**Observed failure modes:**
+
+| Weight change | Entry gate (face-forward cam) | Floor cam (ceiling, body only) | Outcome |
+|---|---|---|---|
+| ≤10 kg | cos_sim drops ~0.02–0.04, typically still ≥ 0.72 | Body sim borderline | Correctly identified |
+| 10–20 kg | cos_sim drops ~0.05–0.10, may fall to 0.65–0.71 | Body sim likely below 0.51 | UNKNOWN_PERSON alert fires incorrectly |
+| >20 kg | cos_sim < 0.65 | Body sim fails | New identity record created — duplicate person |
+
+The same degradation applies to:
+- Ageing (slower drift, same mechanism)
+- Significant haircut (frontal hairline changes AdaFace input region)
+- New glasses or beard (partial occlusion changes embedding)
+
+**Two mechanisms to implement:**
+
+**P.1.1 — Soft-match + operator confirmation queue**
+
+When cosine similarity is in the range `[adaface_soft_min_sim, adaface_min_sim)` (suggested: 0.62–0.72), rather than firing `UNKNOWN_PERSON` immediately:
+
+1. Compute top-3 candidate matches from FAISS ranked by similarity.
+2. Create a `soft_match_candidate` alert (new alert type, LOW severity, no notification — UI only).
+3. Alert payload: `{person_id, similarity, camera_id, thumbnail_url, timestamp}` for each candidate.
+4. Guard dashboard shows a "Pending Confirmation" queue. Operator clicks "Yes, same person" or "No, new person."
+5. On confirmation: merge galleries, update `person_embeddings` with the new embedding, clear the alert.
+6. On rejection: promote to full `UNKNOWN_PERSON`, create new person record.
+
+Config additions:
+```
+VMS_ADAFACE_SOFT_MIN_SIM=0.62   # lower bound of soft-match zone (below = hard unknown)
+```
+
+**P.1.2 — Gallery freshness monitoring + re-enrollment nudge**
+
+Flag person records whose most recent embedding is older than a configurable threshold:
+
+1. Nightly cron job queries `person_embeddings` for records with `created_at < now() - VMS_GALLERY_STALE_DAYS` (suggested default: 60 days).
+2. Creates a `GALLERY_STALE` maintenance alert per person (INFO severity, suppressed from guard view).
+3. Next time the person appears at an entry gate with a frontal-quality face (SCRFD confidence ≥ 0.85, face area ≥ 12000 px²): automatically enrol the new embedding alongside existing ones. Log `event_type='GALLERY_REFRESHED'` to audit_log.
+4. Management dashboard shows a "Gallery age" column on the Persons list with colour coding (green < 30d, amber 30–90d, red > 90d).
+
+Config additions:
+```
+VMS_GALLERY_STALE_DAYS=60       # days before gallery considered stale
+VMS_AUTO_REFRESH_GALLERY=true   # enable auto-enrol on high-quality re-sighting
+VMS_AUTO_REFRESH_SCRFD_MIN=0.85 # minimum face confidence for auto-refresh
+```
+
+**Implementation notes for the design session:**
+- Soft-match threshold must be per-camera-tier: FULL tier can use 0.62, MID/LOW tier should use 0.65 (lower quality embeddings from these cameras have higher noise floors).
+- Gallery refresh must write through `vms.identity.faiss_dirty.publish_enrol()` — same path as manual enrolment.
+- GDPR: a refreshed embedding is new biometric data. The auto-refresh audit entry must record the trigger condition so a GDPR audit can confirm it was the same person who consented at initial enrolment.
+
+**Spec refs when designing:** §C (anomaly framework, new alert type), §D (maintenance windows — suppress nudges during downtime), §G.7 (audit_log constraints), GDPR purge rules in §F.3.
+
+---
+
+### §P.2 Body Re-ID Threshold Re-Calibration After Appearance Change
+
+**Problem.** The `reid_body_confirmed_sim=0.51` threshold was calibrated from simulation on DukeMTMC (Phase 2d). This dataset does not model large intra-person appearance changes across time. After significant weight loss, body embeddings from the same person can drop to cosine similarity ~0.40–0.48 — below the current threshold.
+
+**Proposed fix (design session required):**
+- After a successful face re-identification (sim ≥ adaface_min_sim), capture the body embedding for that sighting.
+- If the body sim against the existing body gallery is below 0.51 but face confirmed ≥ 0.72: **accept the body match as "face-assisted confirmed"** and add the new body embedding to the gallery.
+- Effectively: face identity acts as a trusted label to update the body gallery, re-anchoring it to the new appearance.
+- Do NOT lower the global `reid_body_confirmed_sim` threshold — that increases false-positive body matches across all cameras.
+
+---
+
+*End of §P. These items are NOT in any active phase plan. They require a design session and a new spec section before implementation.*
+
+---
+
 ## Appendix — sections unchanged from v1
 
 The following v1 sections remain authoritative — no v2 changes:
