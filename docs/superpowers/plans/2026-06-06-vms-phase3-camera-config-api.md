@@ -4,7 +4,7 @@
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status: NOT STARTED**
+**Status: COMPLETE**
 
 **Goal:** Deliver the full per-camera configuration stack — `shutter_type` DB column, ShutterProfile config resolver, 8 camera API endpoints (CRUD + hardware + overrides + resolved-config + profile stub), and a `require_role` auth helper — so every camera setting is configurable via the Admin/Super Admin frontend (Phase 4) backed by a solid, audited backend.
 

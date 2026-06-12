@@ -58,9 +58,9 @@ def test_video_smoke_pipeline() -> None:
         verbose=True,
     )
 
-    assert result.n_frames_processed > 0, (
-        "No frames were processed - video may be unreadable or empty"
-    )
+    assert (
+        result.n_frames_processed > 0
+    ), "No frames were processed - video may be unreadable or empty"
     # Processing speed sanity check: must manage at least 0.5 fps on CPU
     # (150 frames sampled from ~450 source frames should take < 300s on CPU)
     assert result.fps > 0.0, "FPS reported as zero - timing error"

@@ -51,8 +51,10 @@ markers = [
     "unit: fast in-process tests (default)",
     "integration: requires real PostgreSQL/Redis",
     "heavy_models: loads PyTorch + TensorFlow simultaneously — run separately to avoid OOM",
+    "eval: accuracy regression against real employee photos — requires models + employees/ folder",
 ]
-# Exclude heavy_models from default pytest run (they crash if run with full suite due to
-# PyTorch + TensorFlow coexisting in the same process on limited VRAM).
-# Run them separately: pytest -m heavy_models
-addopts = "-ra --strict-markers -m 'not heavy_models'"
+# Exclude heavy_models and eval from default pytest run.
+# heavy_models: crash if run with full suite due to PyTorch + TensorFlow OOM.
+# eval: load real ONNX models and employee photos — slow, environment-dependent.
+# Run eval explicitly: pytest -m eval -v
+addopts = "-ra --strict-markers -m 'not heavy_models and not eval'"

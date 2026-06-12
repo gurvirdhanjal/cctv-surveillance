@@ -4,7 +4,7 @@
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status: NOT STARTED**
+**Status: COMPLETE** — 372 tests passing, 5 deselected (`heavy_models`). Completion commit: `511e78ba`.
 
 **Goal:** Close the "Brijesh gap" — once an employee is identified at a frontal entry camera, their identity follows them reliably through ceiling CCTV cameras across the entire facility, with BLE badge as a hard fallback guarantee.
 

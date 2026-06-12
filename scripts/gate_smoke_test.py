@@ -57,6 +57,19 @@ os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
 import cv2
 import numpy as np
 
+# Fail fast if running under a headless OpenCV (e.g. system Python where ultralytics
+# monkey-patches cv2.imshow with opencv-python-headless).
+# Fix: use the project venv — .\venv\Scripts\python.exe scripts\gate_smoke_test.py
+_cv2_has_gui = hasattr(cv2, "imshow") and "highgui" in cv2.getBuildInformation().lower()
+if "headless" in cv2.__file__.lower() or not _cv2_has_gui:
+    print(
+        f"ERROR: headless OpenCV detected ({cv2.__file__}).\n"
+        "Run the script with the project venv Python:\n"
+        r"  .\venv\Scripts\python.exe scripts\gate_smoke_test.py",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
 from vms.config import get_settings
 from vms.inference.detector import SCRFDDetector
 from vms.inference.messages import FaceWithEmbedding, Tracklet
