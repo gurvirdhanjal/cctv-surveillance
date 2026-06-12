@@ -16,8 +16,8 @@ router = APIRouter()
 
 @router.get("/alert-routing", response_model=list[AlertRoutingResponse])
 def list_routing_rules(
-    db: Session = Depends(get_db),
-    _user: dict[str, Any] = Depends(get_current_user),
+    db: Session = Depends(get_db),  # noqa: B008
+    _user: dict[str, Any] = Depends(get_current_user),  # noqa: B008
 ) -> list[AlertRouting]:
     return db.query(AlertRouting).filter(AlertRouting.is_active.is_(True)).all()
 
@@ -25,7 +25,7 @@ def list_routing_rules(
 @router.post("/alert-routing", response_model=AlertRoutingResponse, status_code=201)
 def create_routing_rule(
     body: AlertRoutingCreate,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db),  # noqa: B008
     _user: dict[str, Any] = require_role("admin", "super_admin"),  # noqa: B008
 ) -> AlertRouting:
     rule = AlertRouting(
@@ -45,7 +45,7 @@ def create_routing_rule(
 @router.delete("/alert-routing/{routing_id}", status_code=204, response_class=Response)
 def delete_routing_rule(
     routing_id: int,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db),  # noqa: B008
     _user: dict[str, Any] = require_role("admin", "super_admin"),  # noqa: B008
 ) -> Response:
     rule = db.get(AlertRouting, routing_id)

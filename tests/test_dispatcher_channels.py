@@ -67,12 +67,15 @@ def test_webhook_sender_posts_with_hmac_signature() -> None:
 def test_webhook_sender_raises_channel_error_on_http_error() -> None:
     """WebhookSender wraps HTTP errors in ChannelError."""
     import asyncio
+
     import httpx
 
     mock_response = MagicMock()
     mock_response.status_code = 500
     mock_response.raise_for_status = MagicMock(
-        side_effect=httpx.HTTPStatusError("Server error", request=MagicMock(), response=mock_response)
+        side_effect=httpx.HTTPStatusError(
+            "Server error", request=MagicMock(), response=mock_response
+        )
     )
 
     mock_client = AsyncMock()
@@ -104,9 +107,7 @@ def test_slack_sender_posts_to_channel() -> None:
 
     with patch("vms.dispatcher.channels.httpx.AsyncClient", return_value=mock_client):
         sender = SlackSender(token="xoxb-test-token")
-        asyncio.get_event_loop().run_until_complete(
-            sender.send(_PAYLOAD, "#security-alerts")
-        )
+        asyncio.get_event_loop().run_until_complete(sender.send(_PAYLOAD, "#security-alerts"))
 
     call_kwargs = mock_client.post.call_args
     assert "api.slack.com" in call_kwargs.args[0]
@@ -132,9 +133,7 @@ def test_telegram_sender_sends_message() -> None:
 
     with patch("vms.dispatcher.channels.httpx.AsyncClient", return_value=mock_client):
         sender = TelegramSender(token="bot123:ABC")
-        asyncio.get_event_loop().run_until_complete(
-            sender.send(_PAYLOAD, "-1001234567890")
-        )
+        asyncio.get_event_loop().run_until_complete(sender.send(_PAYLOAD, "-1001234567890"))
 
     call_kwargs = mock_client.post.call_args
     assert "bot123:ABC" in call_kwargs.args[0]
@@ -149,9 +148,12 @@ def test_email_sender_raises_channel_error_on_smtp_failure() -> None:
     import asyncio
     import smtplib
 
-    with patch("vms.dispatcher.channels.asyncio.to_thread", side_effect=smtplib.SMTPException("conn refused")):
-        sender = EmailSender(host="smtp.example.com", port=587, from_addr="vms@example.com", user="u", password="p")
+    with patch(
+        "vms.dispatcher.channels.asyncio.to_thread",
+        side_effect=smtplib.SMTPException("conn refused"),
+    ):
+        sender = EmailSender(
+            host="smtp.example.com", port=587, from_addr="vms@example.com", user="u", password="p"
+        )
         with pytest.raises(ChannelError, match="email"):
-            asyncio.get_event_loop().run_until_complete(
-                sender.send(_PAYLOAD, "guard@example.com")
-            )
+            asyncio.get_event_loop().run_until_complete(sender.send(_PAYLOAD, "guard@example.com"))

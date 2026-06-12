@@ -6,7 +6,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.orm import Session
 
-from vms.api.deps import create_access_token
+from vms.api.deps import create_access_token, get_db
 from vms.api.main import app
 
 
@@ -17,36 +17,48 @@ def _auth(role: str = "admin", user_id: int = 1) -> dict[str, str]:
 
 @pytest.mark.integration
 async def test_list_routing_rules_returns_empty_initially(db_session: Session) -> None:
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        resp = await client.get("/api/alert-routing", headers=_auth("guard"))
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.get("/api/alert-routing", headers=_auth("guard"))
+    finally:
+        app.dependency_overrides.pop(get_db, None)
     assert resp.status_code == 200
     assert resp.json() == []
 
 
 @pytest.mark.integration
 async def test_create_routing_rule_requires_admin(db_session: Session) -> None:
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        resp = await client.post(
-            "/api/alert-routing",
-            json={"channel": "WEBHOOK", "target": "https://example.com"},
-            headers=_auth("guard"),
-        )
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                "/api/alert-routing",
+                json={"channel": "WEBHOOK", "target": "https://example.com"},
+                headers=_auth("guard"),
+            )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
     assert resp.status_code == 403
 
 
 @pytest.mark.integration
 async def test_create_routing_rule_admin_succeeds(db_session: Session) -> None:
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        resp = await client.post(
-            "/api/alert-routing",
-            json={
-                "channel": "WEBHOOK",
-                "target": "https://example.com/hook",
-                "alert_type": "VIOLENCE",
-                "severity": "CRITICAL",
-            },
-            headers=_auth("admin"),
-        )
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                "/api/alert-routing",
+                json={
+                    "channel": "WEBHOOK",
+                    "target": "https://example.com/hook",
+                    "alert_type": "VIOLENCE",
+                    "severity": "CRITICAL",
+                },
+                headers=_auth("admin"),
+            )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
     assert resp.status_code == 201
     body = resp.json()
     assert body["channel"] == "WEBHOOK"
@@ -58,31 +70,41 @@ async def test_create_routing_rule_admin_succeeds(db_session: Session) -> None:
 
 @pytest.mark.integration
 async def test_delete_routing_rule_soft_deletes(db_session: Session) -> None:
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        create_resp = await client.post(
-            "/api/alert-routing",
-            json={"channel": "SLACK", "target": "#alerts"},
-            headers=_auth("admin"),
-        )
-        assert create_resp.status_code == 201
-        routing_id = create_resp.json()["routing_id"]
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            create_resp = await client.post(
+                "/api/alert-routing",
+                json={"channel": "SLACK", "target": "#alerts"},
+                headers=_auth("admin"),
+            )
+            assert create_resp.status_code == 201
+            routing_id = create_resp.json()["routing_id"]
 
-        del_resp = await client.delete(f"/api/alert-routing/{routing_id}", headers=_auth("admin"))
-        assert del_resp.status_code == 204
+            del_resp = await client.delete(
+                f"/api/alert-routing/{routing_id}", headers=_auth("admin")
+            )
+            assert del_resp.status_code == 204
 
-        list_resp = await client.get("/api/alert-routing", headers=_auth("admin"))
+            list_resp = await client.get("/api/alert-routing", headers=_auth("admin"))
+    finally:
+        app.dependency_overrides.pop(get_db, None)
     active_ids = [r["routing_id"] for r in list_resp.json()]
     assert routing_id not in active_ids
 
 
 @pytest.mark.integration
 async def test_create_routing_rule_rejects_invalid_channel(db_session: Session) -> None:
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        resp = await client.post(
-            "/api/alert-routing",
-            json={"channel": "PIGEON", "target": "coo"},
-            headers=_auth("admin"),
-        )
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                "/api/alert-routing",
+                json={"channel": "PIGEON", "target": "coo"},
+                headers=_auth("admin"),
+            )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
     assert resp.status_code == 422
 
 

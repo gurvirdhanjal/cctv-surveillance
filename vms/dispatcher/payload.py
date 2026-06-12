@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 
 
 @dataclass(frozen=True)
@@ -58,14 +58,14 @@ def from_stream_fields(
     triggered_at = datetime.fromisoformat(ts_str).replace(tzinfo=None)
 
     return AlertPayload(
-        alert_id=int(data["alert_id"]),  # type: ignore[arg-type]
+        alert_id=int(data["alert_id"]),  # type: ignore[call-overload]
         alert_type=str(data["alert_type"]),
         severity=str(data["severity"]),
-        camera_id=int(data["camera_id"]),  # type: ignore[arg-type]
+        camera_id=int(data["camera_id"]),  # type: ignore[call-overload]
         camera_name=camera_name,
-        zone_id=int(data["zone_id"]) if data.get("zone_id") is not None else None,  # type: ignore[arg-type]
+        zone_id=int(data["zone_id"]) if data.get("zone_id") is not None else None,  # type: ignore[call-overload]
         zone_name=zone_name,
         global_track_id=str(data["global_track_id"]) if data.get("global_track_id") else None,
-        person_id=int(data["person_id"]) if data.get("person_id") is not None else None,  # type: ignore[arg-type]
+        person_id=int(data["person_id"]) if data.get("person_id") is not None else None,  # type: ignore[call-overload]
         triggered_at=triggered_at,
     )
