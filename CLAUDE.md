@@ -92,6 +92,7 @@ The design is split across multiple spec files. They are read together, not in i
 | `docs/superpowers/specs/2026-05-27-vms-production-readiness.md` | **v1 GA acceptance spec.** Exit criteria, SLOs, security/GDPR/ops gates, capacity claims, per-phase gate-closing matrix |
 | `docs/superpowers/specs/2026-05-28-vms-storage-scalability.md` | **Storage scalability spec.** StorageBackend Protocol (local/MinIO), `tracking_events` monthly partitioning, three-tier scaling roadmap |
 | `docs/superpowers/specs/2026-06-12-vms-recording-clips-analytics.md` | **Recording, alert clips & analytics spec (Draft, not yet planned).** Pluggable `RecordingBackend` (FFmpeg HLS remux), alert clip + live + forensic playback API, PostgreSQL rollup analytics. Target Phase 3 |
+| `docs/superpowers/specs/2026-06-13-vms-gpu-acceleration.md` | **GPU acceleration spec (Draft, not yet planned).** ONNX Runtime TensorRT EP (FP16/INT8), model-format normalization to ONNX, NVDEC decode, Triton cross-camera batching, multi-GPU sharding, DeepStream go/no-go. Extends v2 §G capacity model. Target Phase 6 |
 
 When the v1 and v2 specs disagree on an in-scope section, **v2 wins.** When the edge-cases spec adds a constraint that contradicts the migration in the Phase 1A plan, **the edge-cases spec wins** — update the migration to comply.
 
