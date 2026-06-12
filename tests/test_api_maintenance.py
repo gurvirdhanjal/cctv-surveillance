@@ -78,9 +78,10 @@ async def test_post_maintenance_one_time_succeeds(db_session: Session) -> None:
     db_session.flush()
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 
+    mock_r = _mock_redis()
     app.dependency_overrides[get_db] = lambda: db_session
     try:
-        with patch("vms.api.routes.maintenance.get_api_redis", return_value=_mock_redis()):
+        with patch("vms.api.routes.maintenance.get_api_redis", return_value=mock_r):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cli:
                 r = await cli.post(
                     "/api/maintenance",
@@ -104,6 +105,7 @@ async def test_post_maintenance_one_time_succeeds(db_session: Session) -> None:
     row = db_session.get(MaintenanceWindow, body["window_id"])
     assert row is not None
     assert row.created_by == uid
+    mock_r.publish.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -113,9 +115,10 @@ async def test_post_maintenance_recurring_succeeds(db_session: Session) -> None:
     db_session.add(cam)
     db_session.flush()
 
+    mock_r = _mock_redis()
     app.dependency_overrides[get_db] = lambda: db_session
     try:
-        with patch("vms.api.routes.maintenance.get_api_redis", return_value=_mock_redis()):
+        with patch("vms.api.routes.maintenance.get_api_redis", return_value=mock_r):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cli:
                 r = await cli.post(
                     "/api/maintenance",
@@ -137,6 +140,7 @@ async def test_post_maintenance_recurring_succeeds(db_session: Session) -> None:
     body = r.json()
     assert body["schedule_type"] == "RECURRING"
     assert body["cron_expr"] == "0 14 * * 6"
+    mock_r.publish.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -164,3 +168,74 @@ async def test_post_maintenance_one_time_missing_starts_at_returns_422(
         app.dependency_overrides.pop(get_db, None)
 
     assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_post_maintenance_recurring_missing_cron_returns_422(
+    db_session: Session,
+) -> None:
+    uid = _seed_user(db_session)
+
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cli:
+            r = await cli.post(
+                "/api/maintenance",
+                json={
+                    "name": "bad-recurring",
+                    "scope_type": "ZONE",
+                    "scope_id": 1,
+                    "schedule_type": "RECURRING",
+                    "duration_minutes": 60,
+                },
+                headers=_auth_for(uid),
+            )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+    assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_post_maintenance_ends_at_before_starts_at_returns_422(
+    db_session: Session,
+) -> None:
+    uid = _seed_user(db_session)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cli:
+            r = await cli.post(
+                "/api/maintenance",
+                json={
+                    "name": "inverted",
+                    "scope_type": "CAMERA",
+                    "scope_id": 1,
+                    "schedule_type": "ONE_TIME",
+                    "starts_at": (now + timedelta(hours=2)).isoformat(),
+                    "ends_at": now.isoformat(),
+                },
+                headers=_auth_for(uid),
+            )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+    assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_post_maintenance_unauthenticated_returns_401() -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cli:
+        r = await cli.post(
+            "/api/maintenance",
+            json={
+                "name": "unauth",
+                "scope_type": "CAMERA",
+                "scope_id": 1,
+                "schedule_type": "ONE_TIME",
+                "starts_at": "2026-01-01T00:00:00",
+                "ends_at": "2026-01-01T01:00:00",
+            },
+        )
+    assert r.status_code == 401

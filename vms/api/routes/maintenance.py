@@ -1,4 +1,4 @@
-"""GET/POST /api/maintenance — maintenance window management."""
+"""GET/POST/PATCH/DELETE/calendar /api/maintenance — maintenance window management."""
 
 from __future__ import annotations
 
@@ -18,17 +18,16 @@ from vms.db.models import MaintenanceWindow
 
 router = APIRouter()
 
-_CALENDAR_CHANGED_CHANNEL = "maintenance_calendar_changed"
+_MW_CHANGED_CHANNEL = "maintenance_window_changed"
 
 
-async def _publish_calendar_changed(window_id: int) -> None:
-    """Invalidate the orchestrator's MaintenanceCalendar cache (cross-process).
+async def _publish_mw_changed() -> None:
+    """Signal orchestrator to reload active maintenance windows (cross-process).
 
-    The calendar's 30s TTL is the correctness backstop; this event lets the
-    orchestrator refresh sooner once it subscribes (tracked follow-up).
+    30s TTL is the correctness backstop until the orchestrator subscribes.
     """
     redis_client = get_api_redis()
-    await redis_client.publish(_CALENDAR_CHANGED_CHANNEL, json.dumps({"window_id": window_id}))
+    await redis_client.publish(_MW_CHANGED_CHANNEL, "{}")
 
 
 def _serialize_suppress_types(types: list[str] | None) -> str | None:
@@ -84,5 +83,5 @@ async def create_window(
         ),
     )
 
-    await _publish_calendar_changed(window.window_id)
+    await _publish_mw_changed()
     return window
