@@ -11,6 +11,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from vms.config import get_settings
 from vms.db.audit import write_audit_event
 from vms.db.models import AlertDispatch, AlertRouting, Camera, Zone
 from vms.dispatcher.channels import ChannelError, ChannelSender
@@ -21,8 +22,6 @@ from vms.redis_client import stream_read
 logger = logging.getLogger(__name__)
 
 _CURSOR_KEY = "dispatcher:alerts:cursor"
-_DEFAULT_RETRY_DELAYS: tuple[int, ...] = (1, 4, 16)
-_MAX_ATTEMPTS = 3
 
 
 def _utcnow() -> datetime:
@@ -37,12 +36,19 @@ class AlertDispatcher:
         redis: Any,
         db_session_factory: Callable[[], Session],
         senders: dict[str, ChannelSender],
-        retry_delays: tuple[int, ...] = _DEFAULT_RETRY_DELAYS,
+        retry_delays: tuple[int, ...] | None = None,
+        max_attempts: int | None = None,
     ) -> None:
+        s = get_settings()
         self._redis = redis
         self._db_factory = db_session_factory
         self._senders = senders
-        self._retry_delays = retry_delays
+        self._retry_delays = (
+            retry_delays if retry_delays is not None else s.alert_dispatcher_retry_delays_s
+        )
+        self._max_attempts = (
+            max_attempts if max_attempts is not None else s.alert_dispatcher_max_attempts
+        )
 
     @classmethod
     def from_settings(
@@ -51,7 +57,6 @@ class AlertDispatcher:
         db_session_factory: Callable[[], Session],
     ) -> AlertDispatcher:
         """Build a dispatcher with senders configured from VMS_* env vars."""
-        from vms.config import get_settings
         from vms.dispatcher.channels import (
             EmailSender,
             SlackSender,
@@ -59,21 +64,21 @@ class AlertDispatcher:
             WebhookSender,
         )
 
-        s = get_settings()
+        cfg = get_settings()
         senders: dict[str, ChannelSender] = {}
-        if s.webhook_secret:
-            senders["WEBHOOK"] = WebhookSender(secret=s.webhook_secret)
-        if s.slack_bot_token:
-            senders["SLACK"] = SlackSender(token=s.slack_bot_token)
-        if s.telegram_bot_token:
-            senders["TELEGRAM"] = TelegramSender(token=s.telegram_bot_token)
-        if s.smtp_host:
+        if cfg.webhook_secret:
+            senders["WEBHOOK"] = WebhookSender(secret=cfg.webhook_secret)
+        if cfg.slack_bot_token:
+            senders["SLACK"] = SlackSender(token=cfg.slack_bot_token)
+        if cfg.telegram_bot_token:
+            senders["TELEGRAM"] = TelegramSender(token=cfg.telegram_bot_token)
+        if cfg.smtp_host:
             senders["EMAIL"] = EmailSender(
-                host=s.smtp_host,
-                port=s.smtp_port,
-                from_addr=s.smtp_from,
-                user=s.smtp_user,
-                password=s.smtp_password,
+                host=cfg.smtp_host,
+                port=cfg.smtp_port,
+                from_addr=cfg.smtp_from,
+                user=cfg.smtp_user,
+                password=cfg.smtp_password,
             )
         return cls(redis=redis, db_session_factory=db_session_factory, senders=senders)
 
@@ -148,10 +153,10 @@ class AlertDispatcher:
         sender: ChannelSender,
         rule: AlertRouting,
     ) -> None:
-        """Attempt dispatch up to _MAX_ATTEMPTS times with exponential backoff."""
+        """Attempt dispatch up to max_attempts times with exponential backoff."""
         last_error: str | None = None
 
-        for attempt in range(1, _MAX_ATTEMPTS + 1):
+        for attempt in range(1, self._max_attempts + 1):
             if attempt > 1 and len(self._retry_delays) >= attempt - 1:
                 delay = self._retry_delays[attempt - 2]
                 if delay > 0:
@@ -197,7 +202,7 @@ class AlertDispatcher:
                 logger.warning(
                     "Dispatch failed (attempt %d/%d) alert=%d channel=%s: %s",
                     attempt,
-                    _MAX_ATTEMPTS,
+                    self._max_attempts,
                     payload.alert_id,
                     rule.channel,
                     last_error,
@@ -208,7 +213,7 @@ class AlertDispatcher:
             payload.alert_id,
             rule.channel,
             rule.target,
-            _MAX_ATTEMPTS,
+            self._max_attempts,
             last_error,
         )
         write_audit_event(

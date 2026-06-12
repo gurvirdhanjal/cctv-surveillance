@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import fakeredis.aioredis
 import pytest
@@ -143,7 +143,7 @@ async def test_dispatcher_retries_on_failure_then_succeeds(db_session: Session) 
 async def test_dispatcher_records_dead_letter_after_three_failures(
     db_session: Session,
 ) -> None:
-    """After 3 failed attempts dispatcher marks all as failed and logs CRITICAL."""
+    """After max_attempts failures dispatcher marks all as failed — value read from settings."""
     from vms.dispatcher.channels import ChannelError
     from vms.dispatcher.worker import AlertDispatcher
 
@@ -158,16 +158,22 @@ async def test_dispatcher_records_dead_letter_after_three_failures(
     mock_sender = AsyncMock()
     mock_sender.send = AsyncMock(side_effect=ChannelError("always fails"))
 
-    dispatcher = AlertDispatcher(
-        redis=redis,
-        db_session_factory=lambda: db_session,
-        senders={"WEBHOOK": mock_sender},
-        retry_delays=(0, 0),
-    )
+    # Patch settings to confirm max_attempts and retry_delays are read from config,
+    # not from hardcoded constants. Use max_attempts=2 so the test is unambiguous.
+    mock_settings = MagicMock()
+    mock_settings.alert_dispatcher_max_attempts = 2
+    mock_settings.alert_dispatcher_retry_delays_s = (0,)
+
+    with patch("vms.dispatcher.worker.get_settings", return_value=mock_settings):
+        dispatcher = AlertDispatcher(
+            redis=redis,
+            db_session_factory=lambda: db_session,
+            senders={"WEBHOOK": mock_sender},
+        )
 
     await dispatcher._process_once()
 
     dispatches = db_session.query(AlertDispatch).all()
-    assert len(dispatches) == 3
+    assert len(dispatches) == 2
     assert all(d.success is False for d in dispatches)
-    assert mock_sender.send.await_count == 3
+    assert mock_sender.send.await_count == 2

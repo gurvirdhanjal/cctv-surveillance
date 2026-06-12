@@ -113,6 +113,10 @@ class Settings(BaseSettings):
     anomaly_max_consecutive_errors: int = 5
     alerts_stream_maxlen: int = 10_000
 
+    # dispatcher retry tuning
+    alert_dispatcher_retry_delays_s: tuple[int, ...] = (1, 4, 16)
+    alert_dispatcher_max_attempts: int = 3
+
     # dispatcher — channel credentials (empty = channel disabled)
     smtp_host: str = ""
     smtp_port: int = 587
