@@ -5,13 +5,16 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from vms.api.deps import get_api_redis, get_current_user, get_db, require_role
 from vms.api.schemas import (
     MaintenanceWindowCreate,
+    MaintenanceWindowPatchResponse,
     MaintenanceWindowResponse,
+    MaintenanceWindowUpdate,
+    validate_window_coherence,
 )
 from vms.db.audit import write_audit_event
 from vms.db.models import MaintenanceWindow
@@ -85,3 +88,71 @@ async def create_window(
 
     await _publish_mw_changed()
     return window
+
+
+@router.patch("/maintenance/{window_id}", response_model=MaintenanceWindowPatchResponse)
+async def update_window(
+    window_id: int,
+    body: MaintenanceWindowUpdate,
+    db: Session = Depends(get_db),  # noqa: B008
+    user: dict[str, Any] = require_role("admin", "manager"),  # noqa: B008
+) -> MaintenanceWindowPatchResponse:
+    window = db.get(MaintenanceWindow, window_id)
+    if window is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Window not found")
+
+    updates = body.model_dump(exclude_unset=True)
+    before: dict[str, Any] = {k: getattr(window, k) for k in updates}
+
+    # Merge patch fields onto existing row values for cross-field coherence check.
+    merged_schedule = updates.get("schedule_type", window.schedule_type)
+    merged_starts = updates.get("starts_at", window.starts_at)
+    merged_ends = updates.get("ends_at", window.ends_at)
+    merged_cron = updates.get("cron_expr", window.cron_expr)
+    merged_dur = updates.get("duration_minutes", window.duration_minutes)
+    try:
+        validate_window_coherence(
+            schedule_type=merged_schedule,
+            starts_at=merged_starts,
+            ends_at=merged_ends,
+            cron_expr=merged_cron,
+            duration_minutes=merged_dur,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
+
+    for field, value in updates.items():
+        if field == "suppress_alert_types":
+            setattr(window, field, _serialize_suppress_types(value))
+        else:
+            setattr(window, field, value)
+
+    db.commit()
+    db.refresh(window)
+
+    actor_id = int(user["sub"])
+    write_audit_event(
+        db,
+        event_type="MAINTENANCE_WINDOW_UPDATED",
+        actor_user_id=actor_id,
+        target_type="maintenance_window",
+        target_id=str(window_id),
+        payload=json.dumps(
+            {"changed_fields": {k: {"from": before[k], "to": updates[k]} for k in updates}},
+            default=str,
+        ),
+    )
+
+    await _publish_mw_changed()
+
+    # Non-blocking warning: operator patched an actively-suppressing window.
+    warning: str | None = None
+    non_reason_fields = {k for k in updates if k not in {"reason", "is_active"}}
+    if window.is_active and non_reason_fields:
+        warning = "window is currently active — changes take effect immediately"
+
+    resp = MaintenanceWindowPatchResponse.model_validate(window)
+    resp.warning = warning
+    return resp

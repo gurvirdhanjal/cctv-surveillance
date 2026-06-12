@@ -203,6 +203,10 @@ class MaintenanceWindowUpdate(BaseModel):
         return v
 
 
+class MaintenanceWindowPatchResponse(MaintenanceWindowResponse):
+    warning: str | None = None
+
+
 class MaintenanceCalendarEntry(BaseModel):
     window_id: int
     name: str

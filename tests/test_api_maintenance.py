@@ -225,6 +225,123 @@ async def test_post_maintenance_ends_at_before_starts_at_returns_422(
 
 
 @pytest.mark.asyncio
+async def test_patch_maintenance_updates_name(db_session: Session) -> None:
+    uid = _seed_user(db_session)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    window = MaintenanceWindow(
+        name="original",
+        scope_type="CAMERA",
+        scope_id=1,
+        schedule_type="ONE_TIME",
+        starts_at=now,
+        ends_at=now + timedelta(hours=1),
+        created_by=uid,
+    )
+    db_session.add(window)
+    db_session.flush()
+
+    mock_r = _mock_redis()
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        with patch("vms.api.routes.maintenance.get_api_redis", return_value=mock_r):
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cli:
+                r = await cli.patch(
+                    f"/api/maintenance/{window.window_id}",
+                    json={"name": "renamed"},
+                    headers=_auth_for(uid),
+                )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+    assert r.status_code == 200
+    assert r.json()["name"] == "renamed"
+    db_session.refresh(window)
+    assert window.name == "renamed"
+    mock_r.publish.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_patch_maintenance_updates_cron(db_session: Session) -> None:
+    uid = _seed_user(db_session)
+    window = MaintenanceWindow(
+        name="recurring",
+        scope_type="ZONE",
+        scope_id=1,
+        schedule_type="RECURRING",
+        cron_expr="0 10 * * 1",
+        duration_minutes=60,
+        created_by=uid,
+    )
+    db_session.add(window)
+    db_session.flush()
+
+    mock_r = _mock_redis()
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        with patch("vms.api.routes.maintenance.get_api_redis", return_value=mock_r):
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cli:
+                r = await cli.patch(
+                    f"/api/maintenance/{window.window_id}",
+                    json={"cron_expr": "0 14 * * 5"},
+                    headers=_auth_for(uid),
+                )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+    assert r.status_code == 200
+    assert r.json()["cron_expr"] == "0 14 * * 5"
+
+
+@pytest.mark.asyncio
+async def test_patch_maintenance_schedule_change_missing_starts_at_returns_422(
+    db_session: Session,
+) -> None:
+    uid = _seed_user(db_session)
+    window = MaintenanceWindow(
+        name="recurring",
+        scope_type="ZONE",
+        scope_id=1,
+        schedule_type="RECURRING",
+        cron_expr="0 10 * * 1",
+        duration_minutes=60,
+        created_by=uid,
+    )
+    db_session.add(window)
+    db_session.flush()
+
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cli:
+            r = await cli.patch(
+                f"/api/maintenance/{window.window_id}",
+                json={"schedule_type": "ONE_TIME"},
+                headers=_auth_for(uid),
+            )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+    assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_patch_maintenance_not_found_returns_404(db_session: Session) -> None:
+    uid = _seed_user(db_session)
+
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cli:
+            r = await cli.patch(
+                "/api/maintenance/99999",
+                json={"name": "ghost"},
+                headers=_auth_for(uid),
+            )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
 async def test_post_maintenance_unauthenticated_returns_401() -> None:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cli:
         r = await cli.post(
