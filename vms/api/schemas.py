@@ -213,3 +213,35 @@ class ProfileResponse(BaseModel):
     profiled_at: datetime | None
     capability_tier: str
     shutter_type: str
+
+
+# ── Alert Routing ──────────────────────────────────────────────────────────
+
+_VALID_CHANNELS = frozenset({"EMAIL", "SLACK", "TELEGRAM", "WEBHOOK", "WEBSOCKET"})
+
+
+class AlertRoutingCreate(BaseModel):
+    alert_type: str | None = None
+    severity: str | None = None
+    zone_id: int | None = None
+    channel: str
+    target: str
+
+    @field_validator("channel")
+    @classmethod
+    def validate_channel(cls, v: str) -> str:
+        if v not in _VALID_CHANNELS:
+            raise ValueError(f"channel must be one of {sorted(_VALID_CHANNELS)}")
+        return v
+
+
+class AlertRoutingResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    routing_id: int
+    alert_type: str | None
+    severity: str | None
+    zone_id: int | None
+    channel: str
+    target: str
+    is_active: bool
