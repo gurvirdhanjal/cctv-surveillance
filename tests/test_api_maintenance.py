@@ -440,3 +440,188 @@ async def test_delete_maintenance_unknown_id_returns_404(db_session: Session) ->
         app.dependency_overrides.pop(get_db, None)
 
     assert r.status_code == 404
+
+
+# ── Calendar tests ────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_get_calendar_one_time_in_range(db_session: Session) -> None:
+    uid = _seed_user(db_session)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    window = MaintenanceWindow(
+        name="cal-ot",
+        scope_type="CAMERA",
+        scope_id=1,
+        schedule_type="ONE_TIME",
+        starts_at=now + timedelta(hours=1),
+        ends_at=now + timedelta(hours=2),
+        created_by=uid,
+    )
+    db_session.add(window)
+    db_session.flush()
+
+    from_str = now.isoformat()
+    to_str = (now + timedelta(hours=3)).isoformat()
+
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cli:
+            r = await cli.get(
+                "/api/maintenance/calendar",
+                params={"from": from_str, "to": to_str},
+                headers=_auth_for(uid),
+            )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["total_slots"] == 1
+    slot = body["slots"][0]
+    assert slot["window_id"] == window.window_id
+    assert slot["is_recurring"] is False
+
+
+@pytest.mark.asyncio
+async def test_get_calendar_one_time_outside_range_not_returned(
+    db_session: Session,
+) -> None:
+    uid = _seed_user(db_session)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    window = MaintenanceWindow(
+        name="cal-ot-out",
+        scope_type="CAMERA",
+        scope_id=1,
+        schedule_type="ONE_TIME",
+        starts_at=now + timedelta(days=5),
+        ends_at=now + timedelta(days=5, hours=1),
+        created_by=uid,
+    )
+    db_session.add(window)
+    db_session.flush()
+
+    from_str = now.isoformat()
+    to_str = (now + timedelta(hours=3)).isoformat()
+
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cli:
+            r = await cli.get(
+                "/api/maintenance/calendar",
+                params={"from": from_str, "to": to_str},
+                headers=_auth_for(uid),
+            )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+    assert r.status_code == 200
+    assert r.json()["total_slots"] == 0
+
+
+@pytest.mark.asyncio
+async def test_get_calendar_recurring_four_occurrences(db_session: Session) -> None:
+    uid = _seed_user(db_session)
+    # Saturday 14:00 weekly, 120 min. Monday range for 28 days = 4 Saturdays.
+    monday = datetime(2026, 7, 6, 0, 0, 0)  # a Monday
+    window = MaintenanceWindow(
+        name="cal-rec",
+        scope_type="ZONE",
+        scope_id=1,
+        schedule_type="RECURRING",
+        cron_expr="0 14 * * 6",
+        duration_minutes=120,
+        created_by=uid,
+    )
+    db_session.add(window)
+    db_session.flush()
+
+    from_str = monday.isoformat()
+    to_str = (monday + timedelta(days=28)).isoformat()
+
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cli:
+            r = await cli.get(
+                "/api/maintenance/calendar",
+                params={"from": from_str, "to": to_str},
+                headers=_auth_for(uid),
+            )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["total_slots"] == 4
+    for slot in body["slots"]:
+        assert slot["is_recurring"] is True
+        assert slot["window_id"] == window.window_id
+
+
+@pytest.mark.asyncio
+async def test_get_calendar_range_exceeds_max_returns_400(db_session: Session) -> None:
+    uid = _seed_user(db_session)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cli:
+            r = await cli.get(
+                "/api/maintenance/calendar",
+                params={
+                    "from": now.isoformat(),
+                    "to": (now + timedelta(days=91)).isoformat(),
+                },
+                headers=_auth_for(uid),
+            )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+    assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_get_calendar_no_windows_returns_empty(db_session: Session) -> None:
+    uid = _seed_user(db_session)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cli:
+            r = await cli.get(
+                "/api/maintenance/calendar",
+                params={
+                    "from": now.isoformat(),
+                    "to": (now + timedelta(hours=3)).isoformat(),
+                },
+                headers=_auth_for(uid),
+            )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["slots"] == []
+    assert body["total_slots"] == 0
+
+
+@pytest.mark.asyncio
+async def test_get_calendar_inverted_range_returns_422(db_session: Session) -> None:
+    uid = _seed_user(db_session)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cli:
+            r = await cli.get(
+                "/api/maintenance/calendar",
+                params={
+                    "from": (now + timedelta(hours=3)).isoformat(),
+                    "to": now.isoformat(),
+                },
+                headers=_auth_for(uid),
+            )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+    assert r.status_code == 422

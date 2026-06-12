@@ -207,21 +207,24 @@ class MaintenanceWindowPatchResponse(MaintenanceWindowResponse):
     warning: str | None = None
 
 
-class MaintenanceCalendarEntry(BaseModel):
+class CalendarSlot(BaseModel):
     window_id: int
     name: str
     scope_type: str
     scope_id: int
-    schedule_type: str
     starts_at: datetime
     ends_at: datetime
-    is_active: bool
-    suppress_alert_types: str | None
-    reason: str | None
+    is_recurring: bool
+    suppress_alert_types: list[str] | None
 
 
-class MaintenanceCalendarResponse(BaseModel):
-    windows: list[MaintenanceCalendarEntry]
+class CalendarResponse(BaseModel):
+    slots: list[CalendarSlot]
+    from_: datetime = Field(..., alias="from")
+    to: datetime
+    total_slots: int
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class SnapshotResponse(BaseModel):

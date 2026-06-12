@@ -108,6 +108,7 @@ class Settings(BaseSettings):
 
     # maintenance
     maintenance_cache_ttl_s: int = 30
+    maintenance_calendar_max_range_days: int = 90
 
     # anomaly orchestrator
     anomaly_max_consecutive_errors: int = 5

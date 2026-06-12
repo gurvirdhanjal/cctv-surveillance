@@ -3,21 +3,29 @@
 from __future__ import annotations
 
 import json
+import logging
+from datetime import datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from croniter import croniter  # type: ignore[import-untyped]
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from vms.api.deps import get_api_redis, get_current_user, get_db, require_role
 from vms.api.schemas import (
+    CalendarResponse,
+    CalendarSlot,
     MaintenanceWindowCreate,
     MaintenanceWindowPatchResponse,
     MaintenanceWindowResponse,
     MaintenanceWindowUpdate,
     validate_window_coherence,
 )
+from vms.config import get_settings
 from vms.db.audit import write_audit_event
 from vms.db.models import MaintenanceWindow
+
+_log = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -184,3 +192,89 @@ async def delete_window(
 
     await _publish_mw_changed()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def _expand_window(w: MaintenanceWindow, from_dt: datetime, to_dt: datetime) -> list[CalendarSlot]:
+    suppress: list[str] | None = None
+    if w.suppress_alert_types is not None:
+        try:
+            suppress = json.loads(w.suppress_alert_types)
+        except (ValueError, TypeError):
+            suppress = None
+
+    if w.schedule_type == "ONE_TIME":
+        if w.starts_at is None or w.ends_at is None:
+            return []
+        if w.starts_at < to_dt and w.ends_at > from_dt:
+            return [
+                CalendarSlot(
+                    window_id=w.window_id,
+                    name=w.name,
+                    scope_type=w.scope_type,
+                    scope_id=w.scope_id,
+                    starts_at=w.starts_at,
+                    ends_at=w.ends_at,
+                    is_recurring=False,
+                    suppress_alert_types=suppress,
+                )
+            ]
+        return []
+
+    # RECURRING
+    if w.cron_expr is None or w.duration_minutes is None:
+        return []
+    slots: list[CalendarSlot] = []
+    try:
+        dur = timedelta(minutes=w.duration_minutes)
+        it = croniter(w.cron_expr, from_dt - dur)
+        while True:
+            occ_start: datetime = it.get_next(datetime)
+            if occ_start > to_dt:
+                break
+            occ_end = occ_start + dur
+            if occ_end > from_dt:
+                slots.append(
+                    CalendarSlot(
+                        window_id=w.window_id,
+                        name=w.name,
+                        scope_type=w.scope_type,
+                        scope_id=w.scope_id,
+                        starts_at=occ_start,
+                        ends_at=occ_end,
+                        is_recurring=True,
+                        suppress_alert_types=suppress,
+                    )
+                )
+    except (ValueError, Exception) as exc:
+        _log.warning("bad cron_expr on window %s: %s", w.window_id, exc)
+    return slots
+
+
+@router.get("/maintenance/calendar", response_model=CalendarResponse)
+def get_calendar(
+    from_dt: datetime = Query(..., alias="from"),  # noqa: B008
+    to_dt: datetime = Query(..., alias="to"),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+    _user: dict[str, Any] = Depends(get_current_user),  # noqa: B008
+) -> CalendarResponse:
+    if to_dt <= from_dt:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="to must be after from",
+        )
+    max_days = get_settings().maintenance_calendar_max_range_days
+    if (to_dt - from_dt).days > max_days:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Range exceeds maximum of {max_days} days",
+        )
+
+    windows: list[MaintenanceWindow] = db.query(MaintenanceWindow).filter_by(is_active=True).all()
+    slots: list[CalendarSlot] = []
+    for w in windows:
+        slots.extend(_expand_window(w, from_dt, to_dt))
+    slots.sort(key=lambda s: s.starts_at)
+
+    return CalendarResponse.model_validate(
+        {"slots": slots, "from": from_dt, "to": to_dt, "total_slots": len(slots)}
+    )
