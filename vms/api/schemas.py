@@ -83,6 +83,11 @@ class AnomalyDetectorResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class AnomalyDetectorUpdate(BaseModel):
+    is_enabled: bool | None = None
+    config_json: dict[str, Any] | None = None
+
+
 class MaintenanceWindowResponse(BaseModel):
     window_id: int
     name: str
