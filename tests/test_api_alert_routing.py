@@ -84,3 +84,11 @@ async def test_create_routing_rule_rejects_invalid_channel(db_session: Session) 
             headers=_auth("admin"),
         )
     assert resp.status_code == 422
+
+
+@pytest.mark.integration
+async def test_health_endpoint_still_passes_after_dispatcher_wired() -> None:
+    """Regression: wiring the dispatcher must not break the health endpoint."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.get("/api/health")
+    assert resp.status_code == 200

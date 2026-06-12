@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import pathlib
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -21,7 +25,9 @@ from vms.api.routes import (
 )
 from vms.config import Settings, get_settings
 from vms.db.partition_manager import ensure_future_partitions
-from vms.db.session import engine
+from vms.db.session import SessionLocal, engine
+
+logger = logging.getLogger(__name__)
 
 
 def _apply_media_mount(app: FastAPI, settings: Settings) -> None:
@@ -34,7 +40,30 @@ def _apply_media_mount(app: FastAPI, settings: Settings) -> None:
         )
 
 
-app = FastAPI(title="VMS API", version="0.2.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    from vms.api.deps import get_api_redis
+    from vms.dispatcher.worker import AlertDispatcher
+
+    redis = get_api_redis()
+    dispatcher = AlertDispatcher.from_settings(
+        redis=redis,
+        db_session_factory=SessionLocal,
+    )
+    task = asyncio.create_task(dispatcher.run(), name="alert-dispatcher")
+    try:
+        yield
+    finally:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            logger.exception("AlertDispatcher raised unexpected error during shutdown")
+
+
+app = FastAPI(title="VMS API", version="0.2.0", lifespan=lifespan)
 
 app.include_router(auth.router, prefix="/api")
 app.include_router(health.router, prefix="/api")
