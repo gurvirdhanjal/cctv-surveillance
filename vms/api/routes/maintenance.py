@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from vms.api.deps import get_api_redis, get_current_user, get_db, require_role
@@ -156,3 +156,31 @@ async def update_window(
     resp = MaintenanceWindowPatchResponse.model_validate(window)
     resp.warning = warning
     return resp
+
+
+@router.delete("/maintenance/{window_id}", status_code=204, response_class=Response)
+async def delete_window(
+    window_id: int,
+    db: Session = Depends(get_db),  # noqa: B008
+    user: dict[str, Any] = require_role("admin", "manager"),  # noqa: B008
+) -> Response:
+    window = db.get(MaintenanceWindow, window_id)
+    if window is None or not window.is_active:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Window not found")
+
+    window.is_active = False
+    db.commit()
+
+    write_audit_event(
+        db,
+        event_type="MAINTENANCE_WINDOW_CANCELLED",
+        actor_user_id=int(user["sub"]),
+        target_type="maintenance_window",
+        target_id=str(window_id),
+        payload=json.dumps(
+            {"window_id": window_id, "name": window.name, "reason": "operator_delete"}
+        ),
+    )
+
+    await _publish_mw_changed()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

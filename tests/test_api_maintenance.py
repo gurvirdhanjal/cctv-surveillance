@@ -356,3 +356,87 @@ async def test_post_maintenance_unauthenticated_returns_401() -> None:
             },
         )
     assert r.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_delete_maintenance_soft_deletes(db_session: Session) -> None:
+    uid = _seed_user(db_session)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    window = MaintenanceWindow(
+        name="to-delete",
+        scope_type="CAMERA",
+        scope_id=1,
+        schedule_type="ONE_TIME",
+        starts_at=now,
+        ends_at=now + timedelta(hours=1),
+        created_by=uid,
+    )
+    db_session.add(window)
+    db_session.flush()
+    wid = window.window_id
+
+    mock_r = _mock_redis()
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        with patch("vms.api.routes.maintenance.get_api_redis", return_value=mock_r):
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cli:
+                r = await cli.delete(f"/api/maintenance/{wid}", headers=_auth_for(uid))
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+    assert r.status_code == 204
+    db_session.refresh(window)
+    assert window.is_active is False
+    mock_r.publish.assert_awaited_once()
+
+    # Window must no longer appear in the active list.
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cli:
+            r2 = await cli.get("/api/maintenance", headers=_auth_for(uid))
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+    assert r2.status_code == 200
+    assert all(w["window_id"] != wid for w in r2.json())
+
+
+@pytest.mark.asyncio
+async def test_delete_maintenance_inactive_returns_404(db_session: Session) -> None:
+    uid = _seed_user(db_session)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    window = MaintenanceWindow(
+        name="already-gone",
+        scope_type="CAMERA",
+        scope_id=1,
+        schedule_type="ONE_TIME",
+        starts_at=now,
+        ends_at=now + timedelta(hours=1),
+        created_by=uid,
+        is_active=False,
+    )
+    db_session.add(window)
+    db_session.flush()
+
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cli:
+            r = await cli.delete(f"/api/maintenance/{window.window_id}", headers=_auth_for(uid))
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_maintenance_unknown_id_returns_404(db_session: Session) -> None:
+    uid = _seed_user(db_session)
+
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cli:
+            r = await cli.delete("/api/maintenance/99999", headers=_auth_for(uid))
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+    assert r.status_code == 404
