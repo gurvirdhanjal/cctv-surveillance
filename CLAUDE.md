@@ -23,8 +23,17 @@ Match existing style. Remove only imports/variables YOUR changes made unused.
 Every changed line should trace directly to the request.
 
 ### 0.4 Goal-Driven Execution
-Transform tasks into verifiable goals before starting.
-For multi-step tasks, state a brief plan with verify steps:
+
+Before writing any code for a task involving an API route:
+
+**Pre-task checklist:**
+- [ ] Open the spec section for this route
+- [ ] List all endpoints the spec defines for that section
+- [ ] Confirm which exist in the route file and which are missing
+- [ ] If missing endpoints exist: implement them in this task OR create explicit
+      sub-tasks for them before marking the parent done
+
+Then transform tasks into verifiable goals and state a brief plan with verify steps:
   1. [Step] → verify: [check]
   2. [Step] → verify: [check]
 
@@ -42,6 +51,7 @@ When you hit any of the following, **stop and invoke `/advisor` before writing c
 `/advisor` spawns a Claude Opus 4.8 agent with full project context and your specific
 question. Opus has deeper reasoning than Sonnet and is the right tool for hard decisions.
 It returns a recommendation you can either accept or push back on — you stay in control.
+**Invocation in Claude Code:** Use the `Skill` tool (`skill: 'advisor'`) if the skill is registered; otherwise use the `Agent` tool with `model: 'opus'`, pasting the question and the relevant spec excerpt into the prompt.
 
 **Trigger phrase examples:**
 - "I'm stuck on X, use /advisor"
@@ -50,6 +60,24 @@ It returns a recommendation you can either accept or push back on — you stay i
 
 **When NOT to use it:** Routine implementation, green-field tasks with a clear plan,
 or anything the spec already answers. Overusing Opus burns tokens for no gain.
+
+**MANDATORY /advisor — these are non-negotiable:**
+- Schema migration touching non-empty production tables
+- Changing identity matching thresholds (`reid_*`, `scrfd_conf`, `adaface_*`)
+- Modifying cross-camera topology or spatial-temporal gate logic
+- Any change touching `audit.py`, `compute_row_hash`, or `row_hash_version`
+- Alembic `downgrade()` that drops columns or tables with data
+
+### 0.6 Performance-sensitive paths
+
+These execute on every frame — measure before introducing any per-frame DB query,
+per-frame Redis round-trip, or O(n²) scan:
+- `ingestion/worker.py` — camera → SHM → stream publish
+- `inference/engine.py` — SCRFD + AdaFace + YOLO + BoT-SORT per frame
+- `identity/` — FAISS search + FSM per detection
+- `writer/db_writer.py` — flush_detection_frame batch
+
+Prefer batching, async I/O, or pre-computed lookups. Target: ≤ 50 ms end-to-end per frame at 52 cameras.
 
 ## 1. Spec hierarchy — read this BEFORE writing any code
 
@@ -63,6 +91,7 @@ The design is split across multiple spec files. They are read together, not in i
 | `docs/superpowers/specs/2026-05-01-vms-frontend-design.md` | Frontend source of truth: tech stack, three views (Guard / Management / Admin), state management, real-time integration, a11y, perf budgets |
 | `docs/superpowers/specs/2026-05-27-vms-production-readiness.md` | **v1 GA acceptance spec.** Exit criteria, SLOs, security/GDPR/ops gates, capacity claims, per-phase gate-closing matrix |
 | `docs/superpowers/specs/2026-05-28-vms-storage-scalability.md` | **Storage scalability spec.** StorageBackend Protocol (local/MinIO), `tracking_events` monthly partitioning, three-tier scaling roadmap |
+| `docs/superpowers/specs/2026-06-12-vms-recording-clips-analytics.md` | **Recording, alert clips & analytics spec (Draft, not yet planned).** Pluggable `RecordingBackend` (FFmpeg HLS remux), alert clip + live + forensic playback API, PostgreSQL rollup analytics. Target Phase 3 |
 
 When the v1 and v2 specs disagree on an in-scope section, **v2 wins.** When the edge-cases spec adds a constraint that contradicts the migration in the Phase 1A plan, **the edge-cases spec wins** — update the migration to comply.
 
@@ -120,37 +149,39 @@ Legacy prototype code is in `legacy/`. Do not import.
 
 ## 3. Current phase
 
-We are at **Phase 3: Profiler + Dispatcher + Audit** (not yet started — plan not written).
+### Known open gaps (from 2026-06-12 audit)
 
-**PPE Compliance Detection** is **COMPLETE** — 405 tests passing, 5 deselected. Files: `vms/inference/ppe.py` (PPEModel — YOLOv8l SH17 ONNX, decodes (1,21,8400) output, NMS, returns `dict[str,float]` per crop), `vms/anomaly/detectors/ppe.py` (PPEDetector — alert_type=PPE_VIOLATION, HIGH, sustain_ms=3000, cooldown_ms=120000, gloves+mask opt-in via check_gloves/check_mask), `Tracklet` has 4 PPE fields (helmet, vest, gloves, mask conf, all float|None), `_score_ppe()` in InferenceEngine. SH17 class indices: helmet=10, vest=16, gloves=9, mask=5. Export model: `YOLO('models/sh17_ppe_yolov8l.pt').export(format='onnx',imgsz=640,opset=11,simplify=True)`. Activate by setting `VMS_PPE_MODEL=models/sh17_ppe_yolov8l.onnx`. CSRNet density detection deliberately deferred — wire when real deployment shows YOLO undercounting dense crowds.
+These are spec-required items confirmed missing in the live codebase. Each must have
+a plan checkbox before Phase 4 starts. No implementation without an approved plan.
 
-**Phase 2d** (Multi-Modal Person Tracking Upgrade) is **COMPLETE** — 372 tests passing, 5 deselected (`heavy_models`). Plan: `docs/superpowers/plans/2026-05-31-vms-v2-phase2d-multimodal-tracking-upgrade.md`. Delivered: `BodyEmbedder` (torchreid OSNet AIN x1.0 msmt17, 512-dim, Rank-1=73% on DukeMTMC), `FusionResolver` (Face ≻ Body ≻ BLE), `assign_and_identify()` returns 3-tuple `(gid, person_id, resolved_via)`, `db_writer` wires face+body embeddings, body Re-ID thresholds calibrated from simulation (`reid_body_confirmed_sim=0.51`), `botsort_custom.yaml` (BoT-SORT + CMC), `Tracklet.keypoints`+`face_visible` fields, `PerCameraTracker` upgraded to YOLOv8x-pose + BoT-SORT, keypoint-gated SCRFD+AdaFace (ceiling cam GPU saving), `vms/ble/` BLE badge service (MQTT + zone resolver + Redis consumer), DB migration `942aa02e2872` (badge_id, ble_events, resolved_via), E2E Brijesh tracking test (entry gate → floor body Re-ID → BLE fallback). Both face AND body galleries now populate simultaneously so entry-gate identity follows person through ceiling cameras.
+| Gap | Spec ref | Notes |
+|---|---|---|
+| ~~`POST /PATCH /DELETE /api/maintenance` + calendar endpoint~~ | §D | **DONE** — commits `1d94c8fe`, `f24c1257`, `dffcad7e`, `88e9e686` |
+| ~~`PATCH /api/anomaly-detectors/{id}` (enable/disable, update config)~~ | §C | **DONE** |
+| ~~`PATCH /api/alert-routing/{id}`~~ | §E | **DONE** — commit `ad85adfe` |
+| `GET /api/forensic/search` + `GET /api/forensic/clips/{id}` | §F.2 | Needs CLIP embedding pipeline; DB table exists |
+| `GET /api/audit/verify` + `GET /api/audit/export` | §F.3 | AuditLog table + hash-chain exist; no route |
+| `POST /api/cameras/{id}/recalibrate-required` | §H.3 | No route; homography module exists |
+| `GET /api/sites/readiness-report.pdf` | §B | Needs CameraProfiler; no plan yet |
+| `alert_dispatcher_retry_delays_s` + `alert_dispatcher_max_attempts` in `config.py` | §17 invariants | Currently hardcoded in `dispatcher/worker.py` lines 24–25 |
 
-**Phase 3** (Profiler + Dispatcher + Audit) not yet started — plan not written.
+---
 
-**Phase 2c** (Cross-Camera Identity Hardening) is **COMPLETE** — 342 tests passing. Plan: `docs/superpowers/plans/2026-05-31-vms-v2-phase2c-cross-camera-identity-hardening.md`. Delivered: rolling gallery buffer (N=8 per tracklet), confirmed track promotion after N sightings (lower sim threshold + 10-min stale TTL), `CameraTopology` spatial-temporal gate (JSON-configurable per camera pair), `BodyEmbedder` (OSNet ONNX) as face-absent fallback with `Tracklet.body_embedding` field wired into `InferenceEngine`. Per-gid margin computation fix prevents false margin failures when same person has multiple camera tracklets. No schema migration required.
+**Active:** Phase 3 Alert Dispatcher — **COMPLETE** (473 tests, commit `b4981d8f`). Plan: `docs/superpowers/plans/2026-06-06-vms-phase3-alert-dispatcher.md`.
 
-**Phase 2b** (Anomaly Framework) is **COMPLETE** — 306 tests passing as of commit to follow. Plan: `docs/superpowers/plans/2026-05-15-vms-v2-phase2b-anomaly-framework.md`. Delivered: `AnomalyDetector` ABC + `SeamProvider` Protocol, `DetectorRegistry`, `MaintenanceCalendar` (TTL cache + cron), `AlertFSM` (sustain/cooldown/dedup/maintenance suppression), 6 detectors (UNKNOWN_PERSON, PERSON_LOST, CROWD_DENSITY, INTRUSION, LOITERING, VIOLENCE), `ViolenceModel` ONNX wrapper, `DetectionFrame.violence_score`, `HeadCountAggregator`, `AnomalyOrchestrator` (error-isolated, seam-injected), inspection APIs, `vms-cli`, Prometheus metrics, structured logging, 2 E2E integration tests. Alembic migration `bc0e96331eb1` adds `alerts.dedup_key`, state/type CHECKs, seeds 6 detector rows.
+**Last major milestone:** All Phase 2 sub-phases complete (2a Identity, 2b Anomaly, 2c Cross-Camera Hardening, 2d Multi-Modal Tracking, PPE Compliance).
 
-**tracking_events Partitioning** is **COMPLETE** — 227 tests passing. Plan: `docs/superpowers/plans/2026-05-28-vms-tracking-events-partition.md`. Delivered: Alembic migration `e0183e05bf00` reconstructs `tracking_events` as `PARTITION BY RANGE (event_ts)` with composite PK `(event_id, event_ts)`; DEFAULT + current-month partitions; `vms/db/partition_manager.py` (`ensure_future_partitions`, `drop_partitions_before`, `list_partitions`); startup wired in `main.py`; `_ensure_partitions` autouse fixture in conftest; ORM composite PK updated; 8 new integration tests.
+**Next:** Camera Profiler + Audit hardening (Phase 3 remaining) — **no plan written yet.** Do not begin without an approved plan file. See §4.1.
 
-**Storage Abstraction Layer** is **COMPLETE** — 219 tests passing (176 pre-existing + 43 new). Plan: `docs/superpowers/plans/2026-05-28-vms-storage-abstraction.md`. Delivered: `StorageBackend` Protocol, `LocalStorageBackend`, `MinIOStorageBackend` (moto-tested), `get_storage()` factory, `write_thumbnail`/`write_snapshot` helpers, Alembic data migration for relative keys, GDPR purge wired to storage backend, `/media` StaticFiles mount for local backend. `boto3`/`moto[s3]` added to dependencies.
+**Rule:** Never start a phase without an approved plan file in `docs/superpowers/plans/`. Each phase gets exactly one plan file; do not start implementation before the plan is reviewed.
 
-**Foundation Hardening & Docs Cleanup** is **COMPLETE** — 176 tests passing as of commit `3bd6669`. Plan: `docs/superpowers/plans/2026-05-27-vms-foundation-hardening-and-docs-cleanup.md`. Delivered: production readiness spec, subphase taxonomy, configurable RTSP config, E2E integration test, four ops runbooks, customer onboarding runbook, Phase 3/5 scope stubs.
+**Key technical gotchas (quick reference):**
+- PPE model SH17 class indices: helmet=10, vest=16, gloves=9, mask=5. Activate: `VMS_PPE_MODEL=models/sh17_ppe_yolov8l.onnx`.
+- `assign_and_identify()` returns a 3-tuple `(gid, person_id, resolved_via)` — all three must be persisted; discarding `resolved_via` silently degrades identity audit data.
+- Body Re-ID threshold: `reid_body_confirmed_sim=0.51` (calibrated from simulation — do not adjust without re-running sim).
+- Alert Dispatcher cursor key: `dispatcher:alerts:cursor` in Redis — do not rename without updating worker.py.
 
-**Phase 1B.2 Hardening** is **COMPLETE** — 171 tests passing as of commit `210b283`. Plan: `docs/superpowers/plans/2026-05-27-vms-v2-phase1b-2-hardening.md`. Fixes: GDPR purge (SELECT FOR UPDATE + file deletion + CLIP removal + JSON audit payload), SHM size validation, RTSP exponential backoff + camera deactivation, faiss_dirty consumer startup replay.
-
-**Phase 1A.2 Hardening** is **COMPLETE** — 171 tests passing as of commit `210b283`. Plan: `docs/superpowers/plans/2026-05-27-vms-v2-phase1a-2-hardening.md`. Fixes: datetime.utcnow column defaults, row_hash_version migration.
-
-**Phase 2a.2 Hardening** is **COMPLETE** — 159 tests passing as of commit `019e45e`. Plan: `docs/superpowers/plans/2026-05-14-vms-v2-phase2a-2-hardening.md`.
-
-**Phase 2a.1** (Identity Framework) is **COMPLETE** — 128 tests passing as of commit `634c8c4`. Plan: `docs/superpowers/plans/2026-05-14-vms-v2-phase2a-1-identity-framework.md`. Notes: `docs/superpowers/notes/2026-05-14-vms-v2-phase2a-implementation-notes.md`.
-
-**Phase 1B.1** (Ingestion, Inference, and Base API) is **COMPLETE** — 96 tests passing as of commit `019e45e`. Plan: `docs/superpowers/plans/2026-05-09-vms-v2-phase1b-1-ingestion-inference-api.md`. Notes: `docs/superpowers/notes/2026-05-09-vms-v2-phase1b-implementation-notes.md`.
-
-**Phase 1A.1** (Database Schema, Project Scaffold, and Config) is **COMPLETE** — 57 tests passing as of commit `4a4bc49`. Plan: `docs/superpowers/plans/2026-05-01-vms-v2-phase1a-1-db-schema.md`.
-
-Subsequent phases (Phase 2b Anomaly Framework, Phase 3 Profiler + Dispatcher + Audit, Phase 4 Frontend, Phase 5 Forensic + Hardening, Phase 6 Camera Rollout) each get their own plan file when started. **Do not start a phase before its plan exists and is approved.**
+Full completed phase delivery details: `docs/superpowers/notes/PHASE-HISTORY.md`.
 
 ---
 
@@ -187,6 +218,28 @@ One logical change per commit. Conventional commit format:
 <optional body>
 ```
 Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`. **No AI co-author footer** (disabled globally via the user's `~/.claude/settings.json`).
+
+### 4.5 Spec coverage is verified before marking a task complete
+
+For every route file touched in a task:
+1. Open the relevant spec section
+2. List every endpoint the spec defines for that section
+3. Confirm each one exists in the route file
+4. If any are missing: either implement them in this task OR create a tracked
+   sub-task before marking the parent done
+
+"Deferred to later" is only valid if a new plan checkbox exists for the deferred
+item. Silent deferral — checking a task done while endpoints are still missing —
+is not allowed.
+
+### 4.4 Operational priority order
+
+When a trade-off has no clear answer, use this order:
+1. Never lose tracking events (data durability above all)
+2. Never misidentify a person (identity correctness)
+3. Never break audit integrity (hash chain + append-only)
+4. Maintain real-time throughput (≤ 50 ms/frame)
+5. Developer ergonomics (last)
 
 ---
 
@@ -362,6 +415,12 @@ A task is done when ALL of these are true:
 8. If the change affects API: endpoint tested with at least one positive + one negative test
 9. Conventional commit created
 10. Plan checkbox marked done
+11. If the change adds or modifies a route file: every endpoint listed in the spec
+    section for that route exists and has at least one positive + one negative test.
+    A route file with fewer endpoints than the spec = NOT DONE.
+12. If a plan task is checked ✓: the check means ALL spec endpoints for that task
+    exist, not just the minimum-viable ones. If full CRUD was deferred, the checkbox
+    must be split into sub-tasks — one per endpoint — before the parent is marked done.
 
 A task is **not** done when:
 - Tests are partial or skipped
@@ -377,7 +436,8 @@ A task is **not** done when:
 |---|---|
 | Running `Base.metadata.create_all` in a test before all referenced tables are defined → `NoReferencedTableError` | Define tables in dependency order; FK targets must be in metadata first. See Phase 1A plan Task 7 dependency note |
 | Adding a new ORM model but forgetting the Alembic migration | Mandatory: every model change ships with a migration in the same commit |
-| Calling `datetime.now()` instead of `datetime.utcnow()` | All timestamps are UTC. CI lint will flag `datetime.now()` calls in `vms/` |
+| Using `datetime.utcnow()` or bare `datetime.now()` | Both are wrong. Use `datetime.now(timezone.utc).replace(tzinfo=None)`. CI lint must flag both in `vms/` — neither form is acceptable |
+| Calling `assign_and_identify()` and discarding the third return value | `resolved_via` must be written to `tracking_events.resolved_via` — silent discard causes identity audit gaps with no error raised |
 | Storing a string longer than the column allows | Use Pydantic schemas at the API boundary; SQLAlchemy will silently truncate on some dialects |
 | Logging an embedding tensor | Logger filter `vms.security.logging.SensitiveFilter` (Phase 5) blocks bytes/numpy values. Until then: pre-flight check in code review |
 | Hard-coded thresholds (e.g. `if conf < 0.6`) | Use `get_settings().scrfd_conf`. Per-camera overrides via `cameras.model_overrides` |
@@ -385,6 +445,7 @@ A task is **not** done when:
 | Editing a published Alembic migration | Never. Write a new migration that corrects |
 | Bundling an ONNX file in a commit | Use `models/manifest.json` + `vms-models download` |
 | Leaving `print()` calls | Replace with `logger.<level>(...)`. CI lint catches these |
+| Hardcoded retry/timeout/threshold values | Every tunable numeric constant belongs in `vms/config.py` as a `VMS_*` env var. Search for bare numeric literals in non-test code before marking any task done. Current known violation: `_DEFAULT_RETRY_DELAYS` and `_MAX_ATTEMPTS` in `dispatcher/worker.py` — tracked in §3 Known Gaps |
 
 ---
 
@@ -394,6 +455,7 @@ A task is **not** done when:
 - **Check the edge-cases spec for anything DB-related.** Especially before adding a new table or constraint.
 - **Ask the user before destructive actions** — deleting files, dropping tables, force pushes, schema rollbacks. The user's git rules forbid silent destructive ops.
 - **If a memory in `~/.claude/projects/D--facial-recognistion/memory/` conflicts with the spec or CLAUDE.md, prefer the spec.** Memories are point-in-time observations; specs and CLAUDE.md are durable.
+- **Before writing a Phase N plan:** run a spec-vs-code gap check for all routes touched in Phase N-1. List any missing endpoints in the Known Gaps table in §3 before the new plan is written. This takes 10 minutes and prevents audit findings like the June 2026 one.
 
 ---
 
@@ -482,6 +544,24 @@ Each phase gets exactly one plan file. A plan that grows unwieldy (> 800 lines) 
 ### Implementation notes
 
 Each phase also gets one notes file in `docs/superpowers/notes/`. Update the notes file after each task completes — record decisions made, fixes applied, and anything surprising. The notes file is the companion to the plan: the plan says what to do; the notes say what actually happened and why.
+
+---
+
+## 17. Architectural Invariants
+
+The following may not be changed without a design review and explicit user approval:
+
+| Invariant | Rule |
+|---|---|
+| PostgreSQL is source of truth | FAISS, Redis, caches are derived — DB wins on any conflict |
+| FAISS is a derived cache | Rebuilt from `person_embeddings` on startup; never treated as primary |
+| Redis Streams are the inter-service bus | No direct cross-module calls; ingestion → inference → identity → writer |
+| DB write before FAISS update | Embedding committed to DB before FAISS is mutated |
+| Audit log is append-only | No UPDATE/DELETE on `audit_log`; always write via `write_audit_event()` |
+| Identity resolution order | Face ≻ Body ≻ BLE — owned by `FusionResolver`; don't shortcut |
+| Topology gates cross-camera merges | `CameraTopology` must pass before any cross-camera identity join |
+| Thresholds live in config | Never hard-code similarity or confidence values — use `get_settings()` |
+| Scheduler owns all cron jobs | No ad-hoc `threading.Timer` or fire-and-forget `asyncio.create_task` loops for timed/recurring work — use the scheduler process exclusively (Phase 3) |
 
 ---
 
