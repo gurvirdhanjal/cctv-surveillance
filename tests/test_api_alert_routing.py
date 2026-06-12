@@ -109,6 +109,47 @@ async def test_create_routing_rule_rejects_invalid_channel(db_session: Session) 
 
 
 @pytest.mark.integration
+async def test_patch_routing_rule_updates_field(db_session: Session) -> None:
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            create_resp = await client.post(
+                "/api/alert-routing",
+                json={"channel": "WEBHOOK", "target": "https://old.example.com"},
+                headers=_auth("admin"),
+            )
+            assert create_resp.status_code == 201
+            routing_id = create_resp.json()["routing_id"]
+
+            patch_resp = await client.patch(
+                f"/api/alert-routing/{routing_id}",
+                json={"target": "https://new.example.com"},
+                headers=_auth("admin"),
+            )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+    assert patch_resp.status_code == 200
+    body = patch_resp.json()
+    assert body["target"] == "https://new.example.com"
+    assert body["channel"] == "WEBHOOK"  # unchanged
+
+
+@pytest.mark.integration
+async def test_patch_routing_rule_not_found_returns_404(db_session: Session) -> None:
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.patch(
+                "/api/alert-routing/9999",
+                json={"target": "https://example.com"},
+                headers=_auth("admin"),
+            )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+    assert resp.status_code == 404
+
+
+@pytest.mark.integration
 async def test_health_endpoint_still_passes_after_dispatcher_wired() -> None:
     """Regression: wiring the dispatcher must not break the health endpoint."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:

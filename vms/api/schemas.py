@@ -235,6 +235,22 @@ class AlertRoutingCreate(BaseModel):
         return v
 
 
+class AlertRoutingUpdate(BaseModel):
+    alert_type: str | None = None
+    severity: str | None = None
+    zone_id: int | None = None
+    channel: str | None = None
+    target: str | None = None
+    is_active: bool | None = None
+
+    @field_validator("channel")
+    @classmethod
+    def validate_channel(cls, v: str | None) -> str | None:
+        if v is not None and v not in _VALID_CHANNELS:
+            raise ValueError(f"channel must be one of {sorted(_VALID_CHANNELS)}")
+        return v
+
+
 class AlertRoutingResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
