@@ -113,6 +113,16 @@ class Settings(BaseSettings):
     anomaly_max_consecutive_errors: int = 5
     alerts_stream_maxlen: int = 10_000
 
+    # dispatcher — channel credentials (empty = channel disabled)
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_from: str = ""
+    smtp_user: str = ""
+    smtp_password: str = ""
+    slack_bot_token: str = ""
+    telegram_bot_token: str = ""
+    webhook_secret: str = ""
+
     # storage backend
     storage_backend: str = "local"  # "local" | "minio"
     storage_local_dir: str = "thumbnails"  # base dir for LocalStorageBackend
