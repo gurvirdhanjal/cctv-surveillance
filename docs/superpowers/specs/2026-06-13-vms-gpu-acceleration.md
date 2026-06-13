@@ -483,8 +483,10 @@ Each sub-phase, before its plan checkbox is marked complete:
 
 This is a **Draft spec** — per CLAUDE.md §4.1 no implementation begins until it is reviewed
 and approved, and each sub-phase then gets its own plan file in `docs/superpowers/plans/`
-before code. Recommended order: **§6.0 (harness) → §6.0.25 (track-to-bridge, the cheap win) →
-§6.0.5 (ONNX normalization) → §6.1 (TensorRT FP16, the bulk of the win)** — each is measured on
+before code. Recommended order: **§6.0 (harness) → §6.0.25 (detector interval + motion gate + ROI crop,
+the cheap wins, no TensorRT) → §6.0.3 (adaptive interval, optional; only if §6.0.25
+measurements show per-camera manual tuning is burdensome) → §6.0.5 (ONNX normalization,
+prerequisite for §6.1+) → §6.1 (TensorRT FP16, the bulk of the win)** — each is measured on
 the harness before the next. Only then decide how far up §6.2–6.6 to climb; §6.6 (DeepStream)
 is a last-resort rewrite, not a default — the opposite of how the source post frames it,
 because TensorRT EP preserves our pipeline structure and gets most of the win without the
