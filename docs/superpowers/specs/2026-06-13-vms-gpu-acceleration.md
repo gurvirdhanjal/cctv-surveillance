@@ -150,9 +150,12 @@ moment the throughput target (§4) is met — later sub-phases are only built if
 - **Gate:** baseline numbers recorded for the actual deployment GPU. Everything downstream is
   measured against these, not against vendor marketing figures.
 
-### §6.0.25 — Detector-interval decoupling (track-to-bridge) *(cheap early win, no TensorRT needed)*
-The lowest-cost throughput lever, layered in before the harder TensorRT work. Directly from
-the post's comment thread (Nitin Rai / Utkarsh Upadhyay).
+### §6.0.25 — Detector-interval decoupling, motion gate, and ROI cropping *(cheap early wins, no TensorRT needed)*
+The lowest-cost throughput levers, layered in before the harder TensorRT work. Directly from
+the post's comment thread (Nitin Rai / Utkarsh Upadhyay). Three independent flags that compose:
+fixed interval → motion gate → ROI crop. Each can be enabled or disabled independently.
+
+**Fixed-interval decoupling (the baseline lever):**
 
 - **Primary detector at an interval, tracker every frame.** Run YOLO person detection every
   `detector_interval_frames` frames; on the in-between frames, the tracker *coasts* — advancing
@@ -171,8 +174,66 @@ the post's comment thread (Nitin Rai / Utkarsh Upadhyay).
   `cameras.model_overrides`, defaulting to a global setting.
 - **Distinct from `stale_threshold_ms`.** That drops whole frames under load (tracking dies on
   dropped frames); this keeps tracking alive every frame and only throttles the detector.
-- **Gate:** measurable detector-GPU-time reduction on the §6.0 harness with track continuity
-  (ID-switch rate) and detection recall held within tolerance vs every-frame detection.
+
+**Motion-gate pre-filter (`motion_gate_enabled`, default off):**
+
+Before the fixed-interval check, an optional lightweight motion gate determines whether a
+frame contains enough pixel-level change to warrant YOLO at all. If the scene is genuinely
+static — an empty corridor, a parked forklift with no persons — the frame is skipped entirely
+(no YOLO, no coasting update, existing tracks age normally). This fires on quiescent frames
+that the fixed interval would still have processed.
+
+- **Mechanism:** frame differencing (absolute per-channel mean pixel delta; fast, no state) or
+  MOG2 background subtraction (more stable across lighting changes; maintains per-camera
+  foreground model). `motion_gate_method: str = "frame_diff"` | `"mog2"`.
+- **Threshold:** `motion_gate_min_pixel_diff_pct` — fraction of pixels that must exceed a
+  per-channel delta before YOLO fires. Calibration target: false-negative rate < 1% on a
+  representative clip (a person entering an otherwise-static scene). Too low → gate never
+  suppresses; too high → slow-moving persons missed.
+- **Track expiry interaction:** if the motion gate silences a camera for more than
+  `track_max_coasting_frames` consecutive frames, existing tracks must be expired rather than
+  coasted indefinitely. A permanently static scene should produce zero active tracks, not
+  stale ghost tracks.
+- **Composition with the fixed interval:** a frame must pass both the motion gate *and* fall
+  on a YOLO interval to trigger detection. Either condition suppressing the frame is sufficient.
+  The two levers are independent and additive.
+
+**ROI cropping (`motion_gate_roi_crop_enabled`, default off):**
+
+When a frame passes the motion gate and falls on a YOLO interval, crop the YOLO input to the
+bounding-box union of active motion regions (from the motion gate diff) expanded by
+`motion_gate_roi_margin_px`. This reduces effective input area — for a 2560×1440 camera with
+motion only in a doorway, YOLO sees a 400×600 crop instead of the full frame.
+
+- **TensorRT engine cache interaction (important for §6.1):** TensorRT engines compiled for a
+  fixed input shape cannot accept variable crop sizes without a dynamic-shapes profile, which
+  adds engine cache complexity. **Resolution:** resize every crop to a fixed canonical size
+  (e.g. 640×640) before YOLO input. One engine, stable cache key. Slight quality cost on very
+  small crops is acceptable; if accuracy loss on small/distant persons is measured as
+  unacceptable in the §6.0.25 gate, ROI cropping is disabled and only the motion gate is
+  retained. ROI cropping must be validated at interval=N *before* §6.1 TensorRT is added so
+  the two interactions can be disentangled.
+- Gated behind its own flag so it can be disabled without disabling the motion gate.
+
+**Compound skip effect on identity coverage:**
+
+A person entering frame on a YOLO-skip cycle will not receive a face-embedding pass until the
+next YOLO frame. At interval=2 and 25 fps this is at most 80 ms; at interval=4 it is 160 ms.
+A person who enters and exits between two YOLO frames is a missed identification, not merely a
+late one. This risk motivates capping the interval for FULL-tier cameras and drives the
+identity coverage metric in the gate:
+
+- **Identity coverage rate:** fraction of person-frames that would have received a
+  face-embedding pass under interval=1 that still receive one under interval=N. Target:
+  ≥ 95% coverage at the configured interval. Measured on the §6.0 harness against a clip with
+  person entries at varied phases of the interval cycle.
+
+- **Gate:** measurable detector-GPU-time reduction on the §6.0 harness with **all four**
+  metrics held within tolerance vs every-frame detection: (1) track continuity (ID-switch
+  rate), (2) detection recall, (3) identity coverage rate (≥ 95%), (4) motion-gate
+  false-negative rate (< 1% missed person-enters-frame events when `motion_gate_enabled`).
+  Per-tier numbers reported separately. ROI-crop accuracy loss reported independently if
+  `motion_gate_roi_crop_enabled`.
 
 ### §6.0.5 — Model format normalization to ONNX *(prerequisite for everything below)*
 - Build a format-aware export step: each model in the manifest declares its source format
