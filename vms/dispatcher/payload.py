@@ -62,7 +62,8 @@ def from_stream_fields(
         alert_id=int(data["alert_id"]),  # type: ignore[call-overload]
         alert_type=str(data["alert_type"]),
         severity=str(data["severity"]),
-        camera_id=int(data["camera_id"]),  # type: ignore[call-overload]
+        # camera_id is None for SYSTEM_CRITICAL alerts
+        camera_id=int(data["camera_id"]) if data.get("camera_id") is not None else None,  # type: ignore[call-overload]
         camera_name=camera_name,
         zone_id=int(data["zone_id"]) if data.get("zone_id") is not None else None,  # type: ignore[call-overload]
         zone_name=zone_name,
