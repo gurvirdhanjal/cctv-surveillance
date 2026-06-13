@@ -148,12 +148,19 @@ def export_audit_log(
             detail="Only format=pdf is supported",
         )
 
+    max_rows = get_settings().audit_export_max_rows
     rows: list[AuditLog] = (
         db.query(AuditLog)
         .filter(AuditLog.event_ts >= from_dt, AuditLog.event_ts < to_dt)
         .order_by(AuditLog.audit_id.asc())
+        .limit(max_rows + 1)
         .all()
     )
+    if len(rows) > max_rows:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Date range contains more than {max_rows} audit rows. Use a narrower range.",
+        )
 
     pdf_bytes = _build_audit_pdf(rows, from_dt, to_dt)
     filename = f"audit-{from_dt.date()}--{to_dt.date()}.pdf"
