@@ -6,7 +6,6 @@ import threading
 from unittest.mock import MagicMock
 
 import numpy as np
-import pytest
 
 from vms.identity.faiss_index import FaissIndex
 

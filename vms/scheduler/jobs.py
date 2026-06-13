@@ -78,7 +78,7 @@ def _faiss_drift_check() -> None:
 
 
 def _audit_chain_verify() -> None:
-    from sqlalchemy import select, text
+    from sqlalchemy import select
 
     from vms.db.models import AuditLog
     from vms.db.session import SessionLocal
