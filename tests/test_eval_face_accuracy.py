@@ -8,7 +8,7 @@ Run explicitly with:
 Requires:
   - models/scrfd_2.5g.onnx
   - models/adaface_ir50.onnx
-  - employees/  (7 persons × 6 images each)
+  - employees/  (7 persons x 6 images each)
 
 Pass criteria (mirrors scripts/eval_face_accuracy.py thresholds):
   - Rank-1 accuracy         >= 90%   (at least 90% of detected probes match correctly)

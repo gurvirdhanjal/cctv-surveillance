@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from alembic.config import Config
 from sqlalchemy import inspect
 
 from alembic import command
+from alembic.config import Config
 from vms.db.session import engine
 
 

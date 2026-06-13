@@ -37,9 +37,8 @@ def _create_schema() -> Iterator[None]:
     try:
         import contextlib
 
-        from alembic.config import Config
-
         from alembic import command
+        from alembic.config import Config
 
         cfg = Config("alembic.ini")
         # Downgrade first: idempotent — safe even if no schema exists yet
