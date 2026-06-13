@@ -484,10 +484,14 @@ Adding cameras adds CPU load linearly. 4 ingestion workers × 13 cams = 52 cams 
 
 #### G.2 GPU inference (the real ceiling)
 
+> **These are plain CUDA-EP baselines** — the floor, not the ceiling. Phase 6 GPU acceleration
+> (TensorRT EP FP16 + dynamic batching) targets ≥2× throughput/GPU on the same hardware. See §G.5
+> for the post-acceleration model and `2026-06-13-vms-gpu-acceleration.md` for the full design.
+
 ```
 Total budget = Σ (cameras × fps × model_cost)
 
-Per-camera GPU time @ 15fps with trigger-gated heavy models:
+Per-camera GPU time @ 15fps with trigger-gated heavy models (plain CUDA-EP baseline):
   SCRFD (face)          : 15 fps × 6 ms    =  90 ms/sec/cam
   AdaFace (embed)       :  5 fps × 4 ms    =  20 ms/sec/cam   (only on detected faces)
   YOLOv8n (person)      : 15 fps × 4 ms    =  60 ms/sec/cam
@@ -499,7 +503,12 @@ Per-camera GPU time @ 15fps with trigger-gated heavy models:
 Per-camera GPU steady-state ≈ 200-300 ms/sec → ≈ 25-30% utilisation per camera
 ```
 
-#### G.3 GPU SKU capacity at 1080p / 15fps
+**What Phase 6 changes:** detector-interval decoupling (§6.0.25) cuts the primary-detector passes
+by the interval factor; TensorRT FP16 (§6.1) delivers 2–3× inference throughput; dynamic batching
+(§6.4) amortizes kernel-launch overhead across cameras. Actual numbers will be measured against this
+baseline by the §6.0 benchmark harness on the real deployment GPU before any claim is made.
+
+#### G.3 GPU SKU capacity at 1080p / 15fps (CUDA-EP baseline)
 
 | GPU | VRAM | Camera capacity | Indicative cost (₹) |
 |---|---|---|---|
