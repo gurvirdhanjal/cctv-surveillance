@@ -65,6 +65,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             pass
         except Exception:
             logger.exception("AlertDispatcher raised unexpected error during shutdown")
+        try:
+            await redis.aclose()
+        except Exception:
+            logger.exception("Error closing Redis connection during shutdown")
 
 
 app = FastAPI(title="VMS API", version="0.2.0", lifespan=lifespan)
