@@ -117,3 +117,33 @@ async def test_integrity_error_returns_422(db_session: Session) -> None:
 
     assert r.status_code == 422
     assert "detail" in r.json()
+
+
+@pytest.mark.asyncio
+async def test_lifespan_closes_redis_on_shutdown() -> None:
+    """lifespan must call redis.aclose() during shutdown to prevent connection leaks."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    from fastapi.testclient import TestClient
+
+    closed: list[bool] = []
+
+    mock_redis = AsyncMock()
+    mock_redis.aclose = AsyncMock(side_effect=lambda: closed.append(True))
+
+    mock_dispatcher = MagicMock()
+    mock_dispatcher.run = AsyncMock(side_effect=asyncio.CancelledError)
+
+    with (
+        patch("vms.api.main.get_api_redis", return_value=mock_redis),
+        patch("vms.api.main.AlertDispatcher") as MockDispatcher,
+    ):
+        MockDispatcher.from_settings.return_value = mock_dispatcher
+
+        from vms.api.main import lifespan
+
+        test_app = FastAPI(lifespan=lifespan)
+        with TestClient(test_app):
+            pass
+
+    assert closed, "redis.aclose() must be called during lifespan shutdown"
