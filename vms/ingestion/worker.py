@@ -122,7 +122,7 @@ class IngestionWorker:
                     raise RuntimeError(
                         "SHMSlot not initialised — call start() before _capture_loop()"
                     )
-                ts_ms = self._slot.write(frame_np, self._seq_id)
+                ts_ms = self._slot.write(frame_np, self._seq_id)  # type: ignore[arg-type]  # np.asarray returns generic shape; frame is always HxWx3 BGR at runtime
                 pointer = FramePointer(
                     cam_id=self._camera.camera_id,
                     shm_name=self._slot.name,
