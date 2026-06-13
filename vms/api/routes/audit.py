@@ -99,24 +99,28 @@ def _build_audit_pdf(rows: list[AuditLog], from_dt: datetime, to_dt: datetime) -
     header = ["audit_id", "event_ts (UTC)", "event_type", "actor", "target", "hash (first 16)"]
     data: list[list[str]] = [header]
     for row in rows:
-        data.append([
-            str(row.audit_id),
-            row.event_ts.isoformat(),
-            row.event_type,
-            str(row.actor_user_id) if row.actor_user_id is not None else "system",
-            f"{row.target_type}:{row.target_id}" if row.target_type else "",
-            row.row_hash[:16],
-        ])
+        data.append(
+            [
+                str(row.audit_id),
+                row.event_ts.isoformat(),
+                row.event_type,
+                str(row.actor_user_id) if row.actor_user_id is not None else "system",
+                f"{row.target_type}:{row.target_id}" if row.target_type else "",
+                row.row_hash[:16],
+            ]
+        )
 
     table = Table(data, repeatRows=1)
     table.setStyle(
-        TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-            ("FONTSIZE", (0, 0), (-1, -1), 8),
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
-        ])
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+            ]
+        )
     )
     elements.append(table)
     doc.build(elements)
@@ -128,7 +132,7 @@ def _build_audit_pdf(rows: list[AuditLog], from_dt: datetime, to_dt: datetime) -
 def export_audit_log(
     from_dt: datetime = Query(..., alias="from"),  # noqa: B008
     to_dt: datetime = Query(..., alias="to"),  # noqa: B008
-    fmt: str = Query("pdf", alias="format"),  # noqa: B008
+    fmt: str = Query("pdf", alias="format"),
     db: Session = Depends(get_db),  # noqa: B008
     _user: dict[str, Any] = require_role("admin"),  # noqa: B008
 ) -> Response:

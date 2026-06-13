@@ -193,6 +193,7 @@ async def test_audit_verify_guard_role_forbidden(db_session: Session) -> None:
 
 # ── audit/export ──────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_audit_export_returns_pdf(db_session: Session) -> None:
     _seed_events(db_session, 5)
