@@ -53,12 +53,11 @@ def _emit_critical_alert(*, detail: str, component: str) -> None:
             )
             session.add(alert)
             session.commit()
-    except Exception as exc:
-        logger.error(
-            "_emit_critical_alert: failed to write alert component=%s detail=%s error=%s",
+    except Exception:
+        logger.exception(
+            "_emit_critical_alert: failed to write alert component=%s detail=%s",
             component,
             detail,
-            exc,
         )
 
 
