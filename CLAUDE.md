@@ -167,7 +167,7 @@ a plan checkbox before Phase 4 starts. No implementation without an approved pla
 | `alert_dispatcher_retry_delays_s` + `alert_dispatcher_max_attempts` in `config.py` | §17 invariants | Currently hardcoded in `dispatcher/worker.py` lines 24–25 |
 | PDF export is unsigned (no digital signature) | §F.3 | Spec says "signed PDF" — deferred; needs crypto signing spec before implementation |
 | ONVIF night-mode probe (IR re-sample for brightness re-test) | §B | Deferred — no ONVIF library in requirements; add to Phase 6 camera rollout plan |
-| `_emit_critical_alert` in scheduler reuses `alert_type='UNKNOWN_PERSON'` | §M | **DESIGN DECISION PENDING** — see scheduler plan pre-Task 3 note; resolve via `/advisor` before implementing |
+| ~~`_emit_critical_alert` in scheduler reuses `alert_type='UNKNOWN_PERSON'`~~ | §M | **DONE** — uses `SYSTEM_CRITICAL` + `camera_id=None`; migration `f1a2b3c4d5e6`; Guard view filters it; scheduler plan updated |
 
 ---
 
