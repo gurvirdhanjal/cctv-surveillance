@@ -12,7 +12,8 @@ class AlertPayload:
     alert_id: int
     alert_type: str
     severity: str
-    camera_id: int
+    # camera_id is None for SYSTEM_CRITICAL alerts
+    camera_id: int | None
     camera_name: str
     zone_id: int | None
     zone_name: str | None
