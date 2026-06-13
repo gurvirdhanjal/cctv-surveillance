@@ -63,6 +63,36 @@ class IngestionWorker:
     async def stop(self) -> None:
         self._running = False
 
+    async def _stream_add_with_retry(
+        self,
+        stream_name: str,
+        fields: dict[str, str],
+    ) -> None:
+        settings = get_settings()
+        max_attempts = settings.redis_stream_retry_attempts
+        delay_s = settings.redis_stream_retry_delay_ms / 1000.0
+        for attempt in range(1, max_attempts + 1):
+            try:
+                await stream_add(self._redis, stream_name, fields)
+                return
+            except Exception:
+                if attempt == max_attempts:
+                    logger.exception(
+                        "camera_id=%d stream_add failed after %d attempts; dropping frame seq=%d",
+                        self._camera.camera_id,
+                        max_attempts,
+                        self._seq_id,
+                    )
+                    return
+                logger.warning(
+                    "camera_id=%d stream_add attempt %d/%d failed; retrying in %.1fs",
+                    self._camera.camera_id,
+                    attempt,
+                    max_attempts,
+                    delay_s,
+                )
+                await asyncio.sleep(delay_s)
+
     async def _mark_camera_inactive(self) -> None:
         if self._session_factory is None:
             return
