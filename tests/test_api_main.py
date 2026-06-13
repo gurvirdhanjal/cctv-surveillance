@@ -5,8 +5,10 @@ from __future__ import annotations
 import pathlib
 from unittest.mock import patch
 
+import pytest
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.orm import Session
 
 from vms.api.main import _apply_media_mount
 
