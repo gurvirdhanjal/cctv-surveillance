@@ -183,6 +183,7 @@ async def delete_window(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Window not found")
 
     window.is_active = False
+    await _publish_mw_changed()
     db.commit()
 
     write_audit_event(
@@ -196,7 +197,6 @@ async def delete_window(
         ),
     )
 
-    await _publish_mw_changed()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
