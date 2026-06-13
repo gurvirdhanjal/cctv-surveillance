@@ -286,6 +286,33 @@ async def test_audit_export_empty_range_still_returns_pdf(db_session: Session) -
 
 
 @pytest.mark.asyncio
+async def test_audit_export_row_limit_exceeded_returns_400(db_session: Session) -> None:
+    from unittest.mock import MagicMock
+
+    from vms.config import Settings
+
+    now = _utcnow()
+    _seed_events(db_session, 5)
+    from_s = (now - timedelta(hours=1)).isoformat()
+    to_s = (now + timedelta(hours=1)).isoformat()
+
+    mock_settings = MagicMock(spec=Settings)
+    mock_settings.audit_export_max_rows = 3
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        with patch("vms.api.routes.audit.get_settings", return_value=mock_settings):
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+                resp = await c.get(
+                    f"/api/audit/export?from={from_s}&to={to_s}&format=pdf",
+                    headers=_auth("admin"),
+                )
+    finally:
+        app.dependency_overrides.clear()
+    assert resp.status_code == 400
+    assert "audit rows" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
 async def test_audit_export_requires_auth(db_session: Session) -> None:
     now = _utcnow()
     app.dependency_overrides[get_db] = lambda: db_session
