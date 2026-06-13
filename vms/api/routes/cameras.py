@@ -188,6 +188,19 @@ async def update_camera_overrides(
     return cam
 
 
+@router.post("/cameras/{camera_id}/recalibrate-required", response_model=CameraResponse)
+def mark_recalibrate_required(
+    camera_id: int,
+    db: Session = Depends(get_db),  # noqa: B008
+    _user: dict[str, Any] = Depends(get_current_user),  # noqa: B008
+) -> Camera:
+    cam = _get_camera_or_404(camera_id, db)
+    cam.recalibrate_required_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    db.commit()
+    db.refresh(cam)
+    return cam
+
+
 @router.get("/cameras/{camera_id}/resolved-config", response_model=ResolvedConfigResponse)
 def get_resolved_config(
     camera_id: int,
