@@ -34,7 +34,13 @@ def snapshot(
         if _agg is not None
         else {"plant_total": 0, "by_zone": {}, "ts": now, "schema_version": "1"}
     )
-    active = db.query(Alert).filter_by(state="active").limit(200).all()
+    # SYSTEM_CRITICAL alerts are ops/scheduler events, not security events — excluded from guard view
+    active = (
+        db.query(Alert)
+        .filter(Alert.state == "active", Alert.alert_type != "SYSTEM_CRITICAL")
+        .limit(200)
+        .all()
+    )
     cams = db.query(Camera).filter_by(is_active=True).all()
     return {
         "ts": now,
