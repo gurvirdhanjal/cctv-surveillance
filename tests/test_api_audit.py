@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from vms.api.schemas import AuditVerifyResponse, ForensicClipItem, ForensicClipsResponse
 
