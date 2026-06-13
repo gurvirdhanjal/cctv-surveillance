@@ -255,3 +255,38 @@ def get_profile(
         shutter_type=cam.shutter_type,
         tier_reason=profile_parsed.tier_reason if profile_parsed else None,
     )
+
+
+@router.get("/sites/readiness-report.pdf")
+def get_site_readiness_report(
+    site: str = "Plant Site",
+    db: Session = Depends(get_db),  # noqa: B008
+    _user: dict[str, Any] = Depends(get_current_user),  # noqa: B008
+) -> Response:
+    cameras = db.query(Camera).order_by(Camera.camera_id).all()
+    rows = []
+    for cam in cameras:
+        pd: ProfileData | None = None
+        if cam.profile_data:
+            try:
+                pd = ProfileData(**json.loads(cam.profile_data))
+            except (json.JSONDecodeError, ValueError):
+                pd = None
+        rows.append(
+            {
+                "camera_id": cam.camera_id,
+                "name": cam.name,
+                "capability_tier": cam.capability_tier,
+                "shutter_type": cam.shutter_type,
+                "tier_reason": pd.tier_reason if pd else None,
+                "profile_data": pd,
+            }
+        )
+    pdf_bytes = generate_readiness_report(rows, site_name=site)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="vms-site-readiness-{site}.pdf"'
+        },
+    )
