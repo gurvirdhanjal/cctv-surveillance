@@ -118,6 +118,10 @@ async def update_camera_hardware(
     cam.shutter_type = body.shutter_type
     if body.capability_tier is not None:
         cam.capability_tier = body.capability_tier
+    try:
+        await redis.publish(f"camera_config_changed:{camera_id}", "hardware")
+    except Exception:
+        logger.warning("camera_config_changed publish failed for camera %d", camera_id)
     db.commit()
     db.refresh(cam)
     try:
@@ -138,7 +142,6 @@ async def update_camera_hardware(
             }
         ),
     )
-    await redis.publish(f"camera_config_changed:{camera_id}", "hardware")
     return cam
 
 
