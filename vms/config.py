@@ -121,6 +121,8 @@ class Settings(BaseSettings):
     profiler_fps_mid_min: float = 8.0
     profiler_res_full_min_h: int = 1080
     profiler_res_mid_min_h: int = 720
+    profiler_rtsp_open_timeout_ms: int = 5000
+    profiler_rtsp_read_timeout_ms: int = 5000
 
     # anomaly orchestrator
     anomaly_max_consecutive_errors: int = 5
