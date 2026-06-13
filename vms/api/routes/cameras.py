@@ -161,6 +161,10 @@ async def update_camera_overrides(
     if body.thresholds:
         merged.update(body.thresholds)
     cam.model_overrides = json.dumps(merged)
+    try:
+        await redis.publish(f"camera_config_changed:{camera_id}", "overrides")
+    except Exception:
+        logger.warning("camera_config_changed publish failed for camera %d", camera_id)
     db.commit()
     db.refresh(cam)
     try:
@@ -181,7 +185,6 @@ async def update_camera_overrides(
             }
         ),
     )
-    await redis.publish(f"camera_config_changed:{camera_id}", "overrides")
     return cam
 
 
