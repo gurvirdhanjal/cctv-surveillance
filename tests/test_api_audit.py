@@ -287,7 +287,7 @@ async def test_audit_export_empty_range_still_returns_pdf(db_session: Session) -
 
 @pytest.mark.asyncio
 async def test_audit_export_row_limit_exceeded_returns_400(db_session: Session) -> None:
-    from unittest.mock import MagicMock
+    from unittest.mock import MagicMock, patch
 
     from vms.config import Settings
 
