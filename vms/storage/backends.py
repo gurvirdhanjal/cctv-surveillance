@@ -57,7 +57,7 @@ class MinIOStorageBackend:
         self._ensure_bucket()
 
     def _ensure_bucket(self) -> None:
-        from botocore.exceptions import ClientError  # type: ignore[import-untyped]
+        from botocore.exceptions import ClientError  # type: ignore[import-not-found]
 
         with contextlib.suppress(ClientError):
             self._client.head_bucket(Bucket=self._bucket)
