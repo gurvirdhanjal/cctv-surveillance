@@ -8,6 +8,7 @@ from typing import Any
 
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from vms.api.deps import get_api_redis, get_current_user, get_db, require_role
