@@ -283,3 +283,17 @@ async def test_audit_export_empty_range_still_returns_pdf(db_session: Session) -
 
     assert resp.status_code == 200
     assert resp.content[:4] == b"%PDF"
+
+
+@pytest.mark.asyncio
+async def test_audit_export_requires_auth(db_session: Session) -> None:
+    now = _utcnow()
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get(
+                f"/api/audit/export?from={(now - timedelta(hours=1)).isoformat()}&to={(now + timedelta(hours=1)).isoformat()}&format=pdf"
+            )
+    finally:
+        app.dependency_overrides.clear()
+    assert resp.status_code == 401
