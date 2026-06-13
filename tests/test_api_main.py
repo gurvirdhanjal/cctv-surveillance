@@ -83,3 +83,34 @@ def test_startup_calls_ensure_future_partitions() -> None:
     with patch("vms.api.main.ensure_future_partitions") as mock_ensure:
         _call_ensure_future_partitions()
     mock_ensure.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_integrity_error_returns_422(db_session: Session) -> None:
+    """SAIntegrityError raised inside a route is caught and returned as 422."""
+    from sqlalchemy.exc import IntegrityError as SAIntegrityError
+
+    from fastapi import APIRouter
+    from vms.api.deps import get_db
+    from vms.api.main import app
+
+    _test_router = APIRouter()
+
+    @_test_router.post("/test-integrity-error")
+    def _raise_integrity() -> None:
+        raise SAIntegrityError("INSERT ...", {}, Exception("unique constraint"))
+
+    app.include_router(_test_router, prefix="/api")
+    app.dependency_overrides[get_db] = lambda: db_session
+
+    try:
+        from httpx import ASGITransport, AsyncClient
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            r = await c.post("/api/test-integrity-error")
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        app.routes[:] = [route for route in app.routes if getattr(route, "path", None) != "/api/test-integrity-error"]
+
+    assert r.status_code == 422
+    assert "detail" in r.json()
