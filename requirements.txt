@@ -19,3 +19,7 @@ torch>=2.0.0
 torchvision>=0.15.0
 # torchreid: clone https://github.com/KaiyangZhou/deep-person-reid.git + pip install -e . --no-build-isolation
 reportlab>=4.0
+boto3>=1.26.0
+botocore>=1.29.0
+# dev / test only
+moto[s3]>=5.0.0
