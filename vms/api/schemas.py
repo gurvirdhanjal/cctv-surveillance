@@ -388,3 +388,25 @@ class AlertRoutingResponse(BaseModel):
     channel: str
     target: str
     is_active: bool
+
+
+# ── Audit schemas ────────────────────────────────────────────────────────────
+
+class AuditVerifyResponse(BaseModel):
+    rows_checked: int
+    broken_chain_at: datetime | None
+
+
+# ── Forensic schemas ──────────────────────────────────────────────────────────
+
+class ForensicClipItem(BaseModel):
+    clip_emb_id: int
+    global_track_id: str
+    camera_id: int
+    event_ts: datetime
+    snapshot_url: str
+
+
+class ForensicClipsResponse(BaseModel):
+    clips: list[ForensicClipItem]
+    total: int
