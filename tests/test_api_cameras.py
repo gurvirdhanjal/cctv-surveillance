@@ -440,6 +440,52 @@ async def test_get_profile_returns_last_profile_data(db_session: Session) -> Non
     assert body["profile_data"]["shutter_suggestion"] == "rolling"
 
 
+# ---------------------------------------------------------------------------
+# POST /api/cameras/{id}/recalibrate-required
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_recalibrate_required_sets_timestamp(db_session: Session) -> None:
+    """POST /cameras/{id}/recalibrate-required sets recalibrate_required_at and returns 200."""
+    from vms.api.deps import get_db
+
+    cam = Camera(name="RecalCam", rtsp_url="rtsp://recal", capability_tier="FULL")
+    db_session.add(cam)
+    db_session.flush()
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            r = await c.post(f"/api/cameras/{cam.camera_id}/recalibrate-required", headers=_auth())
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["recalibrate_required_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_recalibrate_required_404_for_unknown_camera(db_session: Session) -> None:
+    """POST /cameras/9999/recalibrate-required returns 404."""
+    from vms.api.deps import get_db
+
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            r = await c.post("/api/cameras/9999/recalibrate-required", headers=_auth())
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_recalibrate_required_requires_auth() -> None:
+    """POST /cameras/{id}/recalibrate-required returns 401 when unauthenticated."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        r = await c.post("/api/cameras/1/recalibrate-required")
+    assert r.status_code == 401
+
+
 @pytest.mark.asyncio
 async def test_profile_data_full_fields() -> None:
     """ProfileData must accept the full set of measured fields."""
