@@ -392,12 +392,14 @@ class AlertRoutingResponse(BaseModel):
 
 # ── Audit schemas ────────────────────────────────────────────────────────────
 
+
 class AuditVerifyResponse(BaseModel):
     rows_checked: int
     broken_chain_at: datetime | None
 
 
 # ── Forensic schemas ──────────────────────────────────────────────────────────
+
 
 class ForensicClipItem(BaseModel):
     clip_emb_id: int
