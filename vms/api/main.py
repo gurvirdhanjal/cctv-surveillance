@@ -8,9 +8,11 @@ import pathlib
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from prometheus_client import make_asgi_app
+from sqlalchemy.exc import IntegrityError as SAIntegrityError
 
 from vms.api.routes import (
     alerts,
