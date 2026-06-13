@@ -570,9 +570,42 @@ expands capacity to ~100–130 cameras before any infrastructure change is neede
    - Multi-site: each site is a self-contained deployment that ships only alerts + tracking summaries
      to a central management instance.
 
+### G.5 GPU acceleration roadmap (Phase 6)
+
+> **Full design:** `docs/superpowers/specs/2026-06-13-vms-gpu-acceleration.md`
+>
+> **Status:** Draft spec approved. No implementation until Phase 5 priorities are weighed and each
+> sub-phase has its own plan file (`docs/superpowers/plans/`).
+
+The §G.2 capacity table is a plain CUDA-EP baseline. Phase 6 climbs a ladder of independently
+shippable sub-phases, stopping as soon as the 52-camera / ≤50 ms/frame target is met:
+
+| Sub-phase | What it does | Expected effect | Needs TensorRT? |
+|---|---|---|---|
+| §6.0 — Harness | GPU hardware probe (`detect_gpu_profile()`) + benchmark framework | Establishes the actual baseline on the real card | No |
+| §6.0.25 — Detector interval | YOLO runs every Nth frame; tracker coasts between runs | Cuts primary-detector GPU-time by ~1/N; cascade stages (face/body embedding) are **exempt** and stay gate-based | No |
+| §6.0.5 — ONNX normalisation | Export all models to ONNX (`.pt` → Ultralytics export, `.pth` → `torch.onnx.export`, TF SavedModel → `tf2onnx`); validate numerically | Prerequisite for §6.1+; MoViNet may stay on native TF runtime | No |
+| §6.1 — TensorRT FP16 | Add `TensorrtExecutionProvider` to ONNX Runtime provider list in `detector.py`, `embedder.py`, `ppe.py`; warm-up pass on startup | **2–3× inference throughput/GPU** — the single biggest win | Yes |
+| §6.2 — INT8 detectors | Post-training quantisation on YOLO/SCRFD; **embedding models stay FP16** | +30–50% on detector stages (arch-gated: Turing+ only) | Yes |
+| §6.3 — NVDEC | Move RTSP decode from CPU to GPU video engine (hardware-probe gated) | Frees CPU cores; removes §G.1 decode ceiling | No |
+| §6.4 — Triton batching | `InferenceEngine` becomes a Triton client; frames from all cameras batched into single GPU pass | Largest multiplier at high camera counts | Yes |
+| §6.5 — Multi-GPU | Shard cameras across both 32 GB GPUs via `cameras.worker_group`; each GPU its own Triton instance | ~2× aggregate capacity; redundancy | Yes |
+| §6.6 — DeepStream | **Go/no-go only** — spike if §6.1–6.5 still fall short | Potential further gain; CUDA lock-in + pipeline rewrite cost | N/A |
+
+**Identity correctness is non-negotiable across all sub-phases.** FP16/INT8 changes embedding
+numerics. Before any precision change ships on AdaFace or OSNet, the §6.0 harness must confirm
+cosine-similarity drift vs FP32 stays within threshold — and any threshold adjustment requires
+`/advisor` sign-off per CLAUDE.md §0.5. INT8 is applied to detectors first; embedders require
+explicit evaluation and approval.
+
+**The Redis-Streams bus and FAISS-as-derived-cache invariants (CLAUDE.md §17) are preserved
+throughout.** Triton (§6.4) changes only what happens inside `InferenceEngine`'s model-execution
+call — ingestion → inference still flows through `frames:groupN`; PostgreSQL remains the source
+of truth; FAISS is rebuilt from `person_embeddings` at startup.
+
 ### Why doubling cameras doesn't double Redis load
 
-The shared-memory frame transport is the architecture's "secret weapon." Redis carries only 24-byte frame pointers; raw pixels never traverse the bus. Adding cameras adds ingestion CPU but not message-bus bandwidth.
+The shared-memory frame transport is the architecture's "secret weapon." Redis carries only 24-byte frame pointers; raw pixels never traverse the bus. Adding cameras adds ingestion CPU but not message-bus bandwidth. Phase 6.4 (Triton batching) exploits this further: the GPU processes one large batch from N cameras in the same kernel launch that previously processed one frame from one camera.
 
 ---
 
