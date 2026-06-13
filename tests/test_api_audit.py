@@ -137,9 +137,11 @@ async def test_audit_verify_empty_range(db_session: Session) -> None:
     to_s = (future + timedelta(days=1)).isoformat()
 
     app.dependency_overrides[get_db] = lambda: db_session
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-        resp = await c.get(f"/api/audit/verify?from={from_s}&to={to_s}", headers=_auth())
-    app.dependency_overrides.clear()
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get(f"/api/audit/verify?from={from_s}&to={to_s}", headers=_auth())
+    finally:
+        app.dependency_overrides.clear()
 
     assert resp.status_code == 200
     assert resp.json() == {"rows_checked": 0, "broken_chain_at": None}
