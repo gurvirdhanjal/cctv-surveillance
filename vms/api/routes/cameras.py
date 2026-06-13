@@ -286,7 +286,5 @@ def get_site_readiness_report(
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={
-            "Content-Disposition": f'attachment; filename="vms-site-readiness-{site}.pdf"'
-        },
+        headers={"Content-Disposition": f'attachment; filename="vms-site-readiness-{site}.pdf"'},
     )

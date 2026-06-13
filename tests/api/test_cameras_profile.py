@@ -53,9 +53,7 @@ async def test_post_profile_triggers_profiler_and_stores_results(
             inst.probe.return_value = _fake_profile_data()
             mock_cls.return_value = inst
 
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as c:
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 resp = await c.post(
                     f"/api/cameras/{cam.camera_id}/profile",
                     headers=_auth(),
@@ -77,9 +75,7 @@ async def test_post_profile_404_on_unknown_camera(db_session: Session) -> None:
 
     app.dependency_overrides[get_db] = lambda: db_session
     try:
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as c:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.post("/api/cameras/99999/profile", headers=_auth())
     finally:
         app.dependency_overrides.pop(get_db, None)
@@ -103,9 +99,7 @@ async def test_post_profile_rtsp_failure_returns_422(db_session: Session) -> Non
             inst.probe.side_effect = RuntimeError("Cannot open RTSP stream")
             mock_cls.return_value = inst
 
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as c:
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 resp = await c.post(
                     f"/api/cameras/{cam.camera_id}/profile",
                     headers=_auth(),
