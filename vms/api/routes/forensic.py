@@ -77,8 +77,8 @@ def get_forensic_clips(
 @router.get("/forensic/search")
 def forensic_search(
     q: str = Query(...),
-    from_dt: datetime | None = Query(None, alias="from"),
-    to_dt: datetime | None = Query(None, alias="to"),
+    from_dt: datetime | None = Query(None, alias="from"),  # noqa: B008
+    to_dt: datetime | None = Query(None, alias="to"),  # noqa: B008
     zone_id: int | None = Query(None),
     _user: dict[str, Any] = require_role("admin", "manager"),  # noqa: B008  # Any: user dict shape is opaque; role check enforced by require_role
 ) -> None:
