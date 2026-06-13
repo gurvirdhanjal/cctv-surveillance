@@ -87,6 +87,20 @@ def test_probe_frame_drop_rate_zero_on_clean_stream(mock_cap_cls: MagicMock) -> 
 
 
 @patch("vms.profiler.probe.cv2.VideoCapture")
+def test_probe_raises_on_insufficient_frames(mock_cap_cls: MagicMock) -> None:
+    """Stream opens but cap.read() always fails -> RuntimeError: Insufficient frames."""
+    cap = MagicMock()
+    cap.isOpened.return_value = True
+    cap.get.side_effect = lambda p: {3: 1920.0, 4: 1080.0, 5: 25.0, 6: 0.0}.get(p, 0.0)
+    cap.read.return_value = (False, None)
+    mock_cap_cls.return_value = cap
+
+    profiler = CameraProfiler(probe_duration_s=0, sample_frames=5)
+    with pytest.raises(RuntimeError, match="Insufficient frames"):
+        profiler.probe("rtsp://fake/degraded")
+
+
+@patch("vms.profiler.probe.cv2.VideoCapture")
 def test_probe_detects_analog_combing_via_alternating_rows(
     mock_cap_cls: MagicMock,
 ) -> None:
