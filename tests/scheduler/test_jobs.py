@@ -96,25 +96,23 @@ def test_emit_critical_alert_survives_db_error(monkeypatch: pytest.MonkeyPatch) 
         _emit_critical_alert(component="partition_manager", detail="partition create failed")
 
 
-def test_emit_critical_alert_uses_system_critical_type(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_emit_critical_alert_uses_system_critical_type() -> None:
     """_emit_critical_alert must create SYSTEM_CRITICAL alert with camera_id=None."""
-    from unittest.mock import MagicMock
+    from unittest.mock import MagicMock, patch
 
     added_alerts: list[object] = []
 
     mock_session = MagicMock()
-    mock_session.__enter__ = lambda s: s
+    mock_session.__enter__ = MagicMock(return_value=mock_session)
     mock_session.__exit__ = MagicMock(return_value=False)
 
     def fake_add(obj: object) -> None:
         added_alerts.append(obj)
 
     mock_session.add = fake_add
-    monkeypatch.setattr("vms.scheduler.jobs.SessionLocal", lambda: mock_session)
 
-    _emit_critical_alert(detail="disk full", component="partition_create")
+    with patch("vms.db.session.SessionLocal", return_value=mock_session):
+        _emit_critical_alert(detail="disk full", component="partition_create")
 
     assert len(added_alerts) == 1
     alert = added_alerts[0]
@@ -127,37 +125,33 @@ def test_emit_critical_alert_uses_system_critical_type(
     assert alert.severity == "CRITICAL"
 
 
-def test_emit_critical_alert_dedup_key_format(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_emit_critical_alert_dedup_key_format() -> None:
     """dedup_key must be prefixed 'scheduler:' so Guard view filter works correctly."""
-    from unittest.mock import MagicMock
+    from unittest.mock import MagicMock, patch
 
     added_alerts: list[object] = []
 
     mock_session = MagicMock()
-    mock_session.__enter__ = lambda s: s
+    mock_session.__enter__ = MagicMock(return_value=mock_session)
     mock_session.__exit__ = MagicMock(return_value=False)
     mock_session.add = lambda obj: added_alerts.append(obj)
-    monkeypatch.setattr("vms.scheduler.jobs.SessionLocal", lambda: mock_session)
 
-    _emit_critical_alert(detail="chain broken at audit_id=5", component="audit_chain_verify")
+    with patch("vms.db.session.SessionLocal", return_value=mock_session):
+        _emit_critical_alert(detail="chain broken at audit_id=5", component="audit_chain_verify")
 
     assert len(added_alerts) == 1
     key = added_alerts[0].dedup_key
     assert key.startswith("scheduler:"), f"dedup_key must start with 'scheduler:', got {key!r}"
 
 
-def test_emit_critical_alert_db_failure_does_not_raise(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_emit_critical_alert_db_failure_does_not_raise() -> None:
     """If the DB write fails, _emit_critical_alert logs and swallows the exception."""
-    from unittest.mock import MagicMock
+    from unittest.mock import MagicMock, patch
 
     mock_session = MagicMock()
-    mock_session.__enter__ = lambda s: s
+    mock_session.__enter__ = MagicMock(return_value=mock_session)
     mock_session.__exit__ = MagicMock(return_value=False)
     mock_session.add = MagicMock(side_effect=RuntimeError("DB unavailable"))
-    monkeypatch.setattr("vms.scheduler.jobs.SessionLocal", lambda: mock_session)
 
-    _emit_critical_alert(detail="test", component="test")
+    with patch("vms.db.session.SessionLocal", return_value=mock_session):
+        _emit_critical_alert(detail="test", component="test")
