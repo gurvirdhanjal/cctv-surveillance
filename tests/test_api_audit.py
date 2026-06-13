@@ -151,12 +151,14 @@ async def test_audit_verify_empty_range(db_session: Session) -> None:
 async def test_audit_verify_invalid_range_returns_422(db_session: Session) -> None:
     now = _utcnow()
     app.dependency_overrides[get_db] = lambda: db_session
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-        resp = await c.get(
-            f"/api/audit/verify?from={(now + timedelta(days=1)).isoformat()}&to={now.isoformat()}",
-            headers=_auth(),
-        )
-    app.dependency_overrides.clear()
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get(
+                f"/api/audit/verify?from={(now + timedelta(days=1)).isoformat()}&to={now.isoformat()}",
+                headers=_auth(),
+            )
+    finally:
+        app.dependency_overrides.clear()
     assert resp.status_code == 422
 
 
