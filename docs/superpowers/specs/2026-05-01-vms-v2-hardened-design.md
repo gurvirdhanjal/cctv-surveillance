@@ -1,6 +1,6 @@
 # VMS v2 — Hardened Design (Existing-Camera Retrofit + Anomaly Suite + Maintenance + Scaling)
 
-**Design Specification** · 2026-05-01 · **Last updated: 2026-06-01**
+**Design Specification** · 2026-05-01 · **Last updated: 2026-06-13**
 **Status:** Approved · Supersedes the v1 baseline for in-scope sections; v1 sections marked *unchanged* below remain authoritative.
 **Supersedes (in part):** `docs/superpowers/specs/2026-04-23-vms-facial-recognition-design.md`
 
