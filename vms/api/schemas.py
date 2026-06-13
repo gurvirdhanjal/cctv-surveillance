@@ -301,6 +301,7 @@ class CameraResponse(BaseModel):
     profiled_at: datetime | None
     model_overrides: str | None
     worker_group: int | None
+    recalibrate_required_at: datetime | None = None
 
 
 class CameraHardwareUpdate(BaseModel):
