@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import io
 import logging
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from vms.api.deps import get_db, require_role
