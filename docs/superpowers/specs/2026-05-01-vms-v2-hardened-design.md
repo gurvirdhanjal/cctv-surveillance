@@ -536,23 +536,39 @@ expands capacity to ~100–130 cameras before any infrastructure change is neede
 
 ### Scaling runbook — "add 50 more cameras"
 
-1. **Up to ~80 cameras (single GPU server)**
+1. **Up to ~80 cameras (single GPU + Phase 6 acceleration)**
    - Add ingestion worker processes; partition cameras across workers via `cameras.worker_group`.
-   - No GPU change needed if running A4000+.
-   - No code change.
+   - Apply Phase 6 GPU acceleration (§G.5): TensorRT FP16 + Triton dynamic batching alone pushes
+     the 32 GB GPU to ~100–130 cameras (estimated). Detector-interval decoupling (§6.0.25) is the
+     cheapest first lever.
+   - No infrastructure change.
 
-2. **80 → 200 cameras (two-node)**
-   - Stand up a second GPU host.
-   - Move Redis to its own machine (becomes shared message bus).
-   - Each GPU node runs its own `InferenceEngine`, consuming a partition of `frames:groupX` Redis Streams.
-   - `IdentityService` stays single (it's not GPU-bound) — receives detections from all nodes.
-   - `DBWriter` scales out trivially: each writer commits its own partition.
-   - Documented as the **"two-node deploy"** in production runbook.
+2. **80 → 150 cameras (two GPUs, one host)**
+   - Add the second available 32 GB GPU to the same server (Phase 6.5).
+   - Shard cameras across GPUs via `cameras.worker_group` (already used for ingestion partitioning —
+     no new concept introduced).
+   - Each GPU runs its own TensorRT engines / Triton instance consuming its camera partition from
+     `frames:groupN` Redis Streams.
+   - `IdentityService` stays single (not GPU-bound) — receives detections from both GPUs.
+   - `DBWriter` scales per GPU partition.
+   - This is the two-node topology from step 3, **collapsed onto one host with two cards** — lower
+     infrastructure cost, higher GPU–GPU bandwidth via PCIe, clean failover (one GPU's cameras
+     degrade, the other's are unaffected).
+   - Documented as the **"dual-GPU single-host"** deploy in the production runbook.
 
-3. **200+ cameras (multi-tenant or multi-site)**
+3. **150 → 400 cameras (two separate GPU hosts)**
+   - Stand up a second GPU host (same spec as the first).
+   - Move Redis to its own machine (shared message bus between hosts).
+   - Each host runs its own `InferenceEngine` + Triton, consuming a partition of `frames:groupX`.
+   - `IdentityService` stays single, receives detections from all hosts.
+   - `DBWriter` scales out trivially per partition.
+   - Documented as the **"two-node deploy"** in the production runbook.
+
+4. **400+ cameras (multi-tenant or multi-site)**
    - Swap Redis Streams for **Kafka** — same consumer-group API shape, no logic rewrite.
    - Shard `IdentityService` by zone-cluster.
-   - Multi-site: each site is a self-contained deployment that ships only alerts + tracking summaries to a central management instance.
+   - Multi-site: each site is a self-contained deployment that ships only alerts + tracking summaries
+     to a central management instance.
 
 ### Why doubling cameras doesn't double Redis load
 
