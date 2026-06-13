@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Any
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -42,6 +41,7 @@ def _seed_events(db: Session, n: int) -> tuple[datetime, datetime]:
 
 # ── schemas_importable ────────────────────────────────────────────────────────
 
+
 def test_schemas_importable() -> None:
     resp = AuditVerifyResponse(rows_checked=0, broken_chain_at=None)
     assert resp.rows_checked == 0
@@ -49,6 +49,7 @@ def test_schemas_importable() -> None:
 
 
 # ── audit/verify ──────────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_audit_verify_clean_chain(db_session: Session) -> None:
