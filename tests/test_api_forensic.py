@@ -148,3 +148,42 @@ async def test_forensic_clips_guard_role_forbidden(db_session: Session) -> None:
     finally:
         app.dependency_overrides.clear()
     assert resp.status_code == 403
+
+
+# ── search endpoint (stub) ────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_forensic_search_returns_501(db_session: Session) -> None:
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get(
+                "/api/forensic/search?q=person+in+red+shirt",
+                headers=_auth("admin"),
+            )
+    finally:
+        app.dependency_overrides.clear()
+    assert resp.status_code == 501
+    assert "CLIP" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_forensic_search_requires_auth() -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        resp = await c.get("/api/forensic/search?q=test")
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_forensic_search_guard_role_forbidden(db_session: Session) -> None:
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get(
+                "/api/forensic/search?q=test",
+                headers=_auth("guard"),
+            )
+    finally:
+        app.dependency_overrides.clear()
+    assert resp.status_code == 403
