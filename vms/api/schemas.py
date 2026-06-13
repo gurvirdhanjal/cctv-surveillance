@@ -61,7 +61,8 @@ class AlertResponse(BaseModel):
     alert_type: str
     severity: str
     state: str
-    camera_id: int
+    # camera_id is None for SYSTEM_CRITICAL alerts
+    camera_id: int | None
     zone_id: int | None
     person_id: int | None
     triggered_at: datetime
