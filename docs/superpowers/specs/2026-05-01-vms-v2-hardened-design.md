@@ -510,14 +510,25 @@ baseline by the §6.0 benchmark harness on the real deployment GPU before any cl
 
 #### G.3 GPU SKU capacity at 1080p / 15fps (CUDA-EP baseline)
 
-| GPU | VRAM | Camera capacity | Indicative cost (₹) |
-|---|---|---|---|
-| RTX 4060 / A2000 | 8 GB | 10 – 15 | ~80k |
-| RTX 4090 / A4000 | 16 GB | 30 – 40 | ~2.5L |
-| RTX 6000 Ada / L40S | 48 GB | 80 – 100 | ~6L |
-| A100 / H100 | 40-80 GB | 150+ | ~10L+ |
+| GPU | VRAM | Camera capacity (CUDA-EP) | Camera capacity (Phase 6 TRT+batching, estimated) | Indicative cost (₹) |
+|---|---|---|---|---|
+| RTX 4060 / A2000 | 8 GB | 10 – 15 | 20 – 30† | ~80k |
+| RTX 4090 / A4000 | 16 GB | 30 – 40 | 60 – 80† | ~2.5L |
+| **32 GB GPU (deployment target)** | **32 GB** | **50 – 65** | **100 – 130†** | ~3–5L |
+| RTX 6000 Ada / L40S | 48 GB | 80 – 100 | 160 – 200† | ~6L |
+| A100 / H100 | 40–80 GB | 150+ | 300+† | ~10L+ |
 
-The 52-camera plant fits **one A4000-class GPU** comfortably with headroom for v2.x additions. For >80 cameras, add a second GPU server rather than buying a larger one — cheaper and adds redundancy.
+† TensorRT FP16 + Triton dynamic batching estimates. **These are hypotheses, not guarantees** — the
+§6.0 benchmark harness will measure them against the actual deployment GPU before any claim ships.
+
+**Important: VRAM is not the bottleneck** for this model stack (SCRFD + AdaFace + YOLOv8x-pose +
+OSNet + MoViNet + PPE + CLIP ≈ 6–9 GB resident). The binding constraint is CUDA compute throughput.
+A 32 GB card's compute tier determines camera capacity — the surplus VRAM enables aggressive batching
+and a second model replica per GPU.
+
+The 52-camera plant fits a **32 GB GPU** comfortably at the CUDA-EP baseline, with substantial
+headroom when Phase 6 acceleration is applied. The second available 32 GB GPU (§G.5) then
+expands capacity to ~100–130 cameras before any infrastructure change is needed.
 
 #### G.4 DB writes — negligible at v1 scale
 
