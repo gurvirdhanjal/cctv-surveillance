@@ -23,9 +23,9 @@ def _make_cap_mock(
     cap = MagicMock()
     cap.isOpened.return_value = opened
     cap.get.side_effect = lambda prop: {
-        3: width,   # CAP_PROP_FRAME_WIDTH
+        3: width,  # CAP_PROP_FRAME_WIDTH
         4: height,  # CAP_PROP_FRAME_HEIGHT
-        5: fps,     # CAP_PROP_FPS
+        5: fps,  # CAP_PROP_FPS
         6: fourcc,  # CAP_PROP_FOURCC
     }.get(prop, 0.0)
     rng = np.random.default_rng(42)
@@ -95,8 +95,8 @@ def test_probe_detects_analog_combing_via_alternating_rows(
     cap.isOpened.return_value = True
     cap.get.side_effect = lambda p: {3: 1920.0, 4: 1080.0, 5: 25.0, 6: 0.0}.get(p, 0.0)
     frame = np.zeros((1080, 1920, 3), dtype=np.uint8)
-    frame[::2] = 200    # even rows bright
-    frame[1::2] = 50    # odd rows dark
+    frame[::2] = 200  # even rows bright
+    frame[1::2] = 50  # odd rows dark
     cap.read.return_value = (True, frame)
     mock_cap_cls.return_value = cap
 

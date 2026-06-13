@@ -1,4 +1,5 @@
 """Tests for CameraProfiler tier assignment logic."""
+
 import pytest
 from vms.api.schemas import ProfileData
 from vms.profiler.tier import assign_tier
@@ -65,13 +66,16 @@ def test_assign_tier_mid_focus_borderline() -> None:
 
 def test_assign_tier_uses_config_thresholds() -> None:
     from vms.config import get_settings
+
     s = get_settings()
     # Exactly at full threshold — should be FULL
-    tier, _ = assign_tier(_data(
-        resolution_h=s.profiler_res_full_min_h,
-        fps_measured=s.profiler_fps_full_min,
-        focus_score=s.profiler_focus_full_min,
-    ))
+    tier, _ = assign_tier(
+        _data(
+            resolution_h=s.profiler_res_full_min_h,
+            fps_measured=s.profiler_fps_full_min,
+            focus_score=s.profiler_focus_full_min,
+        )
+    )
     assert tier == "FULL"
 
 

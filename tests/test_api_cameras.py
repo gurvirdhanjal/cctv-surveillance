@@ -396,9 +396,7 @@ async def test_post_profile_triggers_profiler(db_session: Session) -> None:
             inst = MagicMock()
             inst.probe.return_value = fake_data
             mock_cls.return_value = inst
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as c:
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.post(
                     f"/api/cameras/{cam.camera_id}/profile",
                     headers=_auth(),

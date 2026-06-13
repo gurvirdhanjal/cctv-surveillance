@@ -26,15 +26,9 @@ class CameraProfiler:
     ) -> None:
         s = get_settings()
         self._duration = (
-            probe_duration_s
-            if probe_duration_s is not None
-            else s.profiler_probe_duration_s
+            probe_duration_s if probe_duration_s is not None else s.profiler_probe_duration_s
         )
-        self._sample_n = (
-            sample_frames
-            if sample_frames is not None
-            else s.profiler_sample_frames
-        )
+        self._sample_n = sample_frames if sample_frames is not None else s.profiler_sample_frames
 
     def probe(self, rtsp_url: str) -> ProfileData:
         """Open *rtsp_url*, measure for up to _duration seconds, return ProfileData."""
@@ -76,9 +70,7 @@ class CameraProfiler:
 
         total = decoded + failed
         drop_rate = (failed / total) if total > 0 else 0.0
-        fps_measured = (
-            float(decoded / self._duration) if self._duration > 0 else declared_fps
-        )
+        fps_measured = float(decoded / self._duration) if self._duration > 0 else declared_fps
 
         focus_score: float | None = None
         brightness_mean: float | None = None
@@ -86,11 +78,7 @@ class CameraProfiler:
 
         if frames:
             focus_scores = [
-                float(
-                    cv2.Laplacian(
-                        cv2.cvtColor(f, cv2.COLOR_BGR2GRAY), cv2.CV_64F
-                    ).var()
-                )
+                float(cv2.Laplacian(cv2.cvtColor(f, cv2.COLOR_BGR2GRAY), cv2.CV_64F).var())
                 for f in frames
             ]
             focus_score = float(np.mean(focus_scores))
