@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from vms.api.deps import create_access_token, get_db
 from vms.api.main import app
-from vms.api.schemas import AuditVerifyResponse, ForensicClipItem, ForensicClipsResponse
+from vms.api.schemas import AuditVerifyResponse
 from vms.db.audit import compute_row_hash, write_audit_event
 from vms.db.models import AuditLog
 
