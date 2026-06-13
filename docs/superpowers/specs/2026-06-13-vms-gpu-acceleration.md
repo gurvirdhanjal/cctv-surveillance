@@ -294,8 +294,17 @@ the adaptation is firing correctly and not stuck at 1 or pinned at max.
 - **Validate every export numerically** — exported-ONNX output must match the source model's
   output within tolerance on a fixed input, *before* it feeds the §6.0 baseline. A silently-
   wrong export would poison every downstream accuracy comparison.
+- **MoViNet native-TF warm-up (if staying on TF runtime):** if the §6.0.5 evaluation
+  determines MoViNet cannot be exported to ONNX and stays on its native TF runtime, it requires
+  a startup warm-up pass before the first live frame — analogous to the TensorRT engine
+  warm-up in §6.1 but distinct in kind. TF Hub models incur graph-tracing latency on first
+  inference; this must not land on a live camera frame. A warm-up pass (one dummy frame per
+  camera-state slot, matching the input shape MoViNet expects) must complete before cameras
+  attach, logged as `"MoViNet warm-up complete: Nms"`. This is a TF graph-trace cost, not an
+  engine-build cost, but the timing constraint is identical: cameras must not be the trigger.
 - **Gate:** all accelerable models have a verified ONNX artifact; MoViNet decision recorded
-  (exported, or stays native-TF and excluded from §6.1+).
+  (exported, or stays native-TF and excluded from §6.1+); if native-TF, warm-up timing
+  recorded (must complete in < 10 s to avoid delaying camera attach on startup).
 
 ### §6.1 — ONNX Runtime TensorRT EP, FP16 *(the primary win)*
 - Add `TensorrtExecutionProvider` to the provider list in `detector.py`, `embedder.py`,
