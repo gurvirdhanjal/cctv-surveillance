@@ -189,7 +189,7 @@ class ViolenceModel:
             result = self._model({**self._states[camera_id], "image": frame_tensor})
 
             # Unpack (output, new_states) tuple
-            if isinstance(result, (tuple, list)):
+            if isinstance(result, tuple | list):
                 logits_tensor, new_states = result[0], result[1]
             else:
                 # Fallback: dict output (older hub versions)
