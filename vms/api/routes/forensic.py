@@ -32,7 +32,11 @@ def _snapshot_url(path: str) -> str:
 def get_forensic_clips(
     global_track_id: str,
     around_ts: datetime | None = Query(None),  # noqa: B008
-    window_seconds: int = Query(_settings.forensic_window_default_s, ge=_settings.forensic_window_min_s, le=_settings.forensic_window_max_s),
+    window_seconds: int = Query(
+        _settings.forensic_window_default_s,
+        ge=_settings.forensic_window_min_s,
+        le=_settings.forensic_window_max_s,
+    ),
     db: Session = Depends(get_db),  # noqa: B008
     _user: dict[str, Any] = require_role("admin", "manager"),  # noqa: B008  # Any: user dict shape is opaque; role check enforced by require_role
 ) -> ForensicClipsResponse:
@@ -76,7 +80,9 @@ def forensic_search(
     from_dt: datetime | None = Query(None, alias="from"),  # noqa: B008
     to_dt: datetime | None = Query(None, alias="to"),  # noqa: B008
     zone_id: int | None = Query(None),  # noqa: B008
-    _user: dict[str, Any] = require_role("admin", "manager"),  # noqa: B008  # Any: user dict shape is opaque; role check enforced by require_role
+    _user: dict[str, Any] = require_role(
+        "admin", "manager"
+    ),  # noqa: B008  # Any: user dict shape is opaque; role check enforced by require_role
 ) -> None:
     # Requires CLIP-ViT-B/32 ONNX text encoder (VMS_CLIP_MODEL) and the CLIP
     # inference pipeline writing to person_clip_embeddings. Neither exists yet.
