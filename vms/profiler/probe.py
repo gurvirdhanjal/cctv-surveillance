@@ -42,6 +42,10 @@ class CameraProfiler:
         if not cap.isOpened():
             raise RuntimeError(f"Cannot open RTSP stream: {url}")
 
+        s = get_settings()
+        cap.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, s.profiler_rtsp_open_timeout_ms)
+        cap.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, s.profiler_rtsp_read_timeout_ms)
+
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         declared_fps = cap.get(cv2.CAP_PROP_FPS)
