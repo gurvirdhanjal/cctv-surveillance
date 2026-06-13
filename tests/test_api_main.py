@@ -136,7 +136,7 @@ async def test_lifespan_closes_redis_on_shutdown() -> None:
 
     with (
         patch("vms.api.deps.get_api_redis", return_value=mock_redis),
-        patch("vms.api.main.AlertDispatcher") as MockDispatcher,
+        patch("vms.dispatcher.worker.AlertDispatcher") as MockDispatcher,
     ):
         MockDispatcher.from_settings.return_value = mock_dispatcher
 
