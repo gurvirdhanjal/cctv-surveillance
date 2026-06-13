@@ -429,3 +429,26 @@ async def test_get_profile_returns_last_profile_data(db_session: Session) -> Non
     body = r.json()
     assert body["profile_data"]["fps_measured"] == pytest.approx(10.0)
     assert body["profile_data"]["shutter_suggestion"] == "rolling"
+
+
+@pytest.mark.asyncio
+async def test_profile_data_full_fields() -> None:
+    """ProfileData must accept the full set of measured fields."""
+    from vms.api.schemas import ProfileData
+
+    pd = ProfileData(
+        resolution_w=1920,
+        resolution_h=1080,
+        fps_measured=15.0,
+        focus_score=42.0,
+        frame_drop_rate=0.02,
+        brightness_mean=128.0,
+        is_analog_via_encoder=False,
+        tier_reason=">=1080p AND fps>=12 AND focus>=30",
+        codec="H264",
+        shutter_suggestion="rolling",
+        shutter_confidence=0.82,
+        suggested_tier="FULL",
+    )
+    assert pd.resolution_w == 1920
+    assert pd.tier_reason == ">=1080p AND fps>=12 AND focus>=30"
