@@ -56,6 +56,11 @@ class HealthResponse(BaseModel):
     version: str
 
 
+class ReadinessResponse(BaseModel):
+    db: str
+    redis: str
+
+
 class AlertResponse(BaseModel):
     alert_id: int
     alert_type: str
