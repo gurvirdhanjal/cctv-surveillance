@@ -233,8 +233,11 @@ class Alert(Base):
     alert_type: Mapped[str] = mapped_column(String(30), nullable=False)
     severity: Mapped[str] = mapped_column(String(10), nullable=False)
     state: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
-    camera_id: Mapped[int] = mapped_column(
-        ForeignKey("cameras.camera_id", ondelete="NO ACTION"), nullable=False
+    # camera_id is None for SYSTEM_CRITICAL alerts
+    camera_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("cameras.camera_id", ondelete="NO ACTION"),
+        nullable=True,
     )
     # zone_id and person_id intentionally not FK'd: zones reshape; persons are purged
     zone_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
