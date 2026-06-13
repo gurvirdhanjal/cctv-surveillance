@@ -38,7 +38,9 @@ def get_forensic_clips(
         le=_settings.forensic_window_max_s,
     ),
     db: Session = Depends(get_db),  # noqa: B008
-    _user: dict[str, Any] = require_role("admin", "manager"),  # noqa: B008  # Any: user dict shape is opaque; role check enforced by require_role
+    _user: dict[str, Any] = require_role(  # noqa: B008  # Any: user dict shape is opaque; role check enforced by require_role
+        "admin", "manager"
+    ),
 ) -> ForensicClipsResponse:
     try:
         track_uuid = uuid.UUID(global_track_id)
@@ -80,7 +82,9 @@ def forensic_search(
     from_dt: datetime | None = Query(None, alias="from"),  # noqa: B008
     to_dt: datetime | None = Query(None, alias="to"),  # noqa: B008
     zone_id: int | None = Query(None),
-    _user: dict[str, Any] = require_role("admin", "manager"),  # noqa: B008  # Any: user dict shape is opaque; role check enforced by require_role
+    _user: dict[str, Any] = require_role(
+        "admin", "manager"
+    ),  # noqa: B008  # Any: user dict shape is opaque; role check enforced by require_role
 ) -> None:
     # Requires CLIP-ViT-B/32 ONNX text encoder (VMS_CLIP_MODEL) and the CLIP
     # inference pipeline writing to person_clip_embeddings. Neither exists yet.
