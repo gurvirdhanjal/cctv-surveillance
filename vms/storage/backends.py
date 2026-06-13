@@ -41,8 +41,8 @@ class MinIOStorageBackend:
         secret_key: str,
         bucket: str,
     ) -> None:
-        import boto3  # type: ignore[import-untyped]  # lazy: not installed in all envs
-        from botocore.config import Config  # type: ignore[import-untyped]
+        import boto3  # type: ignore[import-not-found]  # lazy: not installed in all envs
+        from botocore.config import Config  # type: ignore[import-not-found]
 
         self._bucket = bucket
         kwargs: dict[str, Any] = {
