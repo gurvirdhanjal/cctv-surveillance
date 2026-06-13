@@ -446,6 +446,116 @@ async def test_delete_maintenance_unknown_id_returns_404(db_session: Session) ->
 
 
 @pytest.mark.asyncio
+async def test_post_maintenance_succeeds_when_redis_unavailable(db_session: Session) -> None:
+    """POST must return 201 and persist the window even when Redis is unreachable."""
+    uid = _seed_user(db_session)
+    cam = Camera(name="RDown1", rtsp_url="rtsp://x", capability_tier="FULL")
+    db_session.add(cam)
+    db_session.flush()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    broken_redis = AsyncMock()
+    broken_redis.publish = AsyncMock(side_effect=ConnectionError("Redis down"))
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        with patch("vms.api.routes.maintenance.get_api_redis", return_value=broken_redis):
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cli:
+                r = await cli.post(
+                    "/api/maintenance",
+                    json={
+                        "name": "redis-down-ot",
+                        "scope_type": "CAMERA",
+                        "scope_id": cam.camera_id,
+                        "schedule_type": "ONE_TIME",
+                        "starts_at": now.isoformat(),
+                        "ends_at": (now + timedelta(hours=1)).isoformat(),
+                    },
+                    headers=_auth_for(uid),
+                )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+    assert r.status_code == 201
+    wid = r.json()["window_id"]
+    row = db_session.get(MaintenanceWindow, wid)
+    assert row is not None
+    assert row.name == "redis-down-ot"
+
+
+@pytest.mark.asyncio
+async def test_patch_maintenance_succeeds_when_redis_unavailable(db_session: Session) -> None:
+    """PATCH must return 200 and persist the update even when Redis is unreachable."""
+    uid = _seed_user(db_session)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    window = MaintenanceWindow(
+        name="before-patch",
+        scope_type="CAMERA",
+        scope_id=1,
+        schedule_type="ONE_TIME",
+        starts_at=now,
+        ends_at=now + timedelta(hours=1),
+        created_by=uid,
+    )
+    db_session.add(window)
+    db_session.flush()
+
+    broken_redis = AsyncMock()
+    broken_redis.publish = AsyncMock(side_effect=ConnectionError("Redis down"))
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        with patch("vms.api.routes.maintenance.get_api_redis", return_value=broken_redis):
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cli:
+                r = await cli.patch(
+                    f"/api/maintenance/{window.window_id}",
+                    json={"name": "after-patch"},
+                    headers=_auth_for(uid),
+                )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+    assert r.status_code == 200
+    assert r.json()["name"] == "after-patch"
+    db_session.refresh(window)
+    assert window.name == "after-patch"
+
+
+@pytest.mark.asyncio
+async def test_delete_maintenance_succeeds_when_redis_unavailable(db_session: Session) -> None:
+    """DELETE must return 204 and soft-delete the window even when Redis is unreachable."""
+    uid = _seed_user(db_session)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    window = MaintenanceWindow(
+        name="to-delete-rdown",
+        scope_type="CAMERA",
+        scope_id=1,
+        schedule_type="ONE_TIME",
+        starts_at=now,
+        ends_at=now + timedelta(hours=1),
+        created_by=uid,
+    )
+    db_session.add(window)
+    db_session.flush()
+    wid = window.window_id
+
+    broken_redis = AsyncMock()
+    broken_redis.publish = AsyncMock(side_effect=ConnectionError("Redis down"))
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        with patch("vms.api.routes.maintenance.get_api_redis", return_value=broken_redis):
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cli:
+                r = await cli.delete(f"/api/maintenance/{wid}", headers=_auth_for(uid))
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+    assert r.status_code == 204
+    db_session.refresh(window)
+    assert window.is_active is False
+
+
+# ── Calendar tests ────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
 async def test_get_calendar_one_time_in_range(db_session: Session) -> None:
     uid = _seed_user(db_session)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
