@@ -9,6 +9,7 @@ Uses IndexIDMap2(IndexFlatIP(512)) so we can:
 from __future__ import annotations
 
 import logging
+import threading
 from typing import Any
 
 import faiss
