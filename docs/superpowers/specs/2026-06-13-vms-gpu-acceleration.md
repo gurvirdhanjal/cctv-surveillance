@@ -235,6 +235,53 @@ identity coverage metric in the gate:
   Per-tier numbers reported separately. ROI-crop accuracy loss reported independently if
   `motion_gate_roi_crop_enabled`.
 
+### §6.0.3 — Adaptive detector interval *(builds on §6.0.25; optional, measured separately)*
+The fixed interval in §6.0.25 requires manual per-camera configuration to match actual scene
+activity. An adaptive feedback loop removes that requirement and dynamically matches the
+interval to real-time activity: a shift-change entrance gate (needs interval=1) and an empty
+warehouse at 2am (can safely use interval=4) self-configure without operator intervention.
+
+**Mechanism:**
+
+- If the primary detector returns zero *new* person detections for `detector_adapt_window`
+  consecutive YOLO frames, raise the interval by one step (up to `detector_interval_max`).
+- If the detector returns ≥ 1 new person detection (a track ID not present in the preceding
+  YOLO frame), immediately reset the interval to 1 for that camera.
+- "New detection" means a person entering the field of view — not an existing track continuing.
+  This boundary is important: resetting on track continuity would hold every active-scene
+  camera at interval=1 even when no new persons are arriving, defeating the purpose.
+- The interval is per-camera state, not global. One camera at interval=4 has no effect on a
+  neighbouring camera at interval=1.
+
+**Why this boundary is correct for the cascade:** resetting to interval=1 on a new-person
+detection ensures the first YOLO frame after someone enters is immediately followed by
+SCRFD→AdaFace, minimising the identity-coverage gap documented in §6.0.25. The reset is
+triggered on confirmed detection, not on motion-gate activity alone (which may be background
+noise or a non-person object).
+
+**Interaction with motion gate (§6.0.25):** the adapt-window counter increments only on frames
+that passed the motion gate *and* were a scheduled YOLO frame. A motion-gated-out frame does
+not count toward the no-detection window — the scene may contain a stationary person not
+detectable by frame diff. The interval resets only on confirmed new-person detection.
+
+**Implementation:** a per-`PerCameraTracker` state machine — one counter and one current
+interval per camera. No shared state, no cross-camera coupling.
+
+**Config keys (all in `vms/config.py`):**
+- `detector_interval_adaptive: bool = False` — master switch; when off, §6.0.25 fixed
+  interval is used unchanged.
+- `detector_interval_max: int = 4` — ceiling for the adaptive interval; also the upper bound
+  for manual per-camera override via `cameras.model_overrides`.
+- `detector_adapt_window: int = 5` — consecutive no-new-detection YOLO frames before raising
+  interval by one step.
+
+**Gate:** same four metrics as §6.0.25 gate, measured on a clip containing both idle periods
+and activity bursts (e.g. a shift-change sequence followed by an empty period). Additionally:
+interval distribution histogram (fraction of frames that ran at each interval value) — confirms
+the adaptation is firing correctly and not stuck at 1 or pinned at max.
+
+---
+
 ### §6.0.5 — Model format normalization to ONNX *(prerequisite for everything below)*
 - Build a format-aware export step: each model in the manifest declares its source format
   (`onnx` | `ultralytics_pt` | `torch_pth` | `tf_savedmodel`) and the exporter normalizes it
