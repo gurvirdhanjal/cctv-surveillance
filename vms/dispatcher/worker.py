@@ -238,3 +238,9 @@ class AlertDispatcher:
             target_id=str(payload.alert_id),
             payload=json.dumps({"channel": rule.channel, "last_error": last_error}),
         )
+        s = get_settings()
+        await self._redis.xadd(
+            "dead_alerts",
+            {"alert_id": str(payload.alert_id), "channel": rule.channel},
+            maxlen=s.dead_alerts_stream_maxlen,
+        )
