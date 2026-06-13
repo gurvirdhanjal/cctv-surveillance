@@ -64,7 +64,7 @@ class FaissIndex:
         """Remove embeddings by their DB IDs after GDPR purge."""
         if not embedding_ids:
             return
-        self._index.remove_ids(np.array(embedding_ids, dtype=np.int64))
+        self._index.remove_ids(np.array(embedding_ids, dtype=np.int64))  # type: ignore[arg-type]  # faiss stubs declare IDSelector; ndarray[int64] is the correct runtime usage for remove-by-ID
         for eid in embedding_ids:
             self._emb_to_person.pop(eid, None)
 
