@@ -111,6 +111,17 @@ class Settings(BaseSettings):
     maintenance_cache_ttl_s: int = 30
     maintenance_calendar_max_range_days: int = 90
 
+    # camera profiler
+    profiler_probe_duration_s: int = 60
+    profiler_sample_frames: int = 30
+    profiler_shutter_skew_threshold: float = 0.04
+    profiler_focus_full_min: float = 30.0
+    profiler_focus_mid_min: float = 15.0
+    profiler_fps_full_min: float = 12.0
+    profiler_fps_mid_min: float = 8.0
+    profiler_res_full_min_h: int = 1080
+    profiler_res_mid_min_h: int = 720
+
     # anomaly orchestrator
     anomaly_max_consecutive_errors: int = 5
     alerts_stream_maxlen: int = 10_000
