@@ -72,6 +72,11 @@ class CameraProfiler:
             if deadline is None and decoded >= self._sample_n:
                 break
 
+        if self._duration == 0 and decoded < int(0.8 * self._sample_n):
+            raise RuntimeError(
+                f"Insufficient frames: got {decoded}, need {int(0.8 * self._sample_n)}"
+            )
+
         total = decoded + failed
         drop_rate = (failed / total) if total > 0 else 0.0
         fps_measured = float(decoded / self._duration) if self._duration > 0 else declared_fps
