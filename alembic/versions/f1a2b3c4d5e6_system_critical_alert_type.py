@@ -60,9 +60,11 @@ def downgrade() -> None:
     # Remove the partial check first.
     op.drop_constraint("chk_alert_camera_id_required", "alerts", type_="check")
 
+    # Delete SYSTEM_CRITICAL rows — they can't exist in the old schema
+    # (no camera_id and alert_type not in old CHECK constraint).
+    op.execute("DELETE FROM alerts WHERE camera_id IS NULL")
+
     # Restore camera_id NOT NULL.
-    # WARNING: this will fail if SYSTEM_CRITICAL rows with camera_id=NULL exist.
-    # Delete or update them before running this downgrade.
     op.alter_column("alerts", "camera_id", existing_type=sa.Integer(), nullable=False)
 
     # Restore the narrow alert_type constraint.
