@@ -26,6 +26,7 @@ from vms.db.audit import write_audit_event
 from vms.db.models import Camera
 from vms.db.models import User as DBUser
 from vms.inference.shutter_profile import resolve_camera_config
+from vms.profiler.probe import CameraProfiler
 
 router = APIRouter()
 
