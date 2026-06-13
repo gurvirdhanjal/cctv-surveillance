@@ -165,6 +165,7 @@ a plan checkbox before Phase 4 starts. No implementation without an approved pla
 | `POST /api/cameras/{id}/recalibrate-required` | §H.3 | No route; homography module exists |
 | `GET /api/sites/readiness-report.pdf` | §B | Needs CameraProfiler; no plan yet |
 | `alert_dispatcher_retry_delays_s` + `alert_dispatcher_max_attempts` in `config.py` | §17 invariants | Currently hardcoded in `dispatcher/worker.py` lines 24–25 |
+| PDF export is unsigned (no digital signature) | §F.3 | Spec says "signed PDF" — deferred; needs crypto signing spec before implementation |
 
 ---
 
