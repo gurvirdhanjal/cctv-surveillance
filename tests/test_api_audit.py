@@ -16,7 +16,7 @@ def test_schemas_importable() -> None:
         clip_emb_id=1,
         global_track_id="track-123",
         camera_id=1,
-        event_ts=datetime.utcnow(),
+        event_ts=datetime.now(timezone.utc).replace(tzinfo=None),
         snapshot_url="http://example.com/snap.jpg",
     )
     assert clip.clip_emb_id == 1
