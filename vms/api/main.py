@@ -18,6 +18,7 @@ from vms.api.routes import (
     audit,
     auth,
     cameras,
+    forensic,
     health,
     maintenance,
     persons,
