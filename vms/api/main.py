@@ -69,6 +69,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 app = FastAPI(title="VMS API", version="0.2.0", lifespan=lifespan)
 
+
+@app.exception_handler(SAIntegrityError)
+async def integrity_error_handler(request: Request, exc: SAIntegrityError) -> JSONResponse:
+    return JSONResponse(status_code=422, content={"detail": "Database constraint violation"})
+
 app.include_router(auth.router, prefix="/api")
 app.include_router(health.router, prefix="/api")
 app.include_router(persons.router, prefix="/api")
