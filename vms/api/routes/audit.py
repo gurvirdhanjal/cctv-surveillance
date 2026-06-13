@@ -69,3 +69,91 @@ def verify_audit_chain(
         None,
     )
     return AuditVerifyResponse(rows_checked=rows_checked, broken_chain_at=None)
+
+
+def _build_audit_pdf(rows: list[AuditLog], from_dt: datetime, to_dt: datetime) -> bytes:
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.units import cm
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Table, TableStyle
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=landscape(A4),
+        leftMargin=1.5 * cm,
+        rightMargin=1.5 * cm,
+        topMargin=1.5 * cm,
+        bottomMargin=1.5 * cm,
+    )
+    styles = getSampleStyleSheet()
+
+    elements: list[Any] = [
+        Paragraph(
+            f"VMS Audit Log — {from_dt.date()} to {to_dt.date()}",
+            styles["Title"],
+        )
+    ]
+
+    header = ["audit_id", "event_ts (UTC)", "event_type", "actor", "target", "hash (first 16)"]
+    data: list[list[str]] = [header]
+    for row in rows:
+        data.append([
+            str(row.audit_id),
+            row.event_ts.isoformat(),
+            row.event_type,
+            str(row.actor_user_id) if row.actor_user_id is not None else "system",
+            f"{row.target_type}:{row.target_id}" if row.target_type else "",
+            row.row_hash[:16],
+        ])
+
+    table = Table(data, repeatRows=1)
+    table.setStyle(
+        TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+        ])
+    )
+    elements.append(table)
+    doc.build(elements)
+    buf.seek(0)
+    return buf.read()
+
+
+@router.get("/audit/export")
+def export_audit_log(
+    from_dt: datetime = Query(..., alias="from"),  # noqa: B008
+    to_dt: datetime = Query(..., alias="to"),  # noqa: B008
+    fmt: str = Query("pdf", alias="format"),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+    _user: dict[str, Any] = require_role("admin"),  # noqa: B008
+) -> Response:
+    if to_dt <= from_dt:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="to must be after from",
+        )
+    if fmt != "pdf":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only format=pdf is supported",
+        )
+
+    rows: list[AuditLog] = (
+        db.query(AuditLog)
+        .filter(AuditLog.event_ts >= from_dt, AuditLog.event_ts < to_dt)
+        .order_by(AuditLog.audit_id.asc())
+        .all()
+    )
+
+    pdf_bytes = _build_audit_pdf(rows, from_dt, to_dt)
+    filename = f"audit-{from_dt.date()}--{to_dt.date()}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
