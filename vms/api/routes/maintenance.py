@@ -144,6 +144,7 @@ async def update_window(
         else:
             setattr(window, field, value)
 
+    await _publish_mw_changed()
     db.commit()
     db.refresh(window)
 
@@ -159,8 +160,6 @@ async def update_window(
             default=str,
         ),
     )
-
-    await _publish_mw_changed()
 
     # Non-blocking warning: operator patched an actively-suppressing window.
     warning: str | None = None
