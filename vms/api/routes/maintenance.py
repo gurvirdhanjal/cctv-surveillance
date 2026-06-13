@@ -35,10 +35,17 @@ _MW_CHANGED_CHANNEL = "maintenance_window_changed"
 async def _publish_mw_changed() -> None:
     """Signal orchestrator to reload active maintenance windows (cross-process).
 
-    30s TTL is the correctness backstop until the orchestrator subscribes.
+    Failure is non-fatal — the orchestrator refreshes on its cache TTL.
     """
-    redis_client = get_api_redis()
-    await redis_client.publish(_MW_CHANGED_CHANNEL, "{}")
+    try:
+        redis_client = get_api_redis()
+        await redis_client.publish(_MW_CHANGED_CHANNEL, "{}")
+    except Exception:
+        _log.warning(
+            "maintenance_window_changed publish failed "
+            "— cache will refresh within %ds",
+            get_settings().maintenance_calendar_max_range_days,
+        )
 
 
 def _serialize_suppress_types(types: list[str] | None) -> str | None:
