@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from vms.api.deps import get_db, require_role
 from vms.api.schemas import AuditVerifyResponse
+from vms.config import get_settings
 from vms.db.audit import compute_row_hash
 from vms.db.models import AuditLog
 
