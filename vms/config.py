@@ -87,6 +87,8 @@ class Settings(BaseSettings):
     db_flush_rows: int = 100
     db_flush_ms: int = 500
     redis_stream_maxlen: int = 500
+    redis_stream_retry_attempts: int = 3
+    redis_stream_retry_delay_ms: int = 100
     rtsp_failure_threshold: int = 5
     rtsp_backoff_delays_ms: tuple[int, ...] = (1000, 2000, 4000, 8000, 16000, 32000)
 
