@@ -68,3 +68,22 @@ def get_forensic_clips(
         ],
         total=len(clips),
     )
+
+
+@router.get("/forensic/search")
+def forensic_search(
+    q: str = Query(...),  # noqa: B008
+    from_dt: datetime | None = Query(None, alias="from"),  # noqa: B008
+    to_dt: datetime | None = Query(None, alias="to"),  # noqa: B008
+    zone_id: int | None = Query(None),  # noqa: B008
+    _user: dict[str, Any] = require_role("admin", "manager"),  # noqa: B008  # Any: user dict shape is opaque; role check enforced by require_role
+) -> None:
+    # Requires CLIP-ViT-B/32 ONNX text encoder (VMS_CLIP_MODEL) and the CLIP
+    # inference pipeline writing to person_clip_embeddings. Neither exists yet.
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail=(
+            "CLIP text-encoder not configured. "
+            "Set VMS_CLIP_MODEL and enable CLIP inference pipeline to activate this endpoint."
+        ),
+    )
