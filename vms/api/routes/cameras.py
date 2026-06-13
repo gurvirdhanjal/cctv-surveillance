@@ -199,18 +199,37 @@ def get_resolved_config(
     )
 
 
-@router.post("/cameras/{camera_id}/profile", status_code=status.HTTP_202_ACCEPTED)
+@router.post("/cameras/{camera_id}/profile", response_model=ProfileResponse)
 def submit_profile(
     camera_id: int,
-    body: ProfileData,
     db: Session = Depends(get_db),  # noqa: B008
     _user: dict[str, Any] = Depends(get_current_user),  # noqa: B008
-) -> dict[str, str]:
+) -> ProfileResponse:
     cam = _get_camera_or_404(camera_id, db)
-    cam.profile_data = json.dumps(body.model_dump(exclude_none=False))
+    profiler = CameraProfiler()
+    try:
+        data = profiler.probe(cam.rtsp_url)
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"RTSP probe failed: {exc}",
+        )
+
+    cam.profile_data = json.dumps(data.model_dump(exclude_none=False))
+    cam.capability_tier = data.suggested_tier or cam.capability_tier
+    cam.shutter_type = data.shutter_suggestion or cam.shutter_type
     cam.profiled_at = datetime.now(timezone.utc).replace(tzinfo=None)
     db.commit()
-    return {"status": "accepted"}
+    db.refresh(cam)
+
+    return ProfileResponse(
+        camera_id=cam.camera_id,
+        profile_data=data,
+        profiled_at=cam.profiled_at,
+        capability_tier=cam.capability_tier,
+        shutter_type=cam.shutter_type,
+        tier_reason=data.tier_reason,
+    )
 
 
 @router.get("/cameras/{camera_id}/profile", response_model=ProfileResponse)
