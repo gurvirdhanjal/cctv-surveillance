@@ -231,4 +231,5 @@ def get_profile(
         profiled_at=cam.profiled_at,
         capability_tier=cam.capability_tier,
         shutter_type=cam.shutter_type,
+        tier_reason=profile_parsed.tier_reason if profile_parsed else None,
     )
