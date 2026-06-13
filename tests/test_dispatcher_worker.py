@@ -177,3 +177,82 @@ async def test_dispatcher_records_dead_letter_after_three_failures(
     assert len(dispatches) == 2
     assert all(d.success is False for d in dispatches)
     assert mock_sender.send.await_count == 2
+
+
+@pytest.mark.integration
+async def test_dispatcher_skips_already_dispatched_alert(
+    db_session: Session,
+) -> None:
+    """Dispatcher skips dispatch if success=True row already exists for (alert_id, channel)."""
+    from vms.dispatcher.worker import AlertDispatcher
+
+    cam = _seed_camera(db_session)
+    alert = _seed_alert(db_session, cam.camera_id)
+    _seed_routing(db_session)
+
+    existing = AlertDispatch(
+        alert_id=alert.alert_id,
+        channel="WEBHOOK",
+        target="https://example.com/hook",
+        attempt_n=1,
+        dispatched_at=_TS,
+        success=True,
+        error=None,
+        response_code=None,
+    )
+    db_session.add(existing)
+    db_session.commit()
+
+    redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
+    await _publish_alert(redis, cam.camera_id, alert.alert_id)
+
+    send_calls: list[object] = []
+
+    class SpySender:
+        async def send(self, payload: object, target: str) -> None:  # type: ignore[no-untyped-def]
+            send_calls.append(target)
+
+    dispatcher = AlertDispatcher(
+        redis=redis,
+        db_session_factory=lambda: db_session,
+        senders={"WEBHOOK": SpySender()},  # type: ignore[arg-type]
+    )
+    await dispatcher._process_once()
+
+    assert send_calls == [], "Should not re-dispatch already-dispatched alert"
+
+
+@pytest.mark.integration
+async def test_dispatcher_writes_dead_alert_to_stream_after_max_retries(
+    db_session: Session,
+) -> None:
+    """After all retry attempts fail, alert_id is published to dead_alerts stream."""
+    from vms.dispatcher.channels import ChannelError
+    from vms.dispatcher.worker import AlertDispatcher
+
+    cam = _seed_camera(db_session)
+    alert = _seed_alert(db_session, cam.camera_id)
+    _seed_routing(db_session)
+    db_session.commit()
+
+    redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
+    await _publish_alert(redis, cam.camera_id, alert.alert_id)
+
+    mock_sender = AsyncMock()
+    mock_sender.send = AsyncMock(side_effect=ChannelError("always fails"))
+
+    dispatcher = AlertDispatcher(
+        redis=redis,
+        db_session_factory=lambda: db_session,
+        senders={"WEBHOOK": mock_sender},
+        retry_delays=(0,),
+        max_attempts=1,
+    )
+    await dispatcher._process_once()
+
+    messages = await redis.xread({"dead_alerts": "0-0"}, count=10)
+    assert messages, "Expected an entry in dead_alerts stream"
+    _, entries = messages[0]
+    _, fields = entries[0]
+    assert str(alert.alert_id) == fields["alert_id"]
+    assert fields["channel"] == "WEBHOOK"
