@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import faiss  # type: ignore[import-untyped]
+import faiss
 import numpy as np
 from sqlalchemy.orm import Session
 
