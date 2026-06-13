@@ -380,7 +380,9 @@ the adaptation is firing correctly and not stuck at 1 or pinned at max.
 
 | Lever | Expected effect (to be confirmed by §6.0 harness) |
 |---|---|
+| Motion gate pre-filter (§6.0.25) | Eliminates YOLO entirely on quiescent frames; savings proportional to idle fraction per camera. High for back-corridor cameras (may be 30–60% of frames); near-zero for entrance gates. Stacks additively with fixed interval. No TensorRT needed. |
 | Detector interval (§6.0.25) | Cuts primary-detector passes by the interval factor (e.g. interval=2 ≈ −50% detector GPU-time); cascade stages unchanged. No TensorRT needed. |
+| Adaptive interval (§6.0.3) | Captures the motion-gate savings automatically without operator tuning; same ceiling as fixed interval but self-adjusting per camera. Incremental over §6.0.25. |
 | TensorRT FP16 (§6.1) | 2–3× inference throughput per GPU |
 | INT8 detectors (§6.2, arch-permitting) | +30–50% on detector stages |
 | Dynamic batching (§6.4) | Large multiplier at high camera counts (amortizes kernel launch) |
