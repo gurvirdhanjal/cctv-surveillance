@@ -135,7 +135,7 @@ async def test_lifespan_closes_redis_on_shutdown() -> None:
     mock_dispatcher.run = AsyncMock(side_effect=asyncio.CancelledError)
 
     with (
-        patch("vms.api.main.get_api_redis", return_value=mock_redis),
+        patch("vms.api.deps.get_api_redis", return_value=mock_redis),
         patch("vms.api.main.AlertDispatcher") as MockDispatcher,
     ):
         MockDispatcher.from_settings.return_value = mock_dispatcher
