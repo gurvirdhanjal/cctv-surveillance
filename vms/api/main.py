@@ -75,6 +75,7 @@ app.include_router(anomaly_detectors.router, prefix="/api")
 app.include_router(maintenance.router, prefix="/api")
 app.include_router(cameras.router, prefix="/api")
 app.include_router(routing.router, prefix="/api")
+app.include_router(audit.router, prefix="/api")
 
 # Prometheus metrics endpoint (standard /metrics path, no /api prefix)
 app.mount("/metrics", make_asgi_app())
