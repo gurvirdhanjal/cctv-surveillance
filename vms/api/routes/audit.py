@@ -62,4 +62,9 @@ def verify_audit_chain(
         prev_row_hash = row.row_hash
         rows_checked += 1
 
+    _log.info(
+        "audit chain verified: %d rows checked, broken_chain_at=%s",
+        rows_checked,
+        None,
+    )
     return AuditVerifyResponse(rows_checked=rows_checked, broken_chain_at=None)
