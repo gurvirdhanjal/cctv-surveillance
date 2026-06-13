@@ -161,7 +161,7 @@ class IngestionWorker:
                     width=self._camera.width,
                     height=self._camera.height,
                 )
-                await stream_add(self._redis, stream_name, pointer.to_redis_fields())
+                await self._stream_add_with_retry(stream_name, pointer.to_redis_fields())
                 self._seq_id += 1
                 await asyncio.sleep(0)  # yield to event loop
         finally:
