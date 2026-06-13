@@ -730,11 +730,43 @@ React: Guard view, Management view, Admin view (incl. maintenance calendar + cam
 - Hardening items H3, H4, H5, H7, H10
 - Systemd/NSSM unit files
 
-### Phase 6 — Camera rollout
+### Field Deployment *(operational, runs in parallel with Phase 3–5 — not a software phase)*
 - Procurement (when customer opts for new cameras) per relaxed v2 spec
 - Per-camera homography calibration + capability profiling on real RTSP
 - Zone polygon mapping on customer's CAD floor plan
 - Security review (auth, RTSP credential encryption, role permissions)
+
+### Phase 6 — GPU Acceleration *(spec approved; plan not yet written)*
+> Full design: `docs/superpowers/specs/2026-06-13-vms-gpu-acceleration.md`
+>
+> This phase begins after Phase 5 priorities are confirmed by the user. Each sub-phase gets its
+> own plan file before code. Recommended entry sequence: §6.0 → §6.0.25 → §6.0.5 → §6.1.
+
+- **§6.0** — GPU hardware probe (`detect_gpu_profile()`) + benchmark harness; record CUDA-EP
+  baseline on the actual deployment card.
+- **§6.0.25** — Detector-interval decoupling: YOLO every Nth frame, tracker coasts. Cascade
+  stages (SCRFD→AdaFace, YOLO→OSNet) are **exempt** — they stay gate-based. Cheapest win,
+  requires no TensorRT.
+- **§6.0.5** — Model format normalisation to ONNX: `.pt` (Ultralytics export), `.pth`
+  (`torch.onnx.export`), TF SavedModel (`tf2onnx`). Every export validated numerically.
+  MoViNet may stay on native TF if stateful ONNX export is impractical — decision recorded.
+- **§6.1** — ONNX Runtime TensorRT EP, FP16. Provider list change in `detector.py`,
+  `embedder.py`, `ppe.py` + engine cache + startup warm-up. Identity-accuracy guard mandatory
+  before shipping. Target: ≥2× frames/sec/GPU.
+- **§6.2** — INT8 quantisation on detectors (Turing+ arch only). Embedding models (AdaFace,
+  OSNet) stay FP16. INT8-on-embedders requires `/advisor` sign-off.
+- **§6.3** — NVDEC hardware decode, hardware-probe gated. Consumer-card NVDEC unit limit
+  handled by probe-and-fallback; no silent truncation.
+- **§6.4** — Triton Inference Server: cross-camera dynamic batching. `InferenceEngine` becomes
+  Triton client; Redis-Streams bus and FAISS invariants preserved.
+- **§6.5** — Multi-GPU sharding: both 32 GB GPUs active, cameras sharded via
+  `cameras.worker_group`. `IdentityService` stays single.
+- **§6.6** — DeepStream go/no-go: only evaluated if §6.1–6.5 cannot reach the ≤50 ms/frame
+  target. Decision record required; not a rewrite by default.
+
+**Hard target:** sustained 52 cameras at ≤50 ms/frame end-to-end on a single 32 GB GPU (CLAUDE.md
+§0.6). The second GPU provides headroom to ~100–130 cameras and redundancy — it is not required
+for the base 52-camera deployment.
 
 ---
 
