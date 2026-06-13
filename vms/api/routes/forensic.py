@@ -12,9 +12,11 @@ from sqlalchemy.orm import Session
 
 from vms.api.deps import get_db, require_role
 from vms.api.schemas import ForensicClipItem, ForensicClipsResponse
+from vms.config import get_settings
 from vms.db.models import PersonClipEmbedding
 
 _log = logging.getLogger(__name__)
+_settings = get_settings()
 
 router = APIRouter()
 
