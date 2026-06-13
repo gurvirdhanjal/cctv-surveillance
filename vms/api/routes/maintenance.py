@@ -81,6 +81,7 @@ async def create_window(
         created_by=int(user["sub"]),
     )
     db.add(window)
+    await _publish_mw_changed()
     db.commit()
     db.refresh(window)
 
@@ -101,7 +102,6 @@ async def create_window(
         ),
     )
 
-    await _publish_mw_changed()
     return window
 
 
