@@ -162,9 +162,9 @@ a plan checkbox before Phase 4 starts. No implementation without an approved pla
 | ~~`PATCH /api/alert-routing/{id}`~~ | §E | **DONE** — commit `ad85adfe` |
 | `GET /api/forensic/search` + `GET /api/forensic/clips/{id}` | §F.2 | Needs CLIP embedding pipeline; DB table exists |
 | `GET /api/audit/verify` + `GET /api/audit/export` | §F.3 | AuditLog table + hash-chain exist; no route |
-| `POST /api/cameras/{id}/recalibrate-required` | §H.3 | No route; homography module exists — **deferred from profiler plan**; needs its own plan checkbox before Phase 4 |
+| ~~`POST /api/cameras/{id}/recalibrate-required`~~ | §H.3 | **DONE** — `recalibrate_required_at` column + migration `a1b2c3d4e5f7` + route |
 | `GET /api/sites/readiness-report.pdf` | §B | **IN PLAN** — `2026-06-13-vms-phase3-camera-profiler.md` Task 7 |
-| `alert_dispatcher_retry_delays_s` + `alert_dispatcher_max_attempts` in `config.py` | §17 invariants | Currently hardcoded in `dispatcher/worker.py` lines 24–25 |
+| ~~`alert_dispatcher_retry_delays_s` + `alert_dispatcher_max_attempts` in `config.py`~~ | §17 invariants | **DONE** — in `config.py`; hardened plan `2026-06-13-vms-phase3-hardening.md` |
 | PDF export is unsigned (no digital signature) | §F.3 | Spec says "signed PDF" — deferred; needs crypto signing spec before implementation |
 | ONVIF night-mode probe (IR re-sample for brightness re-test) | §B | Deferred — no ONVIF library in requirements; add to Phase 6 camera rollout plan |
 | ~~`_emit_critical_alert` in scheduler reuses `alert_type='UNKNOWN_PERSON'`~~ | §M | **DONE** — uses `SYSTEM_CRITICAL` + `camera_id=None`; migration `f1a2b3c4d5e6`; Guard view filters it; scheduler plan updated |
