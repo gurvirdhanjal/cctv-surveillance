@@ -213,7 +213,7 @@ def submit_profile(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"RTSP probe failed: {exc}",
-        )
+        ) from exc
 
     cam.profile_data = json.dumps(data.model_dump(exclude_none=False))
     cam.capability_tier = data.suggested_tier or cam.capability_tier
