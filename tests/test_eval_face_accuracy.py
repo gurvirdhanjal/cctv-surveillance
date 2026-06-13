@@ -24,7 +24,7 @@ import pytest
 
 @pytest.mark.eval
 def test_face_pipeline_accuracy() -> None:
-    """End-to-end: enrol employees/*/01.jpg, probe 02–06, assert accuracy thresholds."""
+    """End-to-end: enrol employees/*/01.jpg, probe 02-06, assert accuracy thresholds."""
     from scripts.eval_face_accuracy import (
         DETECTION_RATE_MIN,
         MAX_IMPOSTOR_SIM,
