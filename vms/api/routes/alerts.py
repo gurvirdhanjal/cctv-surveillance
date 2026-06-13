@@ -26,7 +26,8 @@ def list_alerts(
     db: Session = Depends(get_db),  # noqa: B008
     _user: dict[str, Any] = Depends(get_current_user),  # noqa: B008
 ) -> list[Alert]:
-    q = db.query(Alert)
+    # SYSTEM_CRITICAL alerts are ops/scheduler events, not security events — excluded from guard view
+    q = db.query(Alert).filter(Alert.alert_type != "SYSTEM_CRITICAL")
     if state:
         q = q.filter(Alert.state == state)
     if alert_type:
