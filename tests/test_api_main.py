@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import pathlib
 from unittest.mock import patch
 
