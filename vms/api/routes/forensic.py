@@ -38,7 +38,9 @@ def get_forensic_clips(
         le=_settings.forensic_window_max_s,
     ),
     db: Session = Depends(get_db),  # noqa: B008
-    _user: dict[str, Any] = require_role(  # noqa: B008  # Any: user dict shape is opaque; role check enforced by require_role
+    _user: dict[
+        str, Any
+    ] = require_role(  # noqa: B008  # Any: user dict shape is opaque; role check enforced by require_role
         "admin", "manager"
     ),
 ) -> ForensicClipsResponse:
@@ -82,7 +84,9 @@ def forensic_search(
     from_dt: datetime | None = Query(None, alias="from"),  # noqa: B008
     to_dt: datetime | None = Query(None, alias="to"),  # noqa: B008
     zone_id: int | None = Query(None),
-    _user: dict[str, Any] = require_role(  # noqa: B008  # Any: user dict shape is opaque; role check enforced by require_role
+    _user: dict[
+        str, Any
+    ] = require_role(  # noqa: B008  # Any: user dict shape is opaque; role check enforced by require_role
         "admin", "manager"
     ),
 ) -> None:
