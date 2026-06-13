@@ -82,9 +82,11 @@ async def test_audit_verify_detects_tampered_row_hash(db_session: Session) -> No
     to_s = (last_ts + timedelta(seconds=1)).isoformat()
 
     app.dependency_overrides[get_db] = lambda: db_session
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-        resp = await c.get(f"/api/audit/verify?from={from_s}&to={to_s}", headers=_auth())
-    app.dependency_overrides.clear()
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get(f"/api/audit/verify?from={from_s}&to={to_s}", headers=_auth())
+    finally:
+        app.dependency_overrides.clear()
 
     assert resp.status_code == 200
     data = resp.json()
