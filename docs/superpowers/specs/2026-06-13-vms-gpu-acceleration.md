@@ -412,6 +412,18 @@ gpu_nvdec_enabled: bool = False               # ingestion-side hardware decode
 gpu_triton_url: str = ""                      # empty = in-process EP; set = Triton client mode
 gpu_int8_calibration_dir: str = ""            # representative frames for PTQ
 gpu_onnx_export_dir: str = "models/onnx_exported"   # normalized ONNX artifacts (§6.0.5)
+
+# motion gate and ROI cropping (§6.0.25)
+motion_gate_enabled: bool = False             # pre-filter YOLO with lightweight frame-diff/MOG2 gate
+motion_gate_method: str = "frame_diff"        # "frame_diff" | "mog2"; mog2 more stable across lighting
+motion_gate_min_pixel_diff_pct: float = 0.5  # fraction of pixels that must change; tune per deployment
+motion_gate_roi_crop_enabled: bool = False    # crop YOLO input to motion-region bounding box + margin
+motion_gate_roi_margin_px: int = 32          # expand motion ROI by this many pixels before crop
+
+# adaptive detector interval (§6.0.3)
+detector_interval_adaptive: bool = False      # enable feedback-loop interval; off = §6.0.25 fixed interval
+detector_interval_max: int = 4               # ceiling for adaptive interval (also per-camera override cap)
+detector_adapt_window: int = 5               # consecutive no-new-detection YOLO frames before raising interval
 ```
 
 Per-model source format and exporter hint live in the **model manifest** (`models/manifest.json`),
