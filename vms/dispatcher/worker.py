@@ -155,6 +155,20 @@ class AlertDispatcher:
         rule: AlertRouting,
     ) -> None:
         """Attempt dispatch up to max_attempts times with exponential backoff."""
+        already = (
+            db.query(AlertDispatch)
+            .filter_by(alert_id=payload.alert_id, channel=rule.channel, success=True)
+            .first()
+        )
+        if already is not None:
+            logger.debug(
+                "alert_id=%d channel=%s already dispatched (dispatch_id=%d); skipping",
+                payload.alert_id,
+                rule.channel,
+                already.dispatch_id,
+            )
+            return
+
         last_error: str | None = None
 
         for attempt in range(1, self._max_attempts + 1):
