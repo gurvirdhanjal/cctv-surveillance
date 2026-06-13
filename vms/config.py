@@ -129,6 +129,7 @@ class Settings(BaseSettings):
     # anomaly orchestrator
     anomaly_max_consecutive_errors: int = 5
     alerts_stream_maxlen: int = 10_000
+    dead_alerts_stream_maxlen: int = 1_000
 
     # dispatcher retry tuning
     alert_dispatcher_retry_delays_s: tuple[int, ...] = (1, 4, 16)
