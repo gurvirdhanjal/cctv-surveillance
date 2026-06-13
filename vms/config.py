@@ -129,6 +129,11 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     webhook_secret: str = ""
 
+    # forensic clip search
+    forensic_window_default_s: int = Field(default=30, ge=1)
+    forensic_window_min_s: int = Field(default=5, ge=1)
+    forensic_window_max_s: int = Field(default=3600, ge=1)
+
     # audit export
     audit_export_max_rows: int = Field(default=100_000, ge=1)
 
