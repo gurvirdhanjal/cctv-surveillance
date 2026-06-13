@@ -15,6 +15,7 @@ from prometheus_client import make_asgi_app
 from vms.api.routes import (
     alerts,
     anomaly_detectors,
+    audit,
     auth,
     cameras,
     health,
