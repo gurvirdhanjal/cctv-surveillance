@@ -470,12 +470,17 @@ A scheduled job runs `verify` daily and emits a CRITICAL alert on any broken lin
 ```
 Per camera @ 1080p/15fps H.264, software decode  : ~0.07 CPU cores
 1 modern Xeon core decodes                       : ~13 cameras
-With NVDEC enabled                               : ~30+ cameras per process
+With NVDEC (Phase 6.3, hardware-dependent)       : ~30+ cameras per process
                                                    (decode moves to GPU video engine,
-                                                    separate hardware unit from CUDA cores)
+                                                    separate hardware unit from CUDA cores;
+                                                    consumer cards have 1–2 NVDEC units —
+                                                    a real ceiling at 52 streams;
+                                                    data-centre cards are effectively unlimited)
 ```
 
-Adding cameras adds CPU load linearly. 4 ingestion workers × 13 cams = 52 cams comfortably. Beyond 100 cams: enable NVDEC or add ingestion hosts.
+Adding cameras adds CPU load linearly. 4 ingestion workers × 13 cams = 52 cams comfortably. Beyond 100 cams: enable NVDEC (Phase 6.3 — requires hardware probe to determine unit count and whether all streams fit) or add ingestion hosts.
+
+**NVDEC is not a free toggle.** It is a Phase 6.3 deliverable gated on `detect_gpu_profile().nvdec_units`. Consumer-grade GPUs may not support all 52 streams in hardware; the excess falls back to software decode. See `2026-06-13-vms-gpu-acceleration.md` §6.3 for the probe-and-fallback design.
 
 #### G.2 GPU inference (the real ceiling)
 
