@@ -66,6 +66,7 @@ def _emit_critical_alert(*, detail: str, component: str) -> None:
 # Job registry (v1)
 # ---------------------------------------------------------------------------
 
+
 def _partition_create_next_month() -> None:
     from vms.db.partition_manager import ensure_future_partitions
     from vms.db.session import engine
@@ -84,9 +85,7 @@ def _audit_chain_verify() -> None:
     from vms.db.session import SessionLocal
 
     with SessionLocal() as session:
-        rows = session.execute(
-            select(AuditLog).order_by(AuditLog.audit_id.asc())
-        ).scalars().all()
+        rows = session.execute(select(AuditLog).order_by(AuditLog.audit_id.asc())).scalars().all()
         prev = "0" * 64
         broken_at: int | None = None
         for row in rows:
@@ -111,7 +110,7 @@ def _worker_heartbeat_check() -> None:
     from vms.config import get_settings
 
     s = get_settings()
-    r = sync_redis.from_url(s.redis_url)
+    r = sync_redis.from_url(s.redis_url)  # type: ignore[no-untyped-call]
 
     # Count active ingestion workers by inspecting heartbeat keys.
     # Pattern: heartbeat:{worker_id}

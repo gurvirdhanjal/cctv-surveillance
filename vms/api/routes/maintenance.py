@@ -42,8 +42,7 @@ async def _publish_mw_changed() -> None:
         await redis_client.publish(_MW_CHANGED_CHANNEL, "{}")
     except Exception:
         _log.warning(
-            "maintenance_window_changed publish failed "
-            "— cache will refresh within %ds",
+            "maintenance_window_changed publish failed " "— cache will refresh within %ds",
             get_settings().maintenance_calendar_max_range_days,
         )
 
