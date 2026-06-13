@@ -212,8 +212,12 @@ class Alert(Base):
         ),
         CheckConstraint(
             "alert_type IN ('UNKNOWN_PERSON','PERSON_LOST','CROWD_DENSITY',"
-            "'INTRUSION','VIOLENCE','LOITERING')",
+            "'INTRUSION','VIOLENCE','LOITERING','PPE_VIOLATION','SYSTEM_CRITICAL')",
             name="chk_alert_type",
+        ),
+        CheckConstraint(
+            "alert_type = 'SYSTEM_CRITICAL' OR camera_id IS NOT NULL",
+            name="chk_alert_camera_id_required",
         ),
         Index("ix_alerts_alert_type", "alert_type"),
         Index("ix_alerts_triggered_at", "triggered_at"),
