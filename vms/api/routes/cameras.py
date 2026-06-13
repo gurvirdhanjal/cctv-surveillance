@@ -28,6 +28,7 @@ from vms.db.models import Camera
 from vms.db.models import User as DBUser
 from vms.inference.shutter_profile import resolve_camera_config
 from vms.profiler.probe import CameraProfiler
+from vms.profiler.report import generate_readiness_report
 
 router = APIRouter()
 
