@@ -56,6 +56,7 @@ class Camera(Base):
     model_overrides: Mapped[str | None] = mapped_column(Text, nullable=True)
     worker_group: Mapped[int | None] = mapped_column(Integer, nullable=True)
     homography_matrix: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recalibrate_required_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class Zone(Base):
