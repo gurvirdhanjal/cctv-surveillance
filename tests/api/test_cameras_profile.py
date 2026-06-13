@@ -115,3 +115,42 @@ async def test_post_profile_rtsp_failure_returns_422(db_session: Session) -> Non
 
     assert resp.status_code == 422
     assert "RTSP probe failed" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_get_readiness_report_returns_pdf(db_session: Session) -> None:
+    from vms.api.deps import get_db
+
+    # Add a camera so the report has content
+    cam = Camera(name="Gate 1", rtsp_url="rtsp://gate/1", capability_tier="FULL")
+    db_session.add(cam)
+    db_session.flush()
+
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get("/api/sites/readiness-report.pdf", headers=_auth())
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("application/pdf")
+    assert resp.content[:4] == b"%PDF"
+
+
+@pytest.mark.asyncio
+async def test_get_readiness_report_no_cameras_still_returns_pdf(
+    db_session: Session,
+) -> None:
+    """Even with no cameras, endpoint must return a valid (empty) PDF."""
+    from vms.api.deps import get_db
+
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get("/api/sites/readiness-report.pdf", headers=_auth())
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+    assert resp.status_code == 200
+    assert resp.content[:4] == b"%PDF"
