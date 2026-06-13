@@ -345,6 +345,7 @@ class ProfileResponse(BaseModel):
     profiled_at: datetime | None
     capability_tier: str
     shutter_type: str
+    tier_reason: str | None = None
 
 
 # ── Alert Routing ──────────────────────────────────────────────────────────
