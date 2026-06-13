@@ -371,31 +371,42 @@ async def test_resolved_config_manual_override_wins_over_shutter(
 
 
 @pytest.mark.asyncio
-async def test_post_profile_stores_data_and_returns_202(db_session: Session) -> None:
+async def test_post_profile_triggers_profiler(db_session: Session) -> None:
+    from unittest.mock import MagicMock, patch
+
     from vms.api.deps import get_db
+    from vms.api.schemas import ProfileData
 
     cam = Camera(name="P1", rtsp_url="rtsp://p1", capability_tier="FULL")
     db_session.add(cam)
     db_session.flush()
     app.dependency_overrides[get_db] = lambda: db_session
+    fake_data = ProfileData(
+        resolution_w=1920,
+        resolution_h=1080,
+        fps_measured=15.0,
+        focus_score=42.0,
+        suggested_tier="FULL",
+        tier_reason=">=1080p",
+        shutter_suggestion="rolling",
+        shutter_confidence=0.87,
+    )
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.post(
-                f"/api/cameras/{cam.camera_id}/profile",
-                json={
-                    "resolution_w": 1920,
-                    "resolution_h": 1080,
-                    "fps_measured": 15.0,
-                    "focus_score": 42.0,
-                    "shutter_suggestion": "rolling",
-                    "shutter_confidence": 0.87,
-                    "suggested_tier": "FULL",
-                },
-                headers=_auth(),
-            )
+        with patch("vms.api.routes.cameras.CameraProfiler") as mock_cls:
+            inst = MagicMock()
+            inst.probe.return_value = fake_data
+            mock_cls.return_value = inst
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as c:
+                r = await c.post(
+                    f"/api/cameras/{cam.camera_id}/profile",
+                    headers=_auth(),
+                )
     finally:
         app.dependency_overrides.pop(get_db, None)
-    assert r.status_code == 202
+    assert r.status_code == 200
+    assert r.json()["capability_tier"] == "FULL"
 
 
 @pytest.mark.asyncio
