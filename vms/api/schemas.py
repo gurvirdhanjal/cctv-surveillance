@@ -327,6 +327,11 @@ class ProfileData(BaseModel):
     resolution_h: int | None = None
     fps_measured: float | None = None
     focus_score: float | None = None
+    frame_drop_rate: float | None = None
+    brightness_mean: float | None = None
+    is_analog_via_encoder: bool | None = None
+    tier_reason: str | None = None
+    codec: str | None = None
     shutter_suggestion: str | None = Field(default=None, pattern="^(rolling|global|unknown)$")
     shutter_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     suggested_tier: str | None = Field(default=None, pattern="^(FULL|MID|LOW)$")
