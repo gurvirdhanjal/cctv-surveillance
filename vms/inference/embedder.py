@@ -167,5 +167,5 @@ class AdaFaceEmbedder:
             face_bgr, (_EMBED_INPUT_SIZE, _EMBED_INPUT_SIZE), interpolation=cv2.INTER_LANCZOS4
         )
         face = cv2.cvtColor(face, cv2.COLOR_BGR2RGB).astype(np.float32)
-        face = (face - 127.5) / 128.0  # type: ignore[operator]
+        face = (face - 127.5) / 128.0
         return np.transpose(face, (2, 0, 1))[None]
