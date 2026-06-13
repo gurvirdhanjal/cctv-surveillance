@@ -128,6 +128,9 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     webhook_secret: str = ""
 
+    # audit export
+    audit_export_max_rows: int = Field(default=100_000, ge=1)
+
     # storage backend
     storage_backend: str = "local"  # "local" | "minio"
     storage_local_dir: str = "thumbnails"  # base dir for LocalStorageBackend
