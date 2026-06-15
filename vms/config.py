@@ -26,7 +26,7 @@ class Settings(BaseSettings):
 
     # model paths
     scrfd_model: str = "models/scrfd_10g_bnkps.onnx"
-    adaface_model: str = "models/adaface_ir50.onnx"
+    adaface_model: str = "models/adaface_ir101_webface12m.onnx"
     bytetrack_config: str = "bytetrack_custom.yaml"
     botsort_config: str = "botsort_custom.yaml"
     yolov8x_pose_model: str = "models/yolov8x-pose.pt"
