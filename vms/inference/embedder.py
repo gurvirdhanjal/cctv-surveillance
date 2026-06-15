@@ -7,7 +7,7 @@ CVLFace models (IR101/WebFace12M and newer) expect RGB input.
 OpenCV frames are BGR — _preprocess converts before normalising.
 
 When the detector provides 5-point keypoints (scrfd_10g_bnkps.onnx), the embedder
-performs an affine warp to the AdaFace canonical 112×112 pose before embedding.
+performs an affine warp to the AdaFace canonical 112x112 pose before embedding.
 Without keypoints (fallback detectors) it falls back to bbox crop + resize.
 
 Model loading strategy (tried in order):
