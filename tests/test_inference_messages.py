@@ -220,3 +220,40 @@ def test_tracklet_keypoints_redis_roundtrip() -> None:
     assert len(restored.tracklets[0].keypoints) == 17
     assert restored.tracklets[0].face_visible is True
     assert restored.tracklets[0].keypoints[0] == (0.0, 0.0, 0.9)
+
+
+def test_face_with_embedding_quality_norm_default() -> None:
+    f = FaceWithEmbedding(
+        bbox=(0, 0, 100, 100), confidence=0.9, embedding=(0.1,) * 512
+    )
+    assert f.face_quality_norm == 1.0
+
+
+def test_tracklet_body_quality_norm_default() -> None:
+    t = Tracklet(local_track_id=1, camera_id=1, bbox=(0, 0, 50, 100), confidence=0.8)
+    assert t.body_quality_norm == 1.0
+
+
+def test_detection_frame_round_trip_quality_norms() -> None:
+    """Quality norms survive Redis serialization round-trip."""
+    t = Tracklet(
+        local_track_id=1,
+        camera_id=2,
+        bbox=(0, 0, 50, 100),
+        confidence=0.8,
+        body_quality_norm=0.73,
+    )
+    f = FaceWithEmbedding(
+        bbox=(10, 10, 50, 50),
+        confidence=0.9,
+        embedding=(0.1,) * 512,
+        face_quality_norm=0.55,
+    )
+    frame = DetectionFrame(
+        camera_id=2, seq_id=1, timestamp_ms=1000,
+        tracklets=(t,), face_embeddings=(f,),
+    )
+    fields = frame.to_redis_fields()
+    restored = DetectionFrame.from_redis_fields(fields)
+    assert abs(restored.tracklets[0].body_quality_norm - 0.73) < 1e-4
+    assert abs(restored.face_embeddings[0].face_quality_norm - 0.55) < 1e-4
