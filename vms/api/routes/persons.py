@@ -32,6 +32,23 @@ router = APIRouter()
 _MANAGER_ROLES = {"manager", "admin"}
 
 
+def _is_near_duplicate(
+    new_emb: "np.ndarray[Any, np.dtype[Any]]",
+    existing: list[Any],
+    threshold: float,
+) -> bool:
+    """Return True if any existing embedding has cosine sim >= threshold with new_emb."""
+    for row in existing:
+        stored = np.array(row.embedding, dtype=np.float32)
+        norm = np.linalg.norm(stored)
+        if norm > 0:
+            stored = stored / norm
+        sim = float(np.dot(new_emb, stored))
+        if sim >= threshold:
+            return True
+    return False
+
+
 def _require_manager(user: dict[str, Any]) -> None:
     if user.get("role") not in _MANAGER_ROLES:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager role required")
