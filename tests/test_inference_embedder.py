@@ -65,8 +65,7 @@ _SAMPLE_KPS: tuple[tuple[float, float], ...] = (
 
 def test_adaface_embedder_uses_alignment_when_keypoints_present() -> None:
     """_align_face is called when keypoints are provided and its result is embedded."""
-    sess = _make_mock_session()
-    embedder = AdaFaceEmbedder(session=sess)
+    embedder = _make_embedder()
     frame = np.zeros((480, 640, 3), dtype=np.uint8)
     face = FaceWithEmbedding(
         bbox=(80, 60, 160, 140), confidence=0.9, embedding=(), keypoints=_SAMPLE_KPS
