@@ -30,7 +30,7 @@ import numpy as np
 from vms.config import get_settings
 from vms.inference.messages import FaceWithEmbedding
 
-# Standard AdaFace/ArcFace 5-point reference landmarks for 112×112 canonical crop.
+# Standard AdaFace/ArcFace 5-point reference landmarks for 112x112 canonical crop.
 # Order: left-eye, right-eye, nose-tip, left-mouth, right-mouth.
 _ALIGN_DST = np.array(
     [
