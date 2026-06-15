@@ -369,7 +369,7 @@ class TestMainControls:
         cycle = ipt._CONF_CYCLE
         idx = cycle.index(state.conf)
         state.conf = cycle[(idx + 1) % len(cycle)]
-        assert state.conf == pytest.approx(0.40)
+        assert state.conf == pytest.approx(cycle[0])  # last entry wraps to first
 
     def test_sample_n_clamped_to_min_1(self) -> None:
         state = ipt.PipelineState(sample_n=1)
