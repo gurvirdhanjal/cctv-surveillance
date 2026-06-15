@@ -300,7 +300,14 @@ class CameraWorker:
                 w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                 h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                 fps = cap.get(cv2.CAP_PROP_FPS)
-                logger.info("%s: webcam %s opened %dx%d @ %.1ffps", self._camera_label, self._rtsp_url, w, h, fps)
+                logger.info(
+                    "%s: webcam %s opened %dx%d @ %.1ffps",
+                    self._camera_label,
+                    self._rtsp_url,
+                    w,
+                    h,
+                    fps,
+                )
                 return cap
             cap.release()
             logger.warning("%s: webcam index %s not available", self._camera_label, self._rtsp_url)
@@ -530,7 +537,11 @@ def _render_timing_panel(
             f"norm:{norm:.2f}"
         )
 
-    text = _fmt(front, front.camera_label if front else "CAM1") + "   |   " + _fmt(back, back.camera_label if back else "CAM2")
+    text = (
+        _fmt(front, front.camera_label if front else "CAM1")
+        + "   |   "
+        + _fmt(back, back.camera_label if back else "CAM2")
+    )
     cv2.putText(row, text, (8, 17), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (100, 220, 100), 1)
     return row
 
