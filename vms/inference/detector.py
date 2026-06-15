@@ -156,18 +156,29 @@ class SCRFDDetector:
 
     def detect(self, frame_bgr: np.ndarray[Any, np.dtype[Any]]) -> list[FaceWithEmbedding]:
         """Detect faces in a BGR frame. Returns FaceWithEmbedding list (embedding is empty tuple)."""
-        h0, w0 = frame_bgr.shape[:2]
-        blob = self._preprocess(frame_bgr)
+        blob, det_scale = self._preprocess(frame_bgr)
         outputs: list[Any] = self._sess.run(None, {self._input_name: blob})
-        return self._decode(outputs, h0, w0)
+        return self._decode(outputs, det_scale)
 
-    def _preprocess(self, img: np.ndarray[Any, np.dtype[Any]]) -> np.ndarray[Any, np.dtype[Any]]:
-        resized = cv2.resize(img, (_INPUT_SIZE, _INPUT_SIZE))
-        rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(np.float32)
+    def _preprocess(
+        self, img: np.ndarray[Any, np.dtype[Any]]
+    ) -> tuple[np.ndarray[Any, np.dtype[Any]], float]:
+        """Letterbox-resize to _INPUT_SIZE × _INPUT_SIZE, preserving aspect ratio.
+
+        Returns (blob, det_scale) where det_scale converts model-space coords back to
+        original-frame coords via division: original_coord = model_coord / det_scale.
+        """
+        h0, w0 = img.shape[:2]
+        det_scale = min(_INPUT_SIZE / h0, _INPUT_SIZE / w0)
+        new_h, new_w = int(h0 * det_scale), int(w0 * det_scale)
+        resized = cv2.resize(img, (new_w, new_h))
+        canvas = np.zeros((_INPUT_SIZE, _INPUT_SIZE, 3), dtype=np.uint8)
+        canvas[:new_h, :new_w] = resized
+        rgb = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB).astype(np.float32)
         rgb = (rgb - 127.5) / 128.0
-        return np.transpose(rgb, (2, 0, 1))[None]
+        return np.transpose(rgb, (2, 0, 1))[None], det_scale
 
-    def _decode(self, outputs: list[Any], h0: int, w0: int) -> list[FaceWithEmbedding]:
+    def _decode(self, outputs: list[Any], det_scale: float) -> list[FaceWithEmbedding]:
         use_kps = len(outputs) == 9
         cls_outputs = outputs[0:3]
         bbox_outputs = outputs[3:6]
