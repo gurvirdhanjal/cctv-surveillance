@@ -243,24 +243,54 @@ class IdentityEngine:
         embedding: tuple[float, ...] | None,
         body_embedding: tuple[float, ...] | None,
         settings: Any,
+        timestamp_ms: int = 0,
+        face_quality: float = 1.0,
+        body_quality: float = 1.0,
     ) -> None:
-        """Append to face and/or body galleries. Update confirmed.
+        """Update face and/or body galleries using temporal quality-windowed sub-sampling.
 
-        Both galleries are built independently when data is available.
-        Face gallery enables high-confidence facial identification.
-        Body gallery enables cross-camera matching on ceiling cams where face
-        is occluded — populated even when face is also present so that a person
-        identified at the entry gate can be re-matched on body appearance alone
-        once they leave the entry camera's field of view.
+        Within each time window (reid_quality_window_s), only the highest-quality
+        embedding is kept — lower-quality frames in the same window are discarded
+        or replaced. A new window always appends a fresh slot. This prevents blurry
+        or occluded frames from polluting the gallery while preserving temporal
+        diversity across windows.
         """
+        window_ms = int(settings.reid_quality_window_s * 1000)
+        norm_floor: float = settings.reid_quality_norm_floor
+
         if embedding:
-            entry.gallery.append(np.array(embedding, dtype=np.float32))
-            if len(entry.gallery) > settings.reid_gallery_size:
-                entry.gallery = entry.gallery[-settings.reid_gallery_size :]
+            if face_quality >= norm_floor:
+                in_window = (timestamp_ms - entry.face_window_start_ms) < window_ms
+                if in_window:
+                    if face_quality > entry.face_window_best_quality:
+                        if entry.gallery:
+                            entry.gallery[-1] = np.array(embedding, dtype=np.float32)
+                        else:
+                            entry.gallery.append(np.array(embedding, dtype=np.float32))
+                        entry.face_window_best_quality = face_quality
+                else:
+                    entry.gallery.append(np.array(embedding, dtype=np.float32))
+                    if len(entry.gallery) > settings.reid_gallery_size:
+                        entry.gallery = entry.gallery[-settings.reid_gallery_size :]
+                    entry.face_window_start_ms = timestamp_ms
+                    entry.face_window_best_quality = face_quality
+
         if body_embedding:
-            entry.body_gallery.append(np.array(body_embedding, dtype=np.float32))
-            if len(entry.body_gallery) > settings.reid_gallery_size:
-                entry.body_gallery = entry.body_gallery[-settings.reid_gallery_size :]
+            if body_quality >= norm_floor:
+                in_window = (timestamp_ms - entry.body_window_start_ms) < window_ms
+                if in_window:
+                    if body_quality > entry.body_window_best_quality:
+                        if entry.body_gallery:
+                            entry.body_gallery[-1] = np.array(body_embedding, dtype=np.float32)
+                        else:
+                            entry.body_gallery.append(np.array(body_embedding, dtype=np.float32))
+                        entry.body_window_best_quality = body_quality
+                else:
+                    entry.body_gallery.append(np.array(body_embedding, dtype=np.float32))
+                    if len(entry.body_gallery) > settings.reid_gallery_size:
+                        entry.body_gallery = entry.body_gallery[-settings.reid_gallery_size :]
+                    entry.body_window_start_ms = timestamp_ms
+                    entry.body_window_best_quality = body_quality
 
         if embedding or body_embedding:
             entry.sighting_count += 1
