@@ -177,3 +177,68 @@ class FacePipeline:
                 )
             )
         return results, scrfd_ms, adaface_total
+
+
+# ---------------------------------------------------------------------------
+# BodyDetector -- YOLOv8n (test-only nano model, NOT production accuracy)
+# ---------------------------------------------------------------------------
+
+
+class BodyDetector:
+    """Wraps YOLOv8n.track() for one camera.
+
+    Uses TEST_BODY_MODEL (yolov8n) -- fast on CPU but lower accuracy than
+    PROD_BODY_MODEL (yolov8x-pose). Do not use in production.
+    """
+
+    def __init__(self, model: Any, botsort_config: str, camera_id: int) -> None:
+        self._model = model
+        self._botsort_config = botsort_config
+        self._camera_id = camera_id
+
+    @classmethod
+    def from_config(cls, camera_id: int) -> "BodyDetector":
+        from ultralytics import YOLO  # type: ignore[attr-defined]
+
+        settings = get_settings()
+        logger.info("Loading test body model: %s (not production accuracy)", TEST_BODY_MODEL)
+        return cls(
+            model=YOLO(TEST_BODY_MODEL),
+            botsort_config=settings.botsort_config,
+            camera_id=camera_id,
+        )
+
+    def detect(
+        self, frame: "np.ndarray[Any, np.dtype[Any]]", conf: float
+    ) -> "tuple[list[Tracklet], float]":
+        """Run tracking. Returns (tracklets, latency_ms). keypoints always empty (no pose head)."""
+        t0 = time.perf_counter()
+        results: Any = self._model.track(
+            frame,
+            conf=conf,
+            persist=True,
+            tracker=self._botsort_config,
+            verbose=False,
+        )
+        latency_ms = (time.perf_counter() - t0) * 1000
+
+        if not results:
+            return [], latency_ms
+        r = results[0]
+        if r.boxes.id is None:
+            return [], latency_ms
+
+        tracklets: list[Tracklet] = []
+        for bbox_arr, tid, conf_val in zip(r.boxes.xyxy, r.boxes.id, r.boxes.conf, strict=False):
+            x1, y1, x2, y2 = (int(v) for v in bbox_arr)
+            tracklets.append(
+                Tracklet(
+                    local_track_id=int(tid),
+                    camera_id=self._camera_id,
+                    bbox=(x1, y1, x2, y2),
+                    confidence=float(conf_val),
+                    keypoints=(),
+                    face_visible=False,
+                )
+            )
+        return tracklets, latency_ms
