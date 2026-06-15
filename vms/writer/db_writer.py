@@ -66,10 +66,23 @@ def flush_detection_frame(
     )
     now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
 
+    # Build a lookup from embedding tuple → face_quality_norm for this frame.
+    # face_embeddings are indexed by the engine during inference; matching by
+    # embedding value lets us recover the quality signal without changing the
+    # Tracklet DTO (which does not carry face_quality_norm directly).
+    face_quality_by_emb: dict[tuple[float, ...], float] = {
+        f.embedding: f.face_quality_norm
+        for f in frame.face_embeddings
+        if f.embedding
+    }
+
     rows = []
     for t in frame.tracklets:
         face_emb = t.embedding if t.embedding else None
         body_emb = t.body_embedding if t.body_embedding else None
+
+        face_quality = face_quality_by_emb.get(face_emb, 1.0) if face_emb else 1.0
+        body_quality = t.body_quality_norm
 
         if identity is not None:
             gid, person_id, _ = identity.assign_and_identify(
@@ -77,6 +90,8 @@ def flush_detection_frame(
                 t.local_track_id,
                 embedding=face_emb,
                 body_embedding=body_emb,
+                face_quality=face_quality,
+                body_quality=body_quality,
             )
         else:
             gid = uuid.uuid4()
