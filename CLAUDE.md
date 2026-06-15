@@ -170,6 +170,8 @@ a plan checkbox before Phase 4 starts. No implementation without an approved pla
 | PDF export is unsigned (no digital signature) | §F.3 | Spec says "signed PDF" — deferred; needs crypto signing spec before implementation |
 | ONVIF night-mode probe (IR re-sample for brightness re-test) | §B | Deferred — no ONVIF library in requirements; add to Phase 6 camera rollout plan |
 | ~~`_emit_critical_alert` in scheduler reuses `alert_type='UNKNOWN_PERSON'`~~ | §M | **DONE** — uses `SYSTEM_CRITICAL` + `camera_id=None`; migration `f1a2b3c4d5e6`; Guard view filters it; scheduler plan updated |
+| `reid_quality_window_s` + `reid_quality_norm_floor` calibration on real footage | Phase 3 ReID hardening | Conservative defaults (2.0 s, 0.0) ship first; tighten only after calibration — mandatory `/advisor` trigger before changing |
+| Gallery health: dedup consolidation + periodic pruning scheduled job | Phase 3 ReID hardening | Enrollment-only dedup is the current guard (plan Task 6). Full gallery health deferred — needs own spec + `/advisor` before implementation (touches FAISS rebuilds + identity correctness) |
 
 ---
 
