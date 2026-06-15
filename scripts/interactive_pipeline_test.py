@@ -505,8 +505,8 @@ def _render_stats_bar(
         color: tuple[int, int, int] = (0, 0, 220) if r.fps < 15.0 else (180, 180, 180)
         return text, color
 
-    front_text, front_color = _fmt(front, "CAM105")
-    back_text, back_color = _fmt(back, "CAM110")
+    front_text, front_color = _fmt(front, front.camera_label if front else "CAM1")
+    back_text, back_color = _fmt(back, back.camera_label if back else "CAM2")
     cv2.putText(bar, front_text, (8, 16), cv2.FONT_HERSHEY_SIMPLEX, 0.42, front_color, 1)
     cv2.putText(bar, back_text, (8, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.42, back_color, 1)
     return bar
