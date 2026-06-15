@@ -206,7 +206,7 @@ class IdentityStore:
         return cls(persons)
 
     def identify(self, embedding: tuple[float, ...]) -> tuple[str, float]:
-        """Return (name, similarity). name='UNKNOWN' if best match < ADAFACE_MIN_SIM."""
+        """Return (name, similarity). name='UNKNOWN' if best match < self.min_sim."""
         if not self._persons or not embedding:
             return "UNKNOWN", 0.0
 
@@ -224,7 +224,7 @@ class IdentityStore:
                     best_sim = sim
                     best_name = name
 
-        if best_sim < ADAFACE_MIN_SIM:
+        if best_sim < self.min_sim:
             return "UNKNOWN", best_sim
         return best_name, best_sim
 
