@@ -118,10 +118,9 @@ def test_adaface_preprocess_converts_bgr_to_rgb() -> None:
     face_bgr[:, :, 1] = 100  # Green
     face_bgr[:, :, 2] = 200  # Red
     blob = embedder._preprocess(face_bgr)
-    # After BGR→RGB: blob channel 0 = Red = 200, channel 2 = Blue = 50
-    import pytest as _pytest
-    assert blob[0, 0, 0, 0] == _pytest.approx((200 - 127.5) / 127.5, abs=1e-4)
-    assert blob[0, 2, 0, 0] == _pytest.approx((50 - 127.5) / 127.5, abs=1e-4)
+    # After BGR->RGB: blob channel 0 = Red = 200, channel 2 = Blue = 50
+    assert blob[0, 0, 0, 0] == pytest.approx((200 - 127.5) / 127.5, abs=1e-4)
+    assert blob[0, 2, 0, 0] == pytest.approx((50 - 127.5) / 127.5, abs=1e-4)
 
 
 def test_adaface_embedder_falls_back_to_bbox_when_alignment_returns_none() -> None:
