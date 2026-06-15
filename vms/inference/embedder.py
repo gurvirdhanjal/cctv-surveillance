@@ -205,11 +205,12 @@ class AdaFaceEmbedder:
     def _preprocess(
         self, face_bgr: np.ndarray[Any, np.dtype[Any]]
     ) -> np.ndarray[Any, np.dtype[Any]]:
-        # When called with an aligned crop it's already 112×112; resize is a no-op.
-        # When called with a raw bbox crop it resizes to the canonical input size.
+        # AdaFace to_input(): PIL RGB → flip to BGR → (pixel/255 - 0.5)/0.5
+        # Our input is already BGR (OpenCV native) — do NOT convert to RGB.
+        # Divisor is 127.5, not 128.0, to match the training normalisation exactly.
         face = cv2.resize(
             face_bgr, (_EMBED_INPUT_SIZE, _EMBED_INPUT_SIZE), interpolation=cv2.INTER_LANCZOS4
         )
-        face = cv2.cvtColor(face, cv2.COLOR_BGR2RGB).astype(np.float32)
-        face = (face - 127.5) / 128.0
+        face = face.astype(np.float32)
+        face = (face - 127.5) / 127.5
         return np.transpose(face, (2, 0, 1))[None]
