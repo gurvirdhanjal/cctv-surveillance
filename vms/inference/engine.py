@@ -11,6 +11,7 @@ import asyncio
 import logging
 from typing import Any
 
+import cv2
 import numpy as np
 import redis.asyncio as aioredis
 
