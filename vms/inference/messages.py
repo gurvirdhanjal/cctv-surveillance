@@ -130,6 +130,7 @@ class DetectionFrame:
                 bbox=cast(tuple[int, int, int, int], tuple(int(v) for v in f["bbox"])),
                 confidence=float(f["confidence"]),
                 embedding=tuple(float(v) for v in f["embedding"]),
+                face_quality_norm=float(f.get("face_quality_norm", 1.0)),
             )
             for f in raw_faces
         )
