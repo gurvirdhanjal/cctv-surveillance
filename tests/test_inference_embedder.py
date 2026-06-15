@@ -16,9 +16,17 @@ def _make_mock_session() -> MagicMock:
     return sess
 
 
+def _make_embedder(min_face_px: int | None = None) -> AdaFaceEmbedder:
+    """Create an AdaFaceEmbedder with blur gate disabled (min_blur=0.0).
+
+    Pre-blur-gate tests use uniform/zero frames that would fail the Laplacian
+    check. Disable blur here so those tests stay focused on their own concerns.
+    """
+    return AdaFaceEmbedder(session=_make_mock_session(), min_face_px=min_face_px, min_blur=0.0)
+
+
 def test_adaface_embedder_returns_512_dim_embedding() -> None:
-    sess = _make_mock_session()
-    embedder = AdaFaceEmbedder(session=sess)
+    embedder = _make_embedder()
     frame = np.zeros((480, 640, 3), dtype=np.uint8)
     face = FaceWithEmbedding(bbox=(10, 10, 100, 100), confidence=0.9, embedding=())
     result = embedder.embed(face, frame)
