@@ -387,3 +387,150 @@ class CameraWorker:
 
         cap.release()
         logger.info("%s: worker stopped", self._camera_label)
+
+
+# ---------------------------------------------------------------------------
+# Rendering helpers (main thread only -- never call from worker threads)
+# ---------------------------------------------------------------------------
+
+
+def _track_color(track_id: int) -> tuple[int, int, int]:
+    if track_id not in _TRACK_COLORS:
+        hue = (track_id * 47 + 30) % 180
+        hsv = np.array([[[hue, 210, 220]]], dtype=np.uint8)
+        bgr = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)[0, 0]
+        _TRACK_COLORS[track_id] = (int(bgr[0]), int(bgr[1]), int(bgr[2]))
+    return _TRACK_COLORS[track_id]
+
+
+def _labeled_box(
+    img: np.ndarray[Any, np.dtype[Any]],
+    x1: int,
+    y1: int,
+    x2: int,
+    y2: int,
+    label: str,
+    color: tuple[int, int, int],
+    thickness: int = 2,
+) -> None:
+    cv2.rectangle(img, (x1, y1), (x2, y2), color, thickness)
+    (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+    label_y = max(y1 - 4, th + 4)
+    cv2.rectangle(img, (x1, label_y - th - 4), (x1 + tw + 6, label_y + 2), color, -1)
+    cv2.putText(
+        img, label, (x1 + 3, label_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1
+    )
+
+
+def _render_banner(total_w: int) -> np.ndarray[Any, np.dtype[Any]]:
+    banner: np.ndarray[Any, np.dtype[Any]] = np.full(
+        (_BANNER_H, total_w, 3), 25, dtype=np.uint8
+    )
+    text = "MODE: DEMO FAST BODY DETECTOR, PRODUCTION FACE PIPELINE"
+    (tw, th), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.55, 1)
+    x = max(0, (total_w - tw) // 2)
+    cv2.putText(banner, text, (x, th + 6), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 220), 1)
+    return banner
+
+
+def _render_panel(
+    result: FrameResult, panel_h: int
+) -> tuple[np.ndarray[Any, np.dtype[Any]], int]:
+    """Scale frame, draw body + face overlays. Returns (panel, person_count)."""
+    h0, w0 = result.frame.shape[:2]
+    panel_w = int(w0 * (panel_h / h0))
+    panel: np.ndarray[Any, np.dtype[Any]] = cv2.resize(result.frame, (panel_w, panel_h))
+    sx = panel_w / w0
+    sy = panel_h / h0
+
+    for t in result.tracklets:
+        px1 = int(t.bbox[0] * sx)
+        py1 = int(t.bbox[1] * sy)
+        px2 = int(t.bbox[2] * sx)
+        py2 = int(t.bbox[3] * sy)
+        _labeled_box(panel, px1, py1, px2, py2, f"T:{t.local_track_id}", _track_color(t.local_track_id))
+
+    stale_tag = f" s:{result.face_stale_frames}" if result.face_stale_frames > 0 else ""
+    for face in result.face_results:
+        fx1 = int(face.bbox[0] * sx)
+        fy1 = int(face.bbox[1] * sy)
+        fx2 = int(face.bbox[2] * sx)
+        fy2 = int(face.bbox[3] * sy)
+        cv2.rectangle(panel, (fx1, fy1), (fx2, fy2), (255, 80, 0), 2)
+        label = f"UNKNOWN n:{face.embedding_norm:.2f}{stale_tag}"
+        cv2.putText(
+            panel, label, (fx1, max(fy1 - 3, 12)), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 140, 0), 1
+        )
+
+    count = len(result.tracklets)
+    hud = f"{result.camera_label}  P:{count}  F:{len(result.face_results)}"
+    (tw, th), _ = cv2.getTextSize(hud, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
+    overlay = panel.copy()
+    cv2.rectangle(overlay, (4, 2), (tw + 14, th + 14), (0, 0, 0), -1)
+    cv2.addWeighted(overlay, 0.55, panel, 0.45, 0, panel)
+    cv2.putText(panel, hud, (8, th + 8), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+
+    return panel, count
+
+
+def _render_stats_bar(
+    front: FrameResult | None,
+    back: FrameResult | None,
+    total_w: int,
+    state: PipelineState,
+) -> np.ndarray[Any, np.dtype[Any]]:
+    bar: np.ndarray[Any, np.dtype[Any]] = np.full((_STATS_H, total_w, 3), 30, dtype=np.uint8)
+
+    def _fmt(r: FrameResult | None, cam: str) -> tuple[str, tuple[int, int, int]]:
+        if r is None:
+            return f"{cam}: waiting...", (140, 140, 140)
+        face_str = (
+            "face:OFF"
+            if not state.face_enabled
+            else f"scrfd:{r.latency_scrfd_ms:.0f}ms ada:{r.latency_adaface_ms:.0f}ms"
+        )
+        text = (
+            f"{cam}: {r.fps:.1f}fps  body:{r.latency_body_ms:.0f}ms  "
+            f"{face_str}  N={state.sample_n}  stale:{r.face_stale_frames}"
+        )
+        color: tuple[int, int, int] = (0, 0, 220) if r.fps < 15.0 else (180, 180, 180)
+        return text, color
+
+    front_text, front_color = _fmt(front, "CAM105")
+    back_text, back_color = _fmt(back, "CAM110")
+    cv2.putText(bar, front_text, (8, 16), cv2.FONT_HERSHEY_SIMPLEX, 0.42, front_color, 1)
+    cv2.putText(bar, back_text, (8, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.42, back_color, 1)
+    return bar
+
+
+def _render_timing_panel(
+    front: FrameResult | None,
+    back: FrameResult | None,
+    total_w: int,
+) -> np.ndarray[Any, np.dtype[Any]]:
+    row: np.ndarray[Any, np.dtype[Any]] = np.full((_TIMING_H, total_w, 3), 15, dtype=np.uint8)
+
+    def _fmt(r: FrameResult | None, cam: str) -> str:
+        if r is None:
+            return f"{cam}:-"
+        norm = r.face_results[0].embedding_norm if r.face_results else 0.0
+        return (
+            f"{cam} yolo:{r.latency_body_ms:.0f}  "
+            f"scrfd:{r.latency_scrfd_ms:.0f}  "
+            f"ada:{r.latency_adaface_ms:.0f}  "
+            f"norm:{norm:.2f}"
+        )
+
+    text = _fmt(front, "CAM105") + "   |   " + _fmt(back, "CAM110")
+    cv2.putText(row, text, (8, 17), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (100, 220, 100), 1)
+    return row
+
+
+def _save_snapshots(front: FrameResult | None, back: FrameResult | None) -> None:
+    _SNAPSHOTS_DIR.mkdir(exist_ok=True)
+    ts = datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y%m%d_%H%M%S")
+    for label, result in [("front", front), ("back", back)]:
+        if result is not None:
+            path = _SNAPSHOTS_DIR / f"pipeline_test_{ts}_{label}.jpg"
+            cv2.imwrite(str(path), result.frame)
+            logger.info("Snapshot saved: %s", path.name)
