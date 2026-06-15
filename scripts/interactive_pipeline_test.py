@@ -23,13 +23,14 @@ Controls:
 from __future__ import annotations
 
 import argparse  # noqa: F401
+import contextlib
 import logging
 import os
-import queue  # noqa: F401
+import queue
 import sys
-import threading  # noqa: F401
+import threading
 import time
-from collections import deque  # noqa: F401
+from collections import deque
 from dataclasses import dataclass, field  # noqa: F401
 from datetime import datetime, timezone  # noqa: F401
 from pathlib import Path
@@ -78,7 +79,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("pipeline_test")
 
-import cv2  # noqa: F401
+import cv2
 import numpy as np
 
 from vms.config import get_settings
@@ -255,9 +256,9 @@ class CameraWorker:
         camera_id: int,
         camera_label: str,
         rtsp_url: str,
-        body_detector: "BodyDetector",
-        face_pipeline: "FacePipeline",
-        state: "PipelineState",
+        body_detector: BodyDetector,
+        face_pipeline: FacePipeline,
+        state: PipelineState,
     ) -> None:
         self._camera_id = camera_id
         self._camera_label = camera_label
@@ -265,7 +266,7 @@ class CameraWorker:
         self._body_detector = body_detector
         self._face_pipeline = face_pipeline
         self._state = state
-        self._result_queue: queue.Queue["FrameResult"] = queue.Queue(maxsize=2)
+        self._result_queue: queue.Queue[FrameResult] = queue.Queue(maxsize=2)
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
 
@@ -282,7 +283,7 @@ class CameraWorker:
         if self._thread is not None:
             self._thread.join(timeout=4.0)
 
-    def latest(self) -> "FrameResult | None":
+    def latest(self) -> FrameResult | None:
         result: FrameResult | None = None
         while True:
             try:
@@ -291,11 +292,13 @@ class CameraWorker:
                 break
         return result
 
-    def _open_stream(self) -> "cv2.VideoCapture | None":
-        for attempt, url in enumerate([
-            self._rtsp_url,
-            self._rtsp_url.replace("/101", "/102"),
-        ]):
+    def _open_stream(self) -> cv2.VideoCapture | None:
+        for attempt, url in enumerate(
+            [
+                self._rtsp_url,
+                self._rtsp_url.replace("/101", "/102"),
+            ]
+        ):
             cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
             cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             if cap.isOpened():

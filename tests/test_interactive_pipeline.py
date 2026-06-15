@@ -226,8 +226,8 @@ class TestCameraWorker:
         camera_label: str = "CAM105",
         rtsp_url: str = "rtsp://fake/stream",
         face_results: list | None = None,
-        state: "ipt.PipelineState | None" = None,
-    ) -> "tuple[ipt.CameraWorker, MagicMock, MagicMock]":
+        state: ipt.PipelineState | None = None,
+    ) -> tuple[ipt.CameraWorker, MagicMock, MagicMock]:
         body_det = MagicMock(spec=ipt.BodyDetector)
         body_det.detect.return_value = ([], 25.0)
 
