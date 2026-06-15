@@ -260,36 +260,35 @@ class IdentityEngine:
 
         if embedding and face_quality >= norm_floor:
             in_window = (timestamp_ms - entry.face_window_start_ms) < window_ms
-                if in_window:
-                    if face_quality > entry.face_window_best_quality:
-                        if entry.gallery:
-                            entry.gallery[-1] = np.array(embedding, dtype=np.float32)
-                        else:
-                            entry.gallery.append(np.array(embedding, dtype=np.float32))
-                        entry.face_window_best_quality = face_quality
-                else:
-                    entry.gallery.append(np.array(embedding, dtype=np.float32))
-                    if len(entry.gallery) > settings.reid_gallery_size:
-                        entry.gallery = entry.gallery[-settings.reid_gallery_size :]
-                    entry.face_window_start_ms = timestamp_ms
+            if in_window:
+                if face_quality > entry.face_window_best_quality:
+                    if entry.gallery:
+                        entry.gallery[-1] = np.array(embedding, dtype=np.float32)
+                    else:
+                        entry.gallery.append(np.array(embedding, dtype=np.float32))
                     entry.face_window_best_quality = face_quality
+            else:
+                entry.gallery.append(np.array(embedding, dtype=np.float32))
+                if len(entry.gallery) > settings.reid_gallery_size:
+                    entry.gallery = entry.gallery[-settings.reid_gallery_size :]
+                entry.face_window_start_ms = timestamp_ms
+                entry.face_window_best_quality = face_quality
 
-        if body_embedding:
-            if body_quality >= norm_floor:
-                in_window = (timestamp_ms - entry.body_window_start_ms) < window_ms
-                if in_window:
-                    if body_quality > entry.body_window_best_quality:
-                        if entry.body_gallery:
-                            entry.body_gallery[-1] = np.array(body_embedding, dtype=np.float32)
-                        else:
-                            entry.body_gallery.append(np.array(body_embedding, dtype=np.float32))
-                        entry.body_window_best_quality = body_quality
-                else:
-                    entry.body_gallery.append(np.array(body_embedding, dtype=np.float32))
-                    if len(entry.body_gallery) > settings.reid_gallery_size:
-                        entry.body_gallery = entry.body_gallery[-settings.reid_gallery_size :]
-                    entry.body_window_start_ms = timestamp_ms
+        if body_embedding and body_quality >= norm_floor:
+            in_window = (timestamp_ms - entry.body_window_start_ms) < window_ms
+            if in_window:
+                if body_quality > entry.body_window_best_quality:
+                    if entry.body_gallery:
+                        entry.body_gallery[-1] = np.array(body_embedding, dtype=np.float32)
+                    else:
+                        entry.body_gallery.append(np.array(body_embedding, dtype=np.float32))
                     entry.body_window_best_quality = body_quality
+            else:
+                entry.body_gallery.append(np.array(body_embedding, dtype=np.float32))
+                if len(entry.body_gallery) > settings.reid_gallery_size:
+                    entry.body_gallery = entry.body_gallery[-settings.reid_gallery_size :]
+                entry.body_window_start_ms = timestamp_ms
+                entry.body_window_best_quality = body_quality
 
         if embedding or body_embedding:
             entry.sighting_count += 1
