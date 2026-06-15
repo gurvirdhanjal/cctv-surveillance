@@ -124,3 +124,56 @@ class PipelineState:
     conf: float = 0.55
     face_enabled: bool = True
     timing_panel: bool = False
+
+
+# ---------------------------------------------------------------------------
+# FacePipeline -- SCRFD + AdaFace (production models, sampled every N frames)
+# ---------------------------------------------------------------------------
+
+from vms.inference.detector import SCRFDDetector  # noqa: E402
+from vms.inference.embedder import AdaFaceEmbedder  # noqa: E402
+
+
+class FacePipeline:
+    """Runs SCRFD face detection + AdaFace embedding on a single frame.
+
+    Caller decides the sampling schedule. This class just runs when called.
+    """
+
+    def __init__(self, detector: Any, embedder: Any) -> None:
+        self._detector = detector
+        self._embedder = embedder
+
+    @classmethod
+    def from_paths(cls, detector_path: str, embedder_path: str) -> "FacePipeline":
+        return cls(
+            detector=SCRFDDetector.from_path(detector_path),
+            embedder=AdaFaceEmbedder.from_path(embedder_path),
+        )
+
+    def run(
+        self, frame: "np.ndarray[Any, np.dtype[Any]]"
+    ) -> "tuple[list[FaceResult], float, float]":
+        """Detect faces + compute embeddings. Returns (results, scrfd_ms, adaface_ms)."""
+        t0 = time.perf_counter()
+        faces: list[FaceWithEmbedding] = self._detector.detect(frame)
+        scrfd_ms = (time.perf_counter() - t0) * 1000
+
+        results: list[FaceResult] = []
+        adaface_total = 0.0
+        for face in faces:
+            t1 = time.perf_counter()
+            embedded: FaceWithEmbedding | None = self._embedder.embed(face, frame)
+            adaface_total += (time.perf_counter() - t1) * 1000
+            if embedded is None or not embedded.embedding:
+                continue
+            norm = float(np.linalg.norm(embedded.embedding))
+            results.append(
+                FaceResult(
+                    bbox=embedded.bbox,
+                    confidence=embedded.confidence,
+                    embedding_norm=norm,
+                    label="UNKNOWN",
+                )
+            )
+        return results, scrfd_ms, adaface_total
