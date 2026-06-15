@@ -67,9 +67,9 @@ class TestPipelineState:
         assert s.sample_n == 10
 
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock  # noqa: E402
 
-from vms.inference.messages import FaceWithEmbedding
+from vms.inference.messages import FaceWithEmbedding  # noqa: E402
 
 
 class TestFacePipeline:

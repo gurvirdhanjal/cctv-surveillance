@@ -28,12 +28,12 @@ import os
 import queue  # noqa: F401
 import sys
 import threading  # noqa: F401
-import time  # noqa: F401
+import time
 from collections import deque  # noqa: F401
 from dataclasses import dataclass, field  # noqa: F401
 from datetime import datetime, timezone  # noqa: F401
 from pathlib import Path
-from typing import Any  # noqa: F401
+from typing import Any
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
@@ -82,7 +82,7 @@ import cv2  # noqa: F401
 import numpy as np
 
 from vms.config import get_settings  # noqa: F401
-from vms.inference.messages import FaceWithEmbedding, Tracklet  # noqa: F401
+from vms.inference.messages import FaceWithEmbedding, Tracklet
 
 
 # ---------------------------------------------------------------------------
@@ -130,8 +130,8 @@ class PipelineState:
 # FacePipeline -- SCRFD + AdaFace (production models, sampled every N frames)
 # ---------------------------------------------------------------------------
 
-from vms.inference.detector import SCRFDDetector  # noqa: E402
-from vms.inference.embedder import AdaFaceEmbedder  # noqa: E402
+from vms.inference.detector import SCRFDDetector
+from vms.inference.embedder import AdaFaceEmbedder
 
 
 class FacePipeline:
@@ -145,15 +145,15 @@ class FacePipeline:
         self._embedder = embedder
 
     @classmethod
-    def from_paths(cls, detector_path: str, embedder_path: str) -> "FacePipeline":
+    def from_paths(cls, detector_path: str, embedder_path: str) -> FacePipeline:
         return cls(
             detector=SCRFDDetector.from_path(detector_path),
             embedder=AdaFaceEmbedder.from_path(embedder_path),
         )
 
     def run(
-        self, frame: "np.ndarray[Any, np.dtype[Any]]"
-    ) -> "tuple[list[FaceResult], float, float]":
+        self, frame: np.ndarray[Any, np.dtype[Any]]
+    ) -> tuple[list[FaceResult], float, float]:
         """Detect faces + compute embeddings. Returns (results, scrfd_ms, adaface_ms)."""
         t0 = time.perf_counter()
         faces: list[FaceWithEmbedding] = self._detector.detect(frame)
