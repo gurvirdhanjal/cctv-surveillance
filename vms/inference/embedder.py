@@ -196,6 +196,10 @@ class AdaFaceEmbedder:
         if crop.size == 0:
             return None
 
+        lap_var = float(cv2.Laplacian(crop, cv2.CV_64F).var())
+        if lap_var < self._min_blur:
+            return None
+
         blob = self._preprocess(crop)
         raw: list[Any] = self._sess.run(None, {self._input_name: blob})
         emb_array: np.ndarray[Any, np.dtype[Any]] = raw[0][0].astype(np.float32)
