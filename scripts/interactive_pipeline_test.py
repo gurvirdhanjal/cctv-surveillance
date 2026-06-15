@@ -369,6 +369,7 @@ class CameraWorker:
         body_detector: BodyDetector,
         face_pipeline: FacePipeline,
         state: PipelineState,
+        identity_store: IdentityStore | None = None,
     ) -> None:
         self._camera_id = camera_id
         self._camera_label = camera_label
@@ -376,6 +377,7 @@ class CameraWorker:
         self._body_detector = body_detector
         self._face_pipeline = face_pipeline
         self._state = state
+        self._identity_store = identity_store
         self._result_queue: queue.Queue[FrameResult] = queue.Queue(maxsize=2)
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
