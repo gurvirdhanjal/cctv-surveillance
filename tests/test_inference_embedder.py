@@ -104,7 +104,7 @@ def test_adaface_preprocess_converts_bgr_to_rgb() -> None:
     assert blob[0, 2, 0, 0] == _pytest.approx((50 - 127.5) / 127.5, abs=1e-4)
 
 
-def test_adaface_falls_back_to_bbox_when_alignment_returns_none() -> None:
+def test_adaface_embedder_falls_back_to_bbox_when_alignment_returns_none() -> None:
     """When _align_face returns None (degenerate landmarks), bbox crop is used instead."""
     sess = _make_mock_session()
     embedder = AdaFaceEmbedder(session=sess)
