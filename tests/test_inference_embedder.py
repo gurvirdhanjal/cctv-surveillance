@@ -36,8 +36,7 @@ def test_adaface_embedder_returns_512_dim_embedding() -> None:
 
 
 def test_adaface_embedder_returns_none_for_empty_crop() -> None:
-    sess = _make_mock_session()
-    embedder = AdaFaceEmbedder(session=sess)
+    embedder = _make_embedder()
     frame = np.zeros((100, 100, 3), dtype=np.uint8)
     # bbox outside frame bounds -> empty crop
     face = FaceWithEmbedding(bbox=(200, 200, 300, 300), confidence=0.9, embedding=())
@@ -47,7 +46,7 @@ def test_adaface_embedder_returns_none_for_empty_crop() -> None:
 
 def test_adaface_embedder_skips_small_face() -> None:
     sess = _make_mock_session()
-    embedder = AdaFaceEmbedder(session=sess, min_face_px=100)
+    embedder = AdaFaceEmbedder(session=sess, min_face_px=100, min_blur=0.0)
     frame = np.zeros((480, 640, 3), dtype=np.uint8)
     face = FaceWithEmbedding(bbox=(10, 10, 50, 50), confidence=0.9, embedding=())  # 40px face
     result = embedder.embed(face, frame)
