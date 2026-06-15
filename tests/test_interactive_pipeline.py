@@ -152,3 +152,62 @@ class TestFacePipeline:
         pipeline = self._make_pipeline([], None)
         results, _, _ = pipeline.run(np.zeros((480, 640, 3), dtype=np.uint8))
         assert results == []
+
+
+from typing import Any  # noqa: E402
+
+
+class TestBodyDetector:
+    def _mock_yolo_result(
+        self, boxes: list[tuple[int, int, int, int]], ids: list[int], confs: list[float]
+    ) -> Any:
+        """Build a mock ultralytics result object."""
+        import torch
+
+        mock_r = MagicMock()
+        mock_r.boxes.id = torch.tensor(ids, dtype=torch.float32) if ids else None
+        mock_r.boxes.xyxy = torch.tensor(
+            [[float(x1), float(y1), float(x2), float(y2)] for x1, y1, x2, y2 in boxes],
+            dtype=torch.float32,
+        )
+        mock_r.boxes.conf = torch.tensor(confs, dtype=torch.float32)
+        return [mock_r]
+
+    def test_returns_tracklets_for_detected_persons(self) -> None:
+        model = MagicMock()
+        model.track.return_value = self._mock_yolo_result(
+            [(10, 20, 100, 200)], [3], [0.85]
+        )
+        detector = ipt.BodyDetector(model=model, botsort_config="botsort_custom.yaml", camera_id=105)
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        tracklets, latency_ms = detector.detect(frame, conf=0.55)
+        assert len(tracklets) == 1
+        assert tracklets[0].local_track_id == 3
+        assert tracklets[0].camera_id == 105
+        assert tracklets[0].bbox == (10, 20, 100, 200)
+        assert latency_ms >= 0.0
+
+    def test_returns_empty_when_no_tracks(self) -> None:
+        model = MagicMock()
+        no_id_result = MagicMock()
+        no_id_result.boxes.id = None
+        model.track.return_value = [no_id_result]
+        detector = ipt.BodyDetector(model=model, botsort_config="botsort_custom.yaml", camera_id=110)
+        tracklets, _ = detector.detect(np.zeros((480, 640, 3), dtype=np.uint8), conf=0.55)
+        assert tracklets == []
+
+    def test_returns_empty_when_yolo_returns_empty_list(self) -> None:
+        model = MagicMock()
+        model.track.return_value = []
+        detector = ipt.BodyDetector(model=model, botsort_config="botsort_custom.yaml", camera_id=105)
+        tracklets, _ = detector.detect(np.zeros((480, 640, 3), dtype=np.uint8), conf=0.55)
+        assert tracklets == []
+
+    def test_tracklet_keypoints_empty_for_nano_model(self) -> None:
+        """yolov8n has no pose head -- keypoints must be empty tuple."""
+        model = MagicMock()
+        model.track.return_value = self._mock_yolo_result([(0, 0, 50, 50)], [1], [0.9])
+        detector = ipt.BodyDetector(model=model, botsort_config="botsort_custom.yaml", camera_id=105)
+        tracklets, _ = detector.detect(np.zeros((480, 640, 3), dtype=np.uint8), conf=0.55)
+        assert tracklets[0].keypoints == ()
+        assert tracklets[0].face_visible is False
