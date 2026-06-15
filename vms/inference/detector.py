@@ -168,17 +168,21 @@ class SCRFDDetector:
         return np.transpose(rgb, (2, 0, 1))[None]
 
     def _decode(self, outputs: list[Any], h0: int, w0: int) -> list[FaceWithEmbedding]:
+        use_kps = len(outputs) == 9
         cls_outputs = outputs[0:3]
         bbox_outputs = outputs[3:6]
+        kps_outputs = outputs[6:9] if use_kps else [None, None, None]
 
         boxes_all: list[np.ndarray[Any, np.dtype[Any]]] = []
         scores_all: list[np.ndarray[Any, np.dtype[Any]]] = []
+        kpss_all: list[np.ndarray[Any, np.dtype[Any]]] = []
 
-        for cls_out, bbox_out, stride in zip(cls_outputs, bbox_outputs, _STRIDES, strict=False):
+        for cls_out, bbox_out, kps_out, stride in zip(
+            cls_outputs, bbox_outputs, kps_outputs, _STRIDES, strict=False
+        ):
             n: int = cls_out.shape[0]
             side = _INPUT_SIZE // stride
-            hw = side * side
-            if n != hw * _ANCHORS_PER_CELL:
+            if n != side * side * _ANCHORS_PER_CELL:
                 continue
 
             scores: np.ndarray[Any, np.dtype[Any]] = 1.0 / (1.0 + np.exp(-cls_out[:, 0]))
@@ -186,31 +190,50 @@ class SCRFDDetector:
             if not np.any(keep):
                 continue
 
-            scores = scores[keep]
+            # anchor centres: shape (side*side*anchors, 2), columns are [x, y]
+            # np.mgrid[:side, :side] gives [row_indices, col_indices]; [::-1] swaps to [col, row] = [x, y]
+            centers: np.ndarray[Any, np.dtype[Any]] = (
+                np.stack(np.mgrid[:side, :side][::-1], axis=-1)
+                .reshape(-1, 2)
+                .astype(np.float32)
+            )
+            centers = np.repeat(centers, _ANCHORS_PER_CELL, axis=0) * stride
+
+            centers_k = centers[keep]
             bbox: np.ndarray[Any, np.dtype[Any]] = bbox_out[keep]
 
-            # grid centers: xs vary along columns, ys along rows (indexing='xy')
-            ys, xs = np.meshgrid(np.arange(side), np.arange(side))
-            centers = np.stack([xs.ravel(), ys.ravel()], axis=1)
-            centers = np.repeat(centers, _ANCHORS_PER_CELL, axis=0)
-            centers = centers[keep] * stride
-
-            x1 = centers[:, 0] - bbox[:, 0] * stride
-            y1 = centers[:, 1] - bbox[:, 1] * stride
-            x2 = centers[:, 0] + bbox[:, 2] * stride
-            y2 = centers[:, 1] + bbox[:, 3] * stride
+            x1 = centers_k[:, 0] - bbox[:, 0] * stride
+            y1 = centers_k[:, 1] - bbox[:, 1] * stride
+            x2 = centers_k[:, 0] + bbox[:, 2] * stride
+            y2 = centers_k[:, 1] + bbox[:, 3] * stride
 
             boxes_all.append(np.stack([x1, y1, x2, y2], axis=1))
-            scores_all.append(scores)
+            scores_all.append(scores[keep])
+
+            if use_kps and kps_out is not None:
+                kps: np.ndarray[Any, np.dtype[Any]] = kps_out[keep]  # (M, 10)
+                decoded = np.zeros((kps.shape[0], 5, 2), dtype=np.float32)
+                for j in range(5):
+                    decoded[:, j, 0] = centers_k[:, 0] + kps[:, j * 2] * stride
+                    decoded[:, j, 1] = centers_k[:, 1] + kps[:, j * 2 + 1] * stride
+                kpss_all.append(decoded)
 
         if not boxes_all:
             return []
 
         boxes: np.ndarray[Any, np.dtype[Any]] = np.concatenate(boxes_all)
         scores_arr: np.ndarray[Any, np.dtype[Any]] = np.concatenate(scores_all)
+        kpss_arr: np.ndarray[Any, np.dtype[Any]] | None = (
+            np.concatenate(kpss_all) if use_kps and kpss_all else None
+        )
 
-        boxes[:, [0, 2]] *= w0 / _INPUT_SIZE
-        boxes[:, [1, 3]] *= h0 / _INPUT_SIZE
+        scale_x = w0 / _INPUT_SIZE
+        scale_y = h0 / _INPUT_SIZE
+        boxes[:, [0, 2]] *= scale_x
+        boxes[:, [1, 3]] *= scale_y
+        if kpss_arr is not None:
+            kpss_arr[:, :, 0] *= scale_x
+            kpss_arr[:, :, 1] *= scale_y
 
         boxes_xywh = [
             [float(b[0]), float(b[1]), float(b[2] - b[0]), float(b[3] - b[1])] for b in boxes
@@ -229,11 +252,17 @@ class SCRFDDetector:
             y2i = int(boxes[i, 3])
             if (x2i - x1i) < self._min_face_px or (y2i - y1i) < self._min_face_px:
                 continue
+            kps_tuple: tuple[tuple[float, float], ...] = ()
+            if kpss_arr is not None:
+                kps_tuple = tuple(
+                    (float(kpss_arr[i, j, 0]), float(kpss_arr[i, j, 1])) for j in range(5)
+                )
             results.append(
                 FaceWithEmbedding(
                     bbox=(x1i, y1i, x2i, y2i),
                     confidence=float(scores_arr[i]),
                     embedding=(),
+                    keypoints=kps_tuple,
                 )
             )
         return results
