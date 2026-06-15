@@ -674,7 +674,7 @@ def main() -> None:
                 front_panel = np.zeros((panel_h, placeholder_w, 3), dtype=np.uint8)
                 cv2.putText(
                     front_panel,
-                    "CAM105: waiting...",
+                    f"{front_label}: waiting...",
                     (20, panel_h // 2),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.7,
