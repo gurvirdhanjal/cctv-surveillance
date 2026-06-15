@@ -530,7 +530,7 @@ def _render_timing_panel(
             f"norm:{norm:.2f}"
         )
 
-    text = _fmt(front, "CAM105") + "   |   " + _fmt(back, "CAM110")
+    text = _fmt(front, front.camera_label if front else "CAM1") + "   |   " + _fmt(back, back.camera_label if back else "CAM2")
     cv2.putText(row, text, (8, 17), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (100, 220, 100), 1)
     return row
 
