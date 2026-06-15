@@ -718,6 +718,14 @@ def main() -> None:
         help="Directory of enrolled employees (one subfolder per person, JPG images). "
         "Example: employees/  -- enables identity matching.",
     )
+    parser.add_argument(
+        "--min-sim",
+        type=float,
+        default=ADAFACE_MIN_SIM,
+        metavar="SIM",
+        help=f"Cosine similarity threshold for identity match (default {ADAFACE_MIN_SIM}). "
+        "Lower to ~0.50 for side/profile poses.",
+    )
     args = parser.parse_args()
 
     if args.webcam:
