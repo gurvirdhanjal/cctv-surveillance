@@ -1,7 +1,7 @@
 """Interactive pipeline test harness for CPU-only laptops.
 
 Uses YOLOv8n (TEST_BODY_MODEL) for smooth body tracking every frame,
-and the production face pipeline (SCRFD 10G + AdaFace IR50) every Nth frame.
+and the production face pipeline (SCRFD 10G + AdaFace IR101/WebFace12M) every Nth frame.
 
 NOTE: TEST_BODY_MODEL is intentionally lighter than PROD_BODY_MODEL.
       Do NOT use this script as a proxy for production detection accuracy.
