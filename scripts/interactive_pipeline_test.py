@@ -253,7 +253,11 @@ class FacePipeline:
             embedder=AdaFaceEmbedder.from_path(embedder_path),
         )
 
-    def run(self, frame: np.ndarray[Any, np.dtype[Any]]) -> tuple[list[FaceResult], float, float]:
+    def run(
+        self,
+        frame: np.ndarray[Any, np.dtype[Any]],
+        identity_store: IdentityStore | None = None,
+    ) -> tuple[list[FaceResult], float, float]:
         """Detect faces + compute embeddings. Returns (results, scrfd_ms, adaface_ms)."""
         t0 = time.perf_counter()
         faces: list[FaceWithEmbedding] = self._detector.detect(frame)
@@ -268,12 +272,17 @@ class FacePipeline:
             if embedded is None or not embedded.embedding:
                 continue
             norm = float(np.linalg.norm(embedded.embedding))
+            if identity_store is not None:
+                label, sim = identity_store.identify(embedded.embedding)
+            else:
+                label, sim = "UNKNOWN", 0.0
             results.append(
                 FaceResult(
                     bbox=embedded.bbox,
                     confidence=embedded.confidence,
                     embedding_norm=norm,
-                    label="UNKNOWN",
+                    label=label,
+                    similarity=sim,
                 )
             )
         return results, scrfd_ms, adaface_total
