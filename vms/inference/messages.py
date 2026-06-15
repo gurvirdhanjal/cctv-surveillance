@@ -23,6 +23,7 @@ class Tracklet:
     ppe_vest_conf: float | None = None  # max detection score for vest; None = model not run
     ppe_gloves_conf: float | None = None  # max detection score for gloves; None = model not run
     ppe_mask_conf: float | None = None  # max detection score for mask; None = model not run
+    body_quality_norm: float = 1.0  # pre-L2-normalisation body embedding norm; 1.0 = full quality
 
 
 @dataclass(frozen=True)
