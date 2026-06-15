@@ -37,6 +37,11 @@ logger = logging.getLogger(__name__)
 _DETECTIONS_STREAM = "detections"
 
 
+def _blur_score(crop_bgr: np.ndarray[Any, np.dtype[Any]]) -> float:
+    """Laplacian variance — higher = sharper."""
+    return float(cv2.Laplacian(crop_bgr, cv2.CV_64F).var())
+
+
 def _associate_faces(
     tracklets: tuple[Tracklet, ...],
     face_embeddings: tuple[FaceWithEmbedding, ...],
