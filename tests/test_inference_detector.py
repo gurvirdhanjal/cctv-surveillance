@@ -144,13 +144,16 @@ def test_scrfd_detector_kps_nose_coords_correct_at_unit_scale() -> None:
 
 
 def test_scrfd_detector_kps_scales_to_original_frame() -> None:
-    """Keypoint coordinates must be scaled to original frame size (1280×320)."""
+    """Keypoint coordinates must be scaled back via letterbox det_scale (720×1280 frame).
+
+    Letterbox for 720×1280: scale = min(640/720, 640/1280) = 0.5.
+    Model-space nose (336, 328) → original coords: 336/0.5=672, 328/0.5=656.
+    """
     sess = _make_mock_session_kps()
     detector = SCRFDDetector(session=sess)
-    frame = np.zeros((320, 1280, 3), dtype=np.uint8)  # scale_x=2.0, scale_y=0.5
+    frame = np.zeros((720, 1280, 3), dtype=np.uint8)
     detections = detector.detect(frame)
     assert len(detections) >= 1
     nose_x, nose_y = detections[0].keypoints[2]
-    # 640×640 coords (336, 328) → 1280×320 frame: x*2=672, y*0.5=164
     assert nose_x == pytest.approx(672.0, abs=2.0)
-    assert nose_y == pytest.approx(164.0, abs=2.0)
+    assert nose_y == pytest.approx(656.0, abs=2.0)
