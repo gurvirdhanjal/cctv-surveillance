@@ -152,6 +152,7 @@ class IdentityStore:
         directory: Path,
         detector: Any,
         embedder: Any,
+        min_sim: float = ADAFACE_MIN_SIM,
     ) -> IdentityStore:
         """Walk directory, one subfolder per person, extract embeddings from JPG files."""
         persons: dict[str, list[np.ndarray]] = {}
