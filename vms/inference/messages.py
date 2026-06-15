@@ -64,6 +64,7 @@ class DetectionFrame:
                     "ppe_vest_conf": t.ppe_vest_conf,
                     "ppe_gloves_conf": t.ppe_gloves_conf,
                     "ppe_mask_conf": t.ppe_mask_conf,
+                    "body_quality_norm": t.body_quality_norm,
                 }
                 for t in self.tracklets
             ]
