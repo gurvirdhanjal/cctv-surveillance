@@ -779,7 +779,7 @@ def main() -> None:
             logger.warning("Identity store is empty -- running in UNKNOWN-only mode")
             identity_store = None
         else:
-            logger.info("Identity store ready -- ADAFACE_MIN_SIM=%.2f", ADAFACE_MIN_SIM)
+            logger.info("Identity store ready -- min_sim=%.2f", args.min_sim)
 
     logger.info("Models loaded. Starting workers...")
 
