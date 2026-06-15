@@ -354,3 +354,41 @@ class TestRendering:
         row = ipt._render_timing_panel(result, None, total_w=1280)
         assert row.shape[0] == ipt._TIMING_H
         assert row.shape[1] == 1280
+
+
+class TestMainControls:
+    def test_conf_cycle_advances(self) -> None:
+        state = ipt.PipelineState(conf=0.40)
+        cycle = ipt._CONF_CYCLE
+        idx = cycle.index(state.conf)
+        state.conf = cycle[(idx + 1) % len(cycle)]
+        assert state.conf == pytest.approx(0.55)
+
+    def test_conf_cycle_wraps(self) -> None:
+        state = ipt.PipelineState(conf=0.70)
+        cycle = ipt._CONF_CYCLE
+        idx = cycle.index(state.conf)
+        state.conf = cycle[(idx + 1) % len(cycle)]
+        assert state.conf == pytest.approx(0.40)
+
+    def test_sample_n_clamped_to_min_1(self) -> None:
+        state = ipt.PipelineState(sample_n=1)
+        state.sample_n = max(1, state.sample_n - 1)
+        assert state.sample_n == 1
+
+    def test_sample_n_clamped_to_max_20(self) -> None:
+        state = ipt.PipelineState(sample_n=20)
+        state.sample_n = min(20, state.sample_n + 1)
+        assert state.sample_n == 20
+
+    def test_face_toggle_flips(self) -> None:
+        state = ipt.PipelineState(face_enabled=True)
+        state.face_enabled = not state.face_enabled
+        assert state.face_enabled is False
+        state.face_enabled = not state.face_enabled
+        assert state.face_enabled is True
+
+    def test_timing_panel_toggle(self) -> None:
+        state = ipt.PipelineState(timing_panel=False)
+        state.timing_panel = not state.timing_panel
+        assert state.timing_panel is True
