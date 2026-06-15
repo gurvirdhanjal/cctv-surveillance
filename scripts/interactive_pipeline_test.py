@@ -704,6 +704,14 @@ def main() -> None:
         metavar="INDEX",
         help="Second webcam device index (default 1). Ignored unless --webcam is set.",
     )
+    parser.add_argument(
+        "--enroll-dir",
+        type=Path,
+        default=None,
+        metavar="DIR",
+        help="Directory of enrolled employees (one subfolder per person, JPG images). "
+        "Example: employees/  -- enables identity matching.",
+    )
     args = parser.parse_args()
 
     if args.webcam:
