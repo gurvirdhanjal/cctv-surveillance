@@ -204,7 +204,7 @@ class IdentityStore:
             else:
                 logger.warning("IdentityStore: no valid embeddings for %s -- skipping", name)
 
-        return cls(persons)
+        return cls(persons, min_sim=min_sim)
 
     def identify(self, embedding: tuple[float, ...]) -> tuple[str, float]:
         """Return (name, similarity). name='UNKNOWN' if best match < self.min_sim."""
