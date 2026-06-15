@@ -763,8 +763,8 @@ def main() -> None:
 
     logger.info("Models loaded. Starting workers...")
 
-    front_worker = CameraWorker(front_cam_id, front_label, front_url, front_body, front_face, state)
-    back_worker = CameraWorker(back_cam_id, back_label, back_url, back_body, back_face, state)
+    front_worker = CameraWorker(front_cam_id, front_label, front_url, front_body, front_face, state, identity_store)
+    back_worker = CameraWorker(back_cam_id, back_label, back_url, back_body, back_face, state, identity_store)
     front_worker.start()
     back_worker.start()
 
