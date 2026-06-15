@@ -93,12 +93,13 @@ from vms.inference.messages import FaceWithEmbedding, Tracklet
 
 @dataclass(frozen=True)
 class FaceResult:
-    """One detected face with embedding norm. Label is always UNKNOWN (no DB)."""
+    """One detected face with embedding norm and identity label."""
 
     bbox: tuple[int, int, int, int]
     confidence: float
     embedding_norm: float
-    label: str  # always "UNKNOWN" in this harness
+    label: str  # "UNKNOWN" or enrolled person name
+    similarity: float = 0.0  # cosine similarity to best match (0.0 if no identity store)
 
 
 @dataclass
