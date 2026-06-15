@@ -1,13 +1,20 @@
-"""SCRFD 2.5g face detector (ONNX or InsightFace fallback).
+"""SCRFD face detector (ONNX or InsightFace fallback).
 
-Input:  (1, 3, 640, 640) float32, normalised (pixel - 127.5) / 128.0, BGR->RGB, CHW
-Outputs [cls_s8, cls_s16, cls_s32, bbox_s8, bbox_s16, bbox_s32]:
-  cls shapes:  (N, 1)  where N = (640/stride)^2 * 2 anchors
-  bbox shapes: (N, 4)  ltrb in stride units from anchor centre
+Supports both SCRFD variants:
+  6-output (no KPS): [cls_s8, cls_s16, cls_s32, bbox_s8, bbox_s16, bbox_s32]
+  9-output (KPS):    above + [kps_s8, kps_s16, kps_s32]
+
+Input:  (1, 3, 640, 640) float32, normalised (pixel - 127.5) / 128.0, BGR→RGB, CHW
+cls shapes:  (N, 1)   N = (640/stride)² × 2 anchors
+bbox shapes: (N, 4)   ltrb distances in stride units from anchor centre
+kps shapes:  (N, 10)  5 keypoints × 2 (Δx, Δy) from anchor centre
+
+Default model: scrfd_10g_bnkps.onnx (SCRFD_10G_KPS, WiderFace Hard 82.8%).
+Keypoints are 5-point facial landmarks used by AdaFace affine alignment.
 
 Model loading strategy (tried in order):
   1. ONNX file at model_path — fastest, recommended for production.
-  2. InsightFace FaceAnalysis — auto-downloads buffalo_l from CDN on first use.
+  2. InsightFace FaceAnalysis — auto-downloads buffalo_l (det_10g.onnx) from CDN.
      Install with: pip install insightface onnxruntime
   3. None (graceful degradation) — face detection disabled; tracklets still work
      via YOLO/ByteTrack, but no face embeddings → all persons appear as UNKNOWN.
