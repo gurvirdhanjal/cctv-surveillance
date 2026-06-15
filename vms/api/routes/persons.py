@@ -81,7 +81,7 @@ async def add_embedding(
     body: EmbeddingCreate,
     db: Session = Depends(get_db),  # noqa: B008
     user: dict[str, Any] = Depends(get_current_user),  # noqa: B008
-) -> PersonEmbedding:
+) -> PersonEmbedding | JSONResponse:
     _require_manager(user)
     person = db.get(Person, person_id)
     if person is None:
