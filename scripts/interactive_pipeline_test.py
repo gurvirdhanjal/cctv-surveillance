@@ -771,7 +771,9 @@ def main() -> None:
         logger.info("Building identity store from %s ...", enroll_path)
         _tmp_detector = SCRFDDetector.from_path(FACE_DETECTOR)
         _tmp_embedder = AdaFaceEmbedder.from_path(FACE_EMBEDDER)
-        identity_store = IdentityStore.from_dir(enroll_path, _tmp_detector, _tmp_embedder)
+        identity_store = IdentityStore.from_dir(
+            enroll_path, _tmp_detector, _tmp_embedder, min_sim=args.min_sim
+        )
         del _tmp_detector, _tmp_embedder
         if identity_store is None or not identity_store._persons:
             logger.warning("Identity store is empty -- running in UNKNOWN-only mode")
