@@ -198,6 +198,11 @@ class AdaFaceEmbedder:
         blob = self._preprocess(crop)
         raw: list[Any] = self._sess.run(None, {self._input_name: blob})
         emb_array: np.ndarray[Any, np.dtype[Any]] = raw[0][0].astype(np.float32)
+        # CVLFace IR101 backbone does not L2-normalise internally — normalise here.
+        # FAISS cosine search and adaface_min_sim both assume unit-norm embeddings.
+        norm = np.linalg.norm(emb_array)
+        if norm > 0:
+            emb_array = emb_array / norm
         embedding = tuple(float(v) for v in emb_array)
         return FaceWithEmbedding(
             bbox=face.bbox,
