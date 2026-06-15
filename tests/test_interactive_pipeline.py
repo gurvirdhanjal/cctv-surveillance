@@ -217,3 +217,76 @@ class TestBodyDetector:
         tracklets, _ = detector.detect(np.zeros((480, 640, 3), dtype=np.uint8), conf=0.55)
         assert tracklets[0].keypoints == ()
         assert tracklets[0].face_visible is False
+
+
+class TestCameraWorker:
+    def _make_worker(
+        self,
+        camera_id: int = 105,
+        camera_label: str = "CAM105",
+        rtsp_url: str = "rtsp://fake/stream",
+        face_results: list | None = None,
+        state: "ipt.PipelineState | None" = None,
+    ) -> "tuple[ipt.CameraWorker, MagicMock, MagicMock]":
+        body_det = MagicMock(spec=ipt.BodyDetector)
+        body_det.detect.return_value = ([], 25.0)
+
+        face_pip = MagicMock(spec=ipt.FacePipeline)
+        face_pip.run.return_value = (face_results or [], 110.0, 40.0)
+
+        s = state or ipt.PipelineState()
+        worker = ipt.CameraWorker(
+            camera_id=camera_id,
+            camera_label=camera_label,
+            rtsp_url=rtsp_url,
+            body_detector=body_det,
+            face_pipeline=face_pip,
+            state=s,
+        )
+        return worker, body_det, face_pip
+
+    def test_queue_maxsize_two(self) -> None:
+        worker, _, _ = self._make_worker()
+        assert worker._result_queue.maxsize == 2
+
+    def test_face_pipeline_called_on_sample_frames(self) -> None:
+        """With sample_n=3, face pipeline fires on frames 0, 3, 6."""
+        state = ipt.PipelineState(sample_n=3, face_enabled=True)
+        worker, body_det, face_pip = self._make_worker(state=state)
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+
+        fired_on = []
+        last_face: list = []
+        for frame_n in range(7):
+            body_det.detect.return_value = ([], 25.0)
+            if state.face_enabled and frame_n % state.sample_n == 0:
+                last_face, _, _ = face_pip.run(frame)
+                fired_on.append(frame_n)
+
+        assert fired_on == [0, 3, 6]
+        assert face_pip.run.call_count == 3
+
+    def test_face_pipeline_not_called_when_disabled(self) -> None:
+        state = ipt.PipelineState(sample_n=1, face_enabled=False)
+        worker, _, face_pip = self._make_worker(state=state)
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+
+        for frame_n in range(5):
+            if state.face_enabled and frame_n % state.sample_n == 0:
+                face_pip.run(frame)
+
+        face_pip.run.assert_not_called()
+
+    def test_face_stale_frames_increments_between_samples(self) -> None:
+        state = ipt.PipelineState(sample_n=5, face_enabled=True)
+        stale_counts: list[int] = []
+        stale = 0
+
+        for frame_n in range(8):
+            if state.face_enabled and frame_n % state.sample_n == 0:
+                stale = 0
+            else:
+                stale += 1
+            stale_counts.append(stale)
+
+        assert stale_counts == [0, 1, 2, 3, 4, 0, 1, 2]
