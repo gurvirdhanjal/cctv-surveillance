@@ -87,6 +87,21 @@ async def add_embedding(
     if person is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Person not found")
     emb_array = np.array(body.embedding, dtype=np.float32)
+    norm = np.linalg.norm(emb_array)
+    if norm > 0:
+        emb_array = emb_array / norm
+
+    existing_embs = db.query(PersonEmbedding).filter(
+        PersonEmbedding.person_id == person_id,
+    ).all()
+
+    settings = get_settings()
+    if _is_near_duplicate(emb_array, existing_embs, settings.reid_enroll_dedup_sim):
+        return JSONResponse(
+            status_code=200,
+            content={"enrolled": False, "reason": "near_duplicate"},
+        )
+
     record = PersonEmbedding(
         person_id=person_id,
         embedding=emb_array,
