@@ -560,13 +560,34 @@ def main() -> None:
         help="Process 10 frames per camera, log timings, exit without display",
     )
     parser.add_argument("--panel-height", type=int, default=_PANEL_H_DEFAULT, metavar="PX")
+    parser.add_argument(
+        "--webcam",
+        action="store_true",
+        help="Use laptop webcam instead of RTSP (index 0). Add --webcam2 for a second webcam.",
+    )
+    parser.add_argument(
+        "--webcam2",
+        type=int,
+        default=1,
+        metavar="INDEX",
+        help="Second webcam device index (default 1). Ignored unless --webcam is set.",
+    )
     args = parser.parse_args()
 
-    front_url = os.environ.get("VMS_CAM_GATE_FRONT_URL", "")
-    back_url = os.environ.get("VMS_CAM_GATE_BACK_URL", "")
-    if not front_url or not back_url:
-        logger.error("VMS_CAM_GATE_FRONT_URL or VMS_CAM_GATE_BACK_URL not set -- check .env")
-        sys.exit(1)
+    if args.webcam:
+        front_url = "0"
+        back_url = str(args.webcam2)
+        front_label = "WEBCAM"
+        back_label = f"WEBCAM{args.webcam2}"
+        logger.info("Webcam mode: front=index 0, back=index %d", args.webcam2)
+    else:
+        front_url = os.environ.get("VMS_CAM_GATE_FRONT_URL", "")
+        back_url = os.environ.get("VMS_CAM_GATE_BACK_URL", "")
+        if not front_url or not back_url:
+            logger.error("VMS_CAM_GATE_FRONT_URL or VMS_CAM_GATE_BACK_URL not set -- check .env")
+            sys.exit(1)
+        front_label = "CAM105"
+        back_label = "CAM110"
 
     logger.info("TEST_BODY_MODEL : %s  (NOT production accuracy)", TEST_BODY_MODEL)
     logger.info("PROD_BODY_MODEL : %s  (not loaded in this harness)", PROD_BODY_MODEL)
@@ -576,15 +597,17 @@ def main() -> None:
 
     state = PipelineState()
 
-    front_body = BodyDetector.from_config(camera_id=105)
-    back_body = BodyDetector.from_config(camera_id=110)
+    front_cam_id = 0 if args.webcam else 105
+    back_cam_id = args.webcam2 if args.webcam else 110
+    front_body = BodyDetector.from_config(camera_id=front_cam_id)
+    back_body = BodyDetector.from_config(camera_id=back_cam_id)
     front_face = FacePipeline.from_paths(FACE_DETECTOR, FACE_EMBEDDER)
     back_face = FacePipeline.from_paths(FACE_DETECTOR, FACE_EMBEDDER)
 
     logger.info("Models loaded. Starting workers...")
 
-    front_worker = CameraWorker(105, "CAM105", front_url, front_body, front_face, state)
-    back_worker = CameraWorker(110, "CAM110", back_url, back_body, back_face, state)
+    front_worker = CameraWorker(front_cam_id, front_label, front_url, front_body, front_face, state)
+    back_worker = CameraWorker(back_cam_id, back_label, back_url, back_body, back_face, state)
     front_worker.start()
     back_worker.start()
 
