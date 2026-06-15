@@ -44,3 +44,62 @@ def test_adaface_embedder_skips_small_face() -> None:
     result = embedder.embed(face, frame)
     assert result is None
     sess.run.assert_not_called()
+
+
+_SAMPLE_KPS: tuple[tuple[float, float], ...] = (
+    (100.0, 80.0),
+    (140.0, 80.0),
+    (120.0, 100.0),
+    (105.0, 125.0),
+    (135.0, 125.0),
+)
+
+
+def test_adaface_embedder_uses_alignment_when_keypoints_present() -> None:
+    """_align_face is called when keypoints are provided and its result is embedded."""
+    sess = _make_mock_session()
+    embedder = AdaFaceEmbedder(session=sess)
+    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+    face = FaceWithEmbedding(
+        bbox=(80, 60, 160, 140), confidence=0.9, embedding=(), keypoints=_SAMPLE_KPS
+    )
+    aligned_img = np.ones((112, 112, 3), dtype=np.uint8) * 42
+
+    with patch("vms.inference.embedder._align_face", return_value=aligned_img) as mock_align:
+        result = embedder.embed(face, frame)
+
+    mock_align.assert_called_once()
+    assert result is not None
+    assert len(result.embedding) == 512
+
+
+def test_adaface_embedder_does_not_call_align_without_keypoints() -> None:
+    """_align_face must not be called when keypoints is empty."""
+    sess = _make_mock_session()
+    embedder = AdaFaceEmbedder(session=sess)
+    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+    face = FaceWithEmbedding(bbox=(80, 60, 160, 140), confidence=0.9, embedding=())
+
+    with patch("vms.inference.embedder._align_face") as mock_align:
+        result = embedder.embed(face, frame)
+
+    mock_align.assert_not_called()
+    assert result is not None
+    assert len(result.embedding) == 512
+
+
+def test_adaface_embedder_falls_back_to_bbox_when_alignment_returns_none() -> None:
+    """When _align_face returns None (degenerate landmarks), bbox crop is used instead."""
+    sess = _make_mock_session()
+    embedder = AdaFaceEmbedder(session=sess)
+    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+    face = FaceWithEmbedding(
+        bbox=(80, 60, 160, 140), confidence=0.9, embedding=(), keypoints=_SAMPLE_KPS
+    )
+
+    with patch("vms.inference.embedder._align_face", return_value=None) as mock_align:
+        result = embedder.embed(face, frame)
+
+    mock_align.assert_called_once()
+    assert result is not None  # still produces an embedding via bbox fallback
+    assert len(result.embedding) == 512
