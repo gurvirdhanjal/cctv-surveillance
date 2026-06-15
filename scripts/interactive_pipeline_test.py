@@ -240,3 +240,149 @@ class BodyDetector:
                 )
             )
         return tracklets, latency_ms
+
+
+# ---------------------------------------------------------------------------
+# CameraWorker -- one thread per camera
+# ---------------------------------------------------------------------------
+
+
+class CameraWorker:
+    """Reads RTSP frames, runs BodyDetector every frame + FacePipeline every N frames."""
+
+    def __init__(
+        self,
+        camera_id: int,
+        camera_label: str,
+        rtsp_url: str,
+        body_detector: "BodyDetector",
+        face_pipeline: "FacePipeline",
+        state: "PipelineState",
+    ) -> None:
+        self._camera_id = camera_id
+        self._camera_label = camera_label
+        self._rtsp_url = rtsp_url
+        self._body_detector = body_detector
+        self._face_pipeline = face_pipeline
+        self._state = state
+        self._result_queue: queue.Queue["FrameResult"] = queue.Queue(maxsize=2)
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def start(self) -> None:
+        self._thread = threading.Thread(
+            target=self._run,
+            name=f"worker-{self._camera_label}",
+            daemon=True,
+        )
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=4.0)
+
+    def latest(self) -> "FrameResult | None":
+        result: FrameResult | None = None
+        while True:
+            try:
+                result = self._result_queue.get_nowait()
+            except queue.Empty:
+                break
+        return result
+
+    def _open_stream(self) -> "cv2.VideoCapture | None":
+        for attempt, url in enumerate([
+            self._rtsp_url,
+            self._rtsp_url.replace("/101", "/102"),
+        ]):
+            cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            if cap.isOpened():
+                if attempt == 1:
+                    logger.warning("%s: using substream fallback /102", self._camera_label)
+                w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                fps = cap.get(cv2.CAP_PROP_FPS)
+                logger.info("%s: connected %dx%d @ %.1ffps", self._camera_label, w, h, fps)
+                return cap
+            cap.release()
+        logger.error("%s: cannot open stream -- check network/credentials", self._camera_label)
+        return None
+
+    def _run(self) -> None:
+        cap = self._open_stream()
+        if cap is None:
+            return
+
+        fps_times: deque[float] = deque(maxlen=30)
+        consecutive_failures = 0
+        frame_n = 0
+        fps = 0.0
+        last_face_results: list[FaceResult] = []
+        last_scrfd_ms = 0.0
+        last_adaface_ms = 0.0
+        face_stale = 0
+
+        while not self._stop.is_set():
+            ok, frame = cap.read()
+            if not ok:
+                consecutive_failures += 1
+                if consecutive_failures % 5 == 0:
+                    logger.warning(
+                        "%s: %d consecutive decode failures",
+                        self._camera_label,
+                        consecutive_failures,
+                    )
+                time.sleep(0.05)
+                continue
+
+            consecutive_failures = 0
+            frame_n += 1
+            t_now = time.perf_counter()
+            fps_times.append(t_now)
+            if len(fps_times) >= 2:
+                fps = (len(fps_times) - 1) / (fps_times[-1] - fps_times[0])
+
+            if self._result_queue.full():
+                continue
+
+            tracklets, body_ms = self._body_detector.detect(frame, self._state.conf)
+
+            scrfd_ms = 0.0
+            adaface_ms = 0.0
+            if self._state.face_enabled and frame_n % self._state.sample_n == 0:
+                last_face_results, scrfd_ms, adaface_ms = self._face_pipeline.run(frame)
+                last_scrfd_ms = scrfd_ms
+                last_adaface_ms = adaface_ms
+                face_stale = 0
+                if last_face_results:
+                    logger.debug(
+                        "%s: face sample frame=%d faces=%d norm=%.2f",
+                        self._camera_label,
+                        frame_n,
+                        len(last_face_results),
+                        last_face_results[0].embedding_norm,
+                    )
+            else:
+                face_stale += 1
+
+            result = FrameResult(
+                camera_label=self._camera_label,
+                frame=frame,
+                tracklets=tracklets,
+                face_results=last_face_results,
+                face_stale_frames=face_stale,
+                fps=fps,
+                latency_body_ms=body_ms,
+                latency_scrfd_ms=last_scrfd_ms,
+                latency_adaface_ms=last_adaface_ms,
+                frame_n=frame_n,
+            )
+            try:
+                self._result_queue.put_nowait(result)
+            except queue.Full:
+                pass
+
+        cap.release()
+        logger.info("%s: worker stopped", self._camera_label)
