@@ -22,7 +22,7 @@ Controls:
 
 from __future__ import annotations
 
-import argparse  # noqa: F401
+import argparse
 import contextlib
 import logging
 import os
@@ -31,7 +31,7 @@ import sys
 import threading
 import time
 from collections import deque
-from dataclasses import dataclass, field  # noqa: F401
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -537,7 +537,7 @@ def _save_snapshots(front: FrameResult | None, back: FrameResult | None) -> None
 # ---------------------------------------------------------------------------
 
 
-def main() -> None:  # noqa: C901
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="VMS interactive pipeline test -- CPU-friendly, production face models"
     )
@@ -610,9 +610,7 @@ def main() -> None:  # noqa: C901
                     )
                 if dry_run_seen >= 10:
                     if front_result is None or back_result is None:
-                        logger.error(
-                            "dry-run FAIL: one or both streams never delivered a frame"
-                        )
+                        logger.error("dry-run FAIL: one or both streams never delivered a frame")
                         sys.exit(1)
                     logger.info(
                         "dry-run PASS: 10 frames received, face pipeline fired %d times",
