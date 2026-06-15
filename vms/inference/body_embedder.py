@@ -132,21 +132,25 @@ class TransReIDBodyEmbedder:
         except Exception as exc:
             logger.warning("TransReIDBodyEmbedder failed to load %s: %s", model_path, exc)
 
-    def embed(self, crop_bgr: np.ndarray[Any, Any]) -> tuple[float, ...]:
-        """Return 768-dim L2-normalized embedding, or () if crop too small or model unavailable."""
+    def embed(self, crop_bgr: np.ndarray[Any, Any]) -> tuple[tuple[float, ...], float]:
+        """Return (embedding, pre_norm_quality) tuple.
+
+        embedding: 768-dim L2-normalised vector, or () on failure.
+        pre_norm_quality: L2 norm before normalisation; 0.0 on failure.
+        """
         if not self._available or self._sess is None:
-            return ()
+            return (), 0.0
         h, w = crop_bgr.shape[:2]
         if h < _MIN_H or w < _MIN_W:
-            return ()
+            return (), 0.0
         blob = self._preprocess(crop_bgr)
         raw: list[Any] = self._sess.run(None, {self._input_name: blob})
         emb: np.ndarray[Any, Any] = raw[0][0].astype(np.float32)
         # ONNX model includes F.normalize — re-normalise as a safety guard.
-        norm = float(np.linalg.norm(emb))
-        if norm > 1e-8:
-            emb = emb / norm
-        return tuple(float(x) for x in emb)
+        quality_norm = float(np.linalg.norm(emb))
+        if quality_norm > 1e-8:
+            emb = emb / quality_norm
+        return tuple(float(x) for x in emb), quality_norm
 
     def _preprocess(self, crop_bgr: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
         # TransReID uses ImageNet normalisation on RGB [0,1] float input.
