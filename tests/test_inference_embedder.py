@@ -88,7 +88,23 @@ def test_adaface_embedder_does_not_call_align_without_keypoints() -> None:
     assert len(result.embedding) == 512
 
 
-def test_adaface_embedder_falls_back_to_bbox_when_alignment_returns_none() -> None:
+def test_adaface_preprocess_converts_bgr_to_rgb() -> None:
+    """_preprocess must convert BGR→RGB: red channel of input becomes channel 0 of blob."""
+    sess = _make_mock_session()
+    embedder = AdaFaceEmbedder(session=sess)
+    # BGR face: B=50, G=100, R=200 — all pixels identical per channel
+    face_bgr = np.zeros((112, 112, 3), dtype=np.uint8)
+    face_bgr[:, :, 0] = 50   # Blue
+    face_bgr[:, :, 1] = 100  # Green
+    face_bgr[:, :, 2] = 200  # Red
+    blob = embedder._preprocess(face_bgr)
+    # After BGR→RGB: blob channel 0 = Red = 200, channel 2 = Blue = 50
+    import pytest as _pytest
+    assert blob[0, 0, 0, 0] == _pytest.approx((200 - 127.5) / 127.5, abs=1e-4)
+    assert blob[0, 2, 0, 0] == _pytest.approx((50 - 127.5) / 127.5, abs=1e-4)
+
+
+def test_adaface_falls_back_to_bbox_when_alignment_returns_none() -> None:
     """When _align_face returns None (degenerate landmarks), bbox crop is used instead."""
     sess = _make_mock_session()
     embedder = AdaFaceEmbedder(session=sess)
