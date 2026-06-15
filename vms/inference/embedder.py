@@ -27,6 +27,34 @@ import numpy as np
 from vms.config import get_settings
 from vms.inference.messages import FaceWithEmbedding
 
+# Standard AdaFace/ArcFace 5-point reference landmarks for 112×112 canonical crop.
+# Order: left-eye, right-eye, nose-tip, left-mouth, right-mouth.
+_ALIGN_DST = np.array(
+    [
+        [38.2946, 51.6963],
+        [73.5318, 51.5014],
+        [56.0252, 71.7366],
+        [41.5493, 92.3655],
+        [70.7299, 92.2041],
+    ],
+    dtype=np.float32,
+)
+
+
+def _align_face(
+    img_bgr: np.ndarray[Any, np.dtype[Any]],
+    keypoints: tuple[tuple[float, float], ...],
+) -> np.ndarray[Any, np.dtype[Any]] | None:
+    """Affine-warp face crop to 112×112 using 5-point landmarks.
+
+    Returns None when estimateAffinePartial2D fails (degenerate keypoints).
+    """
+    src = np.array(keypoints, dtype=np.float32)
+    M, _ = cv2.estimateAffinePartial2D(src, _ALIGN_DST, method=cv2.LMEDS)
+    if M is None:
+        return None
+    return cv2.warpAffine(img_bgr, M, (_EMBED_INPUT_SIZE, _EMBED_INPUT_SIZE), flags=cv2.INTER_LINEAR)
+
 logger = logging.getLogger(__name__)
 
 _EMBED_INPUT_SIZE = 112
