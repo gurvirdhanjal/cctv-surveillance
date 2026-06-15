@@ -13,7 +13,6 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from vms.api.deps import get_api_redis, get_current_user, get_db
-from vms.config import get_settings
 from vms.api.schemas import (
     EmbeddingCreate,
     EmbeddingResponse,
@@ -21,6 +20,7 @@ from vms.api.schemas import (
     PersonResponse,
     PurgeRequest,
 )
+from vms.config import get_settings
 from vms.db.audit import write_audit_event
 from vms.db.models import Person, PersonClipEmbedding, PersonEmbedding, TrackingEvent
 from vms.db.models import User as DBUser
@@ -33,7 +33,7 @@ _MANAGER_ROLES = {"manager", "admin"}
 
 
 def _is_near_duplicate(
-    new_emb: "np.ndarray[Any, np.dtype[Any]]",
+    new_emb: np.ndarray[Any, np.dtype[Any]],
     existing: list[Any],
     threshold: float,
 ) -> bool:
