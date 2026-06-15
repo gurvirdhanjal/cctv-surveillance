@@ -65,3 +65,90 @@ class TestPipelineState:
         s = ipt.PipelineState()
         s.sample_n = 10
         assert s.sample_n == 10
+
+
+from unittest.mock import MagicMock
+
+from vms.inference.messages import FaceWithEmbedding
+
+
+class TestFacePipeline:
+    def _make_pipeline(self, detector_faces, embedder_result):
+        detector = MagicMock()
+        detector.detect.return_value = detector_faces
+        embedder = MagicMock()
+        embedder.embed.return_value = embedder_result
+        return ipt.FacePipeline(detector=detector, embedder=embedder)
+
+    def _fake_face(self, embedding: tuple[float, ...] = ()) -> FaceWithEmbedding:
+        return FaceWithEmbedding(
+            bbox=(10, 10, 60, 60),
+            confidence=0.9,
+            embedding=embedding,
+            keypoints=(),
+        )
+
+    def test_run_returns_unknown_label(self) -> None:
+        embedding = tuple([1.0] * 512)
+        face = self._fake_face(embedding)
+        embedded_face = FaceWithEmbedding(
+            bbox=(10, 10, 60, 60),
+            confidence=0.9,
+            embedding=embedding,
+            keypoints=(),
+        )
+        pipeline = self._make_pipeline([face], embedded_face)
+        results, _, _ = pipeline.run(np.zeros((480, 640, 3), dtype=np.uint8))
+        assert len(results) == 1
+        assert results[0].label == "UNKNOWN"
+
+    def test_run_computes_embedding_norm(self) -> None:
+        embedding = tuple([1.0] * 512)
+        face = self._fake_face(embedding)
+        embedded_face = FaceWithEmbedding(
+            bbox=(10, 10, 60, 60),
+            confidence=0.9,
+            embedding=embedding,
+            keypoints=(),
+        )
+        pipeline = self._make_pipeline([face], embedded_face)
+        results, _, _ = pipeline.run(np.zeros((480, 640, 3), dtype=np.uint8))
+        expected_norm = float(np.linalg.norm(np.ones(512)))
+        assert abs(results[0].embedding_norm - expected_norm) < 1e-4
+
+    def test_run_skips_face_with_empty_embedding(self) -> None:
+        face = self._fake_face(embedding=())
+        embedded_face = FaceWithEmbedding(
+            bbox=(10, 10, 60, 60),
+            confidence=0.9,
+            embedding=(),
+            keypoints=(),
+        )
+        pipeline = self._make_pipeline([face], embedded_face)
+        results, _, _ = pipeline.run(np.zeros((480, 640, 3), dtype=np.uint8))
+        assert results == []
+
+    def test_run_skips_when_embedder_returns_none(self) -> None:
+        face = self._fake_face()
+        pipeline = self._make_pipeline([face], None)
+        results, _, _ = pipeline.run(np.zeros((480, 640, 3), dtype=np.uint8))
+        assert results == []
+
+    def test_run_returns_scrfd_and_adaface_timings(self) -> None:
+        embedding = tuple([1.0] * 512)
+        face = self._fake_face(embedding)
+        embedded_face = FaceWithEmbedding(
+            bbox=(10, 10, 60, 60),
+            confidence=0.9,
+            embedding=embedding,
+            keypoints=(),
+        )
+        pipeline = self._make_pipeline([face], embedded_face)
+        _, scrfd_ms, adaface_ms = pipeline.run(np.zeros((480, 640, 3), dtype=np.uint8))
+        assert scrfd_ms >= 0.0
+        assert adaface_ms >= 0.0
+
+    def test_run_empty_frame_no_detections(self) -> None:
+        pipeline = self._make_pipeline([], None)
+        results, _, _ = pipeline.run(np.zeros((480, 640, 3), dtype=np.uint8))
+        assert results == []
