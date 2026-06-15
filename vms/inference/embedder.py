@@ -170,15 +170,25 @@ class AdaFaceEmbedder:
     def embed(
         self, face: FaceWithEmbedding, frame_bgr: np.ndarray[Any, np.dtype[Any]]
     ) -> FaceWithEmbedding | None:
-        """Crop the face from frame and compute its embedding.
+        """Crop/align the face from frame and compute its embedding.
 
-        Returns updated FaceWithEmbedding with embedding filled in,
-        or None if the crop is empty or below min_face_px.
+        Uses 5-point affine alignment when keypoints are present (scrfd_10g_bnkps).
+        Falls back to bbox crop+resize when keypoints are absent.
+        Returns None if the crop is empty or below min_face_px.
         """
         x1, y1, x2, y2 = face.bbox
         if (x2 - x1) < self._min_face_px or (y2 - y1) < self._min_face_px:
             return None
-        crop: np.ndarray[Any, np.dtype[Any]] = frame_bgr[y1:y2, x1:x2]
+
+        if face.keypoints:
+            aligned = _align_face(frame_bgr, face.keypoints)
+            if aligned is not None:
+                crop: np.ndarray[Any, np.dtype[Any]] = aligned
+            else:
+                crop = frame_bgr[y1:y2, x1:x2]
+        else:
+            crop = frame_bgr[y1:y2, x1:x2]
+
         if crop.size == 0:
             return None
 
@@ -195,6 +205,8 @@ class AdaFaceEmbedder:
     def _preprocess(
         self, face_bgr: np.ndarray[Any, np.dtype[Any]]
     ) -> np.ndarray[Any, np.dtype[Any]]:
+        # When called with an aligned crop it's already 112×112; resize is a no-op.
+        # When called with a raw bbox crop it resizes to the canonical input size.
         face = cv2.resize(
             face_bgr, (_EMBED_INPUT_SIZE, _EMBED_INPUT_SIZE), interpolation=cv2.INTER_LANCZOS4
         )
