@@ -634,19 +634,24 @@ def main() -> None:
                     if back_result and back_result.face_results:
                         dry_run_face_fired += 1
                     logger.info(
-                        "dry-run %d/10  CAM105 fps=%.1f body_ms=%.0f faces=%d"
-                        "  CAM110 fps=%.1f body_ms=%.0f faces=%d",
+                        "dry-run %d/10  %s fps=%.1f body_ms=%.0f faces=%d"
+                        "  %s fps=%.1f body_ms=%.0f faces=%d",
                         dry_run_seen,
+                        front_label,
                         front_result.fps if front_result else 0.0,
                         front_result.latency_body_ms if front_result else 0.0,
                         len(front_result.face_results) if front_result else 0,
+                        back_label,
                         back_result.fps if back_result else 0.0,
                         back_result.latency_body_ms if back_result else 0.0,
                         len(back_result.face_results) if back_result else 0,
                     )
                 if dry_run_seen >= 10:
-                    if front_result is None or back_result is None:
-                        logger.error("dry-run FAIL: one or both streams never delivered a frame")
+                    if front_result is None:
+                        logger.error("dry-run FAIL: %s never delivered a frame", front_label)
+                        sys.exit(1)
+                    if not args.webcam and back_result is None:
+                        logger.error("dry-run FAIL: %s never delivered a frame", back_label)
                         sys.exit(1)
                     logger.info(
                         "dry-run PASS: 10 frames received, face pipeline fired %d times",
