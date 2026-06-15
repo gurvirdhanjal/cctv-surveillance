@@ -206,6 +206,7 @@ class AdaFaceEmbedder:
         # CVLFace IR101 backbone does not L2-normalise internally — normalise here.
         # FAISS cosine search and adaface_min_sim both assume unit-norm embeddings.
         norm = np.linalg.norm(emb_array)
+        quality_norm = float(norm)
         if norm > 0:
             emb_array = emb_array / norm
         embedding = tuple(float(v) for v in emb_array)
@@ -213,6 +214,7 @@ class AdaFaceEmbedder:
             bbox=face.bbox,
             confidence=face.confidence,
             embedding=embedding,
+            face_quality_norm=quality_norm,
         )
 
     def _preprocess(
