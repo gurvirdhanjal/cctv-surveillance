@@ -30,9 +30,14 @@ class Settings(BaseSettings):
     bytetrack_config: str = "bytetrack_custom.yaml"
     botsort_config: str = "botsort_custom.yaml"
     yolov8x_pose_model: str = "models/yolov8x-pose.pt"
-    # OSNet AIN x1.0 msmt17 — body Re-ID, angle-invariant
+    # OSNet AIN x1.0 msmt17 — body Re-ID, angle-invariant (current production)
     # Download: python scripts/download_osnet_ain_msmt17.py
     osnet_ain_model: str = "models/osnet_ain_x1_0_msmt17.pth"
+    # TransReID ViT-B/16+ICS msmt17 — Phase 6 body Re-ID upgrade (768-dim, 384×128)
+    # Export: python scripts/export_transreid_onnx.py
+    # Activate: set VMS_TRANSREID_BODY_MODEL and swap BodyEmbedder → TransReIDBodyEmbedder in engine
+    # WARNING: reid_body_confirmed_sim must be re-calibrated before production use (CLAUDE.md §0.5)
+    transreid_body_model: str = "models/transreid_body_msmt17.onnx"
     # PPE compliance — YOLOv8l SH17 ONNX (empty = disabled)
     # Export: from ultralytics import YOLO; YOLO('models/sh17_ppe_yolov8l.pt').export(format='onnx',imgsz=640,opset=11,simplify=True)
     ppe_model: str = ""
