@@ -91,9 +91,13 @@ async def add_embedding(
     if norm > 0:
         emb_array = emb_array / norm
 
-    existing_embs = db.query(PersonEmbedding).filter(
-        PersonEmbedding.person_id == person_id,
-    ).all()
+    existing_embs = (
+        db.query(PersonEmbedding)
+        .filter(
+            PersonEmbedding.person_id == person_id,
+        )
+        .all()
+    )
 
     settings = get_settings()
     if _is_near_duplicate(emb_array, existing_embs, settings.reid_enroll_dedup_sim):

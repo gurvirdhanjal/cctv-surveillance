@@ -56,7 +56,10 @@ def _align_face(
     M, _ = cv2.estimateAffinePartial2D(src, _ALIGN_DST, method=cv2.LMEDS)
     if M is None:
         return None
-    return cv2.warpAffine(img_bgr, M, (_EMBED_INPUT_SIZE, _EMBED_INPUT_SIZE), flags=cv2.INTER_LINEAR)
+    return cv2.warpAffine(
+        img_bgr, M, (_EMBED_INPUT_SIZE, _EMBED_INPUT_SIZE), flags=cv2.INTER_LINEAR
+    )
+
 
 logger = logging.getLogger(__name__)
 

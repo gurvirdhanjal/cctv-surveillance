@@ -78,9 +78,9 @@ class Settings(BaseSettings):
     reid_body_confirmed_sim: float = 0.51  # body gallery, confirmed tracks (95% recall)
     reid_body_cross_cam_sim: float = 0.56  # body gallery, unconfirmed tracks
     # ReID quality hardening (Phase 3) — all defaults conservative (no-op until calibrated)
-    reid_quality_window_s: float = 2.0        # temporal window; keep best crop per window
-    reid_quality_norm_floor: float = 0.0      # pre-norm L2 floor; 0.0 = accept all
-    reid_enroll_dedup_sim: float = 0.95       # cosine sim ceiling for enrollment dedup
+    reid_quality_window_s: float = 2.0  # temporal window; keep best crop per window
+    reid_quality_norm_floor: float = 0.0  # pre-norm L2 floor; 0.0 = accept all
+    reid_enroll_dedup_sim: float = 0.95  # cosine sim ceiling for enrollment dedup
     # Keypoint-gated face detection (YOLOv8x-pose)
     face_kpt_min_conf: float = 0.5  # nose + eye confidence to trigger SCRFD+AdaFace
     # BLE badge fallback

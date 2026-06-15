@@ -105,7 +105,7 @@ def test_adaface_embedder_l2_normalises_output() -> None:
     face = FaceWithEmbedding(bbox=(10, 10, 100, 100), confidence=0.9, embedding=())
     result = embedder.embed(face, frame)
     assert result is not None
-    norm = sum(v ** 2 for v in result.embedding) ** 0.5
+    norm = sum(v**2 for v in result.embedding) ** 0.5
     assert abs(norm - 1.0) < 1e-4
 
 
@@ -114,7 +114,7 @@ def test_adaface_preprocess_converts_bgr_to_rgb() -> None:
     embedder = _make_embedder()
     # BGR face: B=50, G=100, R=200 — all pixels identical per channel
     face_bgr = np.zeros((112, 112, 3), dtype=np.uint8)
-    face_bgr[:, :, 0] = 50   # Blue
+    face_bgr[:, :, 0] = 50  # Blue
     face_bgr[:, :, 1] = 100  # Green
     face_bgr[:, :, 2] = 200  # Red
     blob = embedder._preprocess(face_bgr)

@@ -91,7 +91,10 @@ class IdentityEngine:
             entry = self._registry[key]
             entry.last_seen_ms = now_ms
             self._update_galleries(
-                entry, embedding, body_embedding, settings,
+                entry,
+                embedding,
+                body_embedding,
+                settings,
                 timestamp_ms=now_ms,
                 face_quality=face_quality,
                 body_quality=body_quality,
@@ -118,7 +121,10 @@ class IdentityEngine:
             camera_id=camera_id,
         )
         self._update_galleries(
-            entry, embedding, body_embedding, settings,
+            entry,
+            embedding,
+            body_embedding,
+            settings,
             timestamp_ms=now_ms,
             face_quality=face_quality,
             body_quality=body_quality,
@@ -147,7 +153,10 @@ class IdentityEngine:
         from vms.identity.fusion import FusionResolver
 
         gid = self.assign_global_track_id(
-            camera_id, local_track_id, embedding, body_embedding,
+            camera_id,
+            local_track_id,
+            embedding,
+            body_embedding,
             face_quality=face_quality,
             body_quality=body_quality,
         )

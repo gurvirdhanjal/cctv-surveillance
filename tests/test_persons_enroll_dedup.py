@@ -1,4 +1,5 @@
 """Tests for near-duplicate enrollment rejection."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock
@@ -27,6 +28,7 @@ def _near_dup(emb: list[float], noise: float = 0.005) -> list[float]:
 def test_is_near_duplicate_true_for_identical() -> None:
     """Identical embedding → cosine sim 1.0 → near duplicate."""
     from vms.api.routes.persons import _is_near_duplicate
+
     emb = np.array(_unit_vec(1), dtype=np.float32)
     row = MagicMock()
     row.embedding = emb.tolist()
@@ -36,6 +38,7 @@ def test_is_near_duplicate_true_for_identical() -> None:
 def test_is_near_duplicate_false_for_orthogonal() -> None:
     """Orthogonal embedding → cosine sim ~0 → not near duplicate."""
     from vms.api.routes.persons import _is_near_duplicate
+
     emb1 = np.zeros(512, dtype=np.float32)
     emb1[0] = 1.0
     emb2 = np.zeros(512, dtype=np.float32)
@@ -48,6 +51,7 @@ def test_is_near_duplicate_false_for_orthogonal() -> None:
 def test_is_near_duplicate_empty_existing() -> None:
     """No existing embeddings → never a near duplicate."""
     from vms.api.routes.persons import _is_near_duplicate
+
     emb = np.array(_unit_vec(2), dtype=np.float32)
     assert _is_near_duplicate(emb, [], threshold=0.95) is False
 
@@ -55,6 +59,7 @@ def test_is_near_duplicate_empty_existing() -> None:
 def test_is_near_duplicate_high_sim_above_threshold() -> None:
     """Embedding with cosine sim >= threshold → near duplicate."""
     from vms.api.routes.persons import _is_near_duplicate
+
     base = np.array(_unit_vec(3), dtype=np.float32)
     near = np.array(_near_dup(base.tolist(), noise=0.005), dtype=np.float32)
     row = MagicMock()

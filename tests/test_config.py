@@ -128,6 +128,7 @@ def test_phase2d_config_defaults() -> None:
 
 def test_settings_reid_quality_defaults() -> None:
     from vms.config import Settings
+
     s = Settings(db_url="postgresql://x", jwt_secret="x")
     assert s.reid_quality_window_s == 2.0
     assert s.reid_quality_norm_floor == 0.0

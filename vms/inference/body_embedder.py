@@ -159,6 +159,6 @@ class TransReIDBodyEmbedder:
             crop_bgr, (_TRANSREID_W, _TRANSREID_H), interpolation=cv2.INTER_LANCZOS4
         )
         rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
-        rgb = (rgb - _IMAGENET_MEAN) / _IMAGENET_STD         # (H, W, 3)
-        chw = np.transpose(rgb, (2, 0, 1))[None]             # (1, 3, H, W)
+        rgb = (rgb - _IMAGENET_MEAN) / _IMAGENET_STD  # (H, W, 3)
+        chw = np.transpose(rgb, (2, 0, 1))[None]  # (1, 3, H, W)
         return chw
