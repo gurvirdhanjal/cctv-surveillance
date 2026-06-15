@@ -382,10 +382,8 @@ class CameraWorker:
                 latency_adaface_ms=last_adaface_ms,
                 frame_n=frame_n,
             )
-            try:
+            with contextlib.suppress(queue.Full):
                 self._result_queue.put_nowait(result)
-            except queue.Full:
-                pass
 
         cap.release()
         logger.info("%s: worker stopped", self._camera_label)
