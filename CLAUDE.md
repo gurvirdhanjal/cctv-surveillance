@@ -162,6 +162,8 @@ a plan checkbox before Phase 4 starts. No implementation without an approved pla
 | ~~`PATCH /api/alert-routing/{id}`~~ | §E | **DONE** — commit `ad85adfe` |
 | `GET /api/forensic/search` + `GET /api/forensic/clips/{id}` | §F.2 | Needs CLIP embedding pipeline; DB table exists |
 | `GET /api/audit/verify` + `GET /api/audit/export` | §F.3 | AuditLog table + hash-chain exist; no route |
+| Body Re-ID upgrade: TransReID-SSL ViT-B/16+ICS MSMT17 | Phase 6 | `vit_base_ics_cfs_lup.pth` is SSL backbone only (no ID head). Supervised MSMT17 checkpoint not downloaded. Needs timm==0.3.4, ONNX export, new `TransReIDBodyEmbedder`, threshold re-calibration. DukeMTMC retracted — do not use. |
+| `adaface_min_sim=0.72` re-calibration | Phase 6 | Threshold calibrated for unaligned/wrong-channel-order embeddings. Post-fix (BGR+127.5+affine alignment) distribution has shifted. Re-run on real footage before tightening this threshold. |
 | ~~`POST /api/cameras/{id}/recalibrate-required`~~ | §H.3 | **DONE** — `recalibrate_required_at` column + migration `a1b2c3d4e5f7` + route |
 | `GET /api/sites/readiness-report.pdf` | §B | **IN PLAN** — `2026-06-13-vms-phase3-camera-profiler.md` Task 7 |
 | ~~`alert_dispatcher_retry_delays_s` + `alert_dispatcher_max_attempts` in `config.py`~~ | §17 invariants | **DONE** — in `config.py`; hardened plan `2026-06-13-vms-phase3-hardening.md` |
