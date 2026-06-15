@@ -134,3 +134,55 @@ def test_adaface_embedder_falls_back_to_bbox_when_alignment_returns_none() -> No
     mock_align.assert_called_once()
     assert result is not None  # still produces an embedding via bbox fallback
     assert len(result.embedding) == 512
+
+
+def test_embedder_rejects_blurry_crop(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Laplacian variance below min_blur -> embed() returns None."""
+    emb = AdaFaceEmbedder.__new__(AdaFaceEmbedder)
+    emb._min_face_px = 10
+    emb._min_blur = 25.0
+
+    # Uniform grey crop -> Laplacian variance ~= 0 (very blurry)
+    blurry_frame = np.full((200, 200, 3), 128, dtype=np.uint8)
+    face = FaceWithEmbedding(bbox=(0, 0, 80, 80), confidence=0.9, embedding=())
+
+    monkeypatch.setattr(emb, "_preprocess", lambda crop: np.zeros((1, 3, 112, 112)))
+
+    class _FakeSess:
+        def run(self, _out: object, _inp: object) -> list[object]:
+            return [np.random.randn(1, 512).astype(np.float32)]
+
+    emb._sess = _FakeSess()
+    emb._input_name = "input"
+
+    result = emb.embed(face, blurry_frame)
+    assert result is None
+
+
+def test_embedder_populates_quality_norm(monkeypatch: pytest.MonkeyPatch) -> None:
+    """face_quality_norm is pre-norm L2 of raw embedding output."""
+    emb = AdaFaceEmbedder.__new__(AdaFaceEmbedder)
+    emb._min_face_px = 10
+    emb._min_blur = 0.0  # disable blur reject
+
+    # Sharp crop: checkerboard -> high Laplacian variance
+    frame = np.zeros((200, 200, 3), dtype=np.uint8)
+    frame[::2, ::2] = 255
+
+    face = FaceWithEmbedding(bbox=(0, 0, 100, 100), confidence=0.9, embedding=())
+
+    raw_vec = np.full((1, 512), 2.0, dtype=np.float32)
+    expected_norm = float(np.linalg.norm(raw_vec[0]))
+
+    monkeypatch.setattr(emb, "_preprocess", lambda crop: np.zeros((1, 3, 112, 112)))
+
+    class _FakeSess:
+        def run(self, _out: object, _inp: object) -> list[object]:
+            return [raw_vec.copy()]
+
+    emb._sess = _FakeSess()
+    emb._input_name = "input"
+
+    result = emb.embed(face, frame)
+    assert result is not None
+    assert abs(result.face_quality_norm - expected_norm) < 0.01
