@@ -13,6 +13,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from vms.api.deps import get_api_redis, get_current_user, get_db
+from vms.config import get_settings
 from vms.api.schemas import (
     EmbeddingCreate,
     EmbeddingResponse,
