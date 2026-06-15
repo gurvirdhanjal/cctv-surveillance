@@ -239,13 +239,9 @@ class SCRFDDetector:
             np.concatenate(kpss_all) if use_kps and kpss_all else None
         )
 
-        scale_x = w0 / _INPUT_SIZE
-        scale_y = h0 / _INPUT_SIZE
-        boxes[:, [0, 2]] *= scale_x
-        boxes[:, [1, 3]] *= scale_y
+        boxes /= det_scale
         if kpss_arr is not None:
-            kpss_arr[:, :, 0] *= scale_x
-            kpss_arr[:, :, 1] *= scale_y
+            kpss_arr /= det_scale
 
         boxes_xywh = [
             [float(b[0]), float(b[1]), float(b[2] - b[0]), float(b[3] - b[1])] for b in boxes
