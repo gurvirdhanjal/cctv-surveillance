@@ -39,13 +39,19 @@ logger = logging.getLogger(__name__)
 @dataclass
 class _TrackletEntry:
     global_track_id: uuid.UUID
-    person_id: int | None
-    last_seen_ms: int
     camera_id: int
+    last_seen_ms: int
+    person_id: int | None = None
+    local_track_id: int = 0
+    first_seen_ms: int = 0
     gallery: list[np.ndarray[Any, Any]] = field(default_factory=list)
     body_gallery: list[np.ndarray[Any, Any]] = field(default_factory=list)
     sighting_count: int = 0
     confirmed: bool = False
+    face_window_start_ms: int = 0
+    face_window_best_quality: float = -1.0
+    body_window_start_ms: int = 0
+    body_window_best_quality: float = -1.0
 
 
 class IdentityEngine:
