@@ -1,15 +1,19 @@
-"""OSNet AIN body Re-ID embedder — Torchreid FeatureExtractor wrapper.
+"""Body Re-ID embedders.
 
-Model: osnet_ain_x1_0 trained on MSMT17, 512-dim L2-normalized output.
-Input: BGR numpy crop (any size >=16h x 8w); resized internally to 256x128.
+Two implementations — same embed() interface, swap via config:
 
-Install:  see scripts/download_osnet_ain_msmt17.py
-Download: python scripts/download_osnet_ain_msmt17.py
+  BodyEmbedder         — OSNet AIN x1.0 msmt17 (512-dim, 256×128).  Current production.
+                         Requires torchreid. Download: python scripts/download_osnet_ain_msmt17.py
+
+  TransReIDBodyEmbedder — ViT-B/16+ICS msmt17 ONNX (768-dim, 384×128).  Phase 6 upgrade.
+                          Requires onnxruntime. Export: python scripts/export_transreid_onnx.py
+                          Set VMS_TRANSREID_BODY_MODEL=models/transreid_body_msmt17.onnx to activate.
 """
 
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 import cv2
@@ -19,6 +23,13 @@ logger = logging.getLogger(__name__)
 
 _MIN_H = 16
 _MIN_W = 8
+
+# TransReID ViT-B/16+ICS input spec (confirmed from pos_embed [1,193,768], 2026-06-15)
+_TRANSREID_H = 384
+_TRANSREID_W = 128
+_TRANSREID_EMBED_DIM = 768
+_IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+_IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
 
 class BodyEmbedder:
@@ -67,3 +78,79 @@ class BodyEmbedder:
         if norm > 1e-8:
             vec = vec / norm
         return tuple(float(x) for x in vec)
+
+
+class TransReIDBodyEmbedder:
+    """ViT-B/16+ICS msmt17 ONNX body Re-ID embedder — 768-dim L2-normalised output.
+
+    Drop-in replacement for BodyEmbedder. Swap in by changing the embedder construction
+    in the engine — the embed() signature is identical.
+
+    Input:  BGR numpy crop, any size >= 16h × 8w; resized internally to 384×128.
+    Output: 768-dim L2-normalised embedding as tuple[float, ...], or () on failure.
+
+    Export the ONNX first:
+        python scripts/export_transreid_onnx.py
+    Then activate via config:
+        VMS_TRANSREID_BODY_MODEL=models/transreid_body_msmt17.onnx
+
+    NOTE: reid_body_confirmed_sim (currently 0.51, calibrated for OSNet) must be
+    re-calibrated on real footage before deploying this embedder in production.
+    Mandatory /advisor before changing that threshold (CLAUDE.md §0.5).
+    """
+
+    def __init__(self, model_path: str) -> None:
+        self._sess: Any = None
+        self._input_name: str = "input"
+        self._available = False
+
+        if not os.path.exists(model_path):
+            logger.warning(
+                "TransReIDBodyEmbedder: ONNX file not found at %s — embedder disabled. "
+                "Export first: python scripts/export_transreid_onnx.py",
+                model_path,
+            )
+            return
+
+        try:
+            import onnxruntime as ort  # type: ignore[import-untyped]
+
+            providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+            self._sess = ort.InferenceSession(model_path, providers=providers)
+            self._input_name = self._sess.get_inputs()[0].name
+            self._available = True
+            logger.info("TransReIDBodyEmbedder: loaded %s", model_path)
+        except ImportError:
+            logger.warning(
+                "onnxruntime not installed — TransReIDBodyEmbedder disabled. "
+                "pip install onnxruntime"
+            )
+        except Exception as exc:
+            logger.warning("TransReIDBodyEmbedder failed to load %s: %s", model_path, exc)
+
+    def embed(self, crop_bgr: np.ndarray[Any, Any]) -> tuple[float, ...]:
+        """Return 768-dim L2-normalized embedding, or () if crop too small or model unavailable."""
+        if not self._available or self._sess is None:
+            return ()
+        h, w = crop_bgr.shape[:2]
+        if h < _MIN_H or w < _MIN_W:
+            return ()
+        blob = self._preprocess(crop_bgr)
+        raw: list[Any] = self._sess.run(None, {self._input_name: blob})
+        emb: np.ndarray[Any, Any] = raw[0][0].astype(np.float32)
+        # ONNX model includes F.normalize — re-normalise as a safety guard.
+        norm = float(np.linalg.norm(emb))
+        if norm > 1e-8:
+            emb = emb / norm
+        return tuple(float(x) for x in emb)
+
+    def _preprocess(self, crop_bgr: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
+        # TransReID uses ImageNet normalisation on RGB [0,1] float input.
+        # OpenCV is BGR-native; resize first (cheaper on smaller image), then convert.
+        resized = cv2.resize(
+            crop_bgr, (_TRANSREID_W, _TRANSREID_H), interpolation=cv2.INTER_LANCZOS4
+        )
+        rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
+        rgb = (rgb - _IMAGENET_MEAN) / _IMAGENET_STD         # (H, W, 3)
+        chw = np.transpose(rgb, (2, 0, 1))[None]             # (1, 3, H, W)
+        return chw
