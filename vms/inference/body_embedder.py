@@ -2,10 +2,10 @@
 
 Two implementations — same embed() interface, swap via config:
 
-  BodyEmbedder         — OSNet AIN x1.0 msmt17 (512-dim, 256×128).  Current production.
+  BodyEmbedder         — OSNet AIN x1.0 msmt17 (512-dim, 256x128).  Current production.
                          Requires torchreid. Download: python scripts/download_osnet_ain_msmt17.py
 
-  TransReIDBodyEmbedder — ViT-B/16+ICS msmt17 ONNX (768-dim, 384×128).  Phase 6 upgrade.
+  TransReIDBodyEmbedder — ViT-B/16+ICS msmt17 ONNX (768-dim, 384x128).  Phase 6 upgrade.
                           Requires onnxruntime. Export: python scripts/export_transreid_onnx.py
                           Set VMS_TRANSREID_BODY_MODEL=models/transreid_body_msmt17.onnx to activate.
 """
