@@ -177,7 +177,9 @@ a plan checkbox before Phase 4 starts. No implementation without an approved pla
 
 **Last major milestone:** All Phase 2 sub-phases complete (2a Identity, 2b Anomaly, 2c Cross-Camera Hardening, 2d Multi-Modal Tracking, PPE Compliance).
 
-**Next:** Camera Profiler + Audit hardening (Phase 3 remaining) — **no plan written yet.** Do not begin without an approved plan file. See §4.1.
+**Planned (not started):** ReID Quality Hardening — plan written 2026-06-15. Plan: `docs/superpowers/plans/2026-06-15-vms-phase3-reid-quality-hardening.md`. Adds: (A) hybrid crop quality gates + pre-norm embedding norm signal; (B) temporal quality-windowed gallery sub-sampling; (C) enrollment cosine-dedup check. `/advisor` session confirmed approach.
+
+**Next after ReID hardening:** Camera Profiler + Audit hardening (Phase 3 remaining) — no plan written yet. Do not begin without an approved plan file. See §4.1.
 
 **Rule:** Never start a phase without an approved plan file in `docs/superpowers/plans/`. Each phase gets exactly one plan file; do not start implementation before the plan is reviewed.
 
