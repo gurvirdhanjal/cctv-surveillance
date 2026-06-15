@@ -4,7 +4,7 @@
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status: NOT STARTED**
+**Status: COMPLETE**
 
 **Goal:** Build `scripts/interactive_pipeline_test.py` — a CPU-friendly interactive RTSP test harness that runs YOLOv8n body tracking every frame and the production SCRFD 10G + AdaFace IR50 face pipeline every Nth frame, achieving ≥ 20 FPS display on a CPU-only laptop with live keyboard controls.
 
