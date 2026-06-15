@@ -1,6 +1,6 @@
 """AdaFace IR50 face embedder (ONNX or InsightFace fallback).
 
-Input:  (1, 3, 112, 112) float32, normalised (pixel - 127.5) / 128.0, RGB
+Input:  (1, 3, 112, 112) float32, normalised (pixel - 127.5) / 127.5, BGR
 Output: (1, 512) float32 L2-normalised embedding
 
 When the detector provides 5-point keypoints (scrfd_10g_bnkps.onnx), the embedder
