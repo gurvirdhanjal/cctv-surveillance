@@ -133,6 +133,8 @@ class IdentityEngine:
         embedding: tuple[float, ...] | None,
         body_embedding: tuple[float, ...] | None = None,
         ble_person_id: int | None = None,
+        face_quality: float = 1.0,
+        body_quality: float = 1.0,
     ) -> tuple[uuid.UUID, int | None, str]:
         """Assign a global_track_id and resolve person identity via FusionResolver.
 
@@ -144,7 +146,11 @@ class IdentityEngine:
         """
         from vms.identity.fusion import FusionResolver
 
-        gid = self.assign_global_track_id(camera_id, local_track_id, embedding, body_embedding)
+        gid = self.assign_global_track_id(
+            camera_id, local_track_id, embedding, body_embedding,
+            face_quality=face_quality,
+            body_quality=body_quality,
+        )
 
         # Face identification via FAISS
         face_person_id: int | None = None
