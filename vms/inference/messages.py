@@ -32,6 +32,7 @@ class FaceWithEmbedding:
     bbox: tuple[int, int, int, int]  # x1, y1, x2, y2 in original frame coords
     confidence: float
     embedding: tuple[float, ...]  # 512 float32 values; empty tuple when not yet embedded
+    keypoints: tuple[tuple[float, float], ...] = ()  # 5 facial landmarks (x,y); consumed locally, not serialised to Redis
 
 
 @dataclass(frozen=True)
