@@ -1666,3 +1666,58 @@ No TBD/TODO steps — every task has complete implementation code.
 - `BleEvent.from_mqtt_payload` / `from_redis_fields` — consistent Task 7
 - `Tracklet.keypoints: tuple[tuple[float, float, float], ...]` — consistent Tasks 2, 3, 4
 - `PerCameraTracker.update` returns `list[Tracklet]` — unchanged, backward compatible
+
+---
+
+## Phase 6 Upgrade Notes (recorded 2026-06-15)
+
+These are post-Phase 2d findings from auditing the deployed model files and inference pipeline. **Do not implement without a new plan file.**
+
+### Body Re-ID: Current state
+
+Current: `OSNet AIN x1.0 MSMT17` via torchreid. Threshold: `reid_body_confirmed_sim=0.51` (calibrated from simulation).
+
+### `vit_base_ics_cfs_lup.pth` — SSL backbone only, NOT deployable
+
+The file at `models/vit_base_ics_cfs_lup.pth` is the **TransReID-SSL unsupervised pre-trained backbone** (ViT-B/16 + ICS + CFS, trained on LUP — Large-scale Unlabeled Person data). It has:
+
+- 88.4M parameters, input 256×128 (H×W)
+- No BNNeck, no classifier head, no identity labels
+- Architecture: pure ViT-B/16 encoder with ICS (Intra-Camera Supervision) patches
+
+**It cannot be used as a drop-in body Re-ID embedder.** It outputs generic person features, not an identity-discriminative embedding aligned to any labeled dataset.
+
+### Phase 6 upgrade target: TransReID-SSL supervised on MSMT17
+
+Target model: **ViT-B/16 + ICS, supervised fine-tuned on MSMT17** (75.1 mAP / 89.6 Rank-1).
+Source: TransReID-SSL repo supervised model table, MSMT17 row.
+
+Deployment requirements (full plan required before starting):
+1. Download supervised checkpoint from TransReID-SSL GitHub releases
+2. Export to ONNX using TransReID-SSL export script (requires timm==0.3.4 — **not currently installed**)
+3. Write new `TransReIDBodyEmbedder` class in `vms/inference/` (same interface as current body embedder)
+4. Re-calibrate `reid_body_confirmed_sim` — current value 0.51 is calibrated for OSNet AIN features, not ViT-B/16+ICS features
+5. Update `config.py` with new model path env var
+
+**Do NOT use DukeMTMC** for training or evaluation — dataset officially retracted due to privacy/consent violations. MSMT17 and Market-1501 are safe.
+
+### BoT-SORT GMC (Phase 6 tuning)
+
+Python-mode camera motion compensation (`--cmc-method orb`) is available in BoT-SORT for environments with camera vibration (e.g., moving gantry cameras). Not needed for fixed plant-floor cameras. If ID-switch rate increases due to vibration, enable orb mode in `botsort_custom.yaml`.
+
+### AdaFace pipeline fixes (recorded 2026-06-15)
+
+During Phase 2d audit, two preprocessing bugs were found and fixed in `vms/inference/embedder.py`:
+
+1. **BGR channel order**: `_preprocess` was converting BGR→RGB before normalizing. AdaFace expects BGR. Fix: removed `cv2.cvtColor` call.
+2. **Normalization divisor**: `128.0` → `127.5` to match AdaFace `to_input()` exactly.
+3. **5-point affine alignment**: active when SCRFD_10G_KPS keypoints present.
+
+**`adaface_min_sim=0.72` must be re-calibrated** on real footage — threshold was set for unaligned, wrong-channel-order embeddings. Embedding distribution has shifted after these fixes.
+
+### SCRFD detector fixes (recorded 2026-06-15)
+
+Two bugs fixed in `vms/inference/detector.py`:
+
+1. **Double sigmoid**: `_decode` was applying sigmoid to model outputs that already bake sigmoid into the ONNX graph. Outputs are in `[0.001, 0.028]` range (not logits). Fix: `scores = cls_out[:, 0]` directly.
+2. **Stretch resize → letterbox**: `_preprocess` stretched to 640×640 causing 1.78× aspect distortion on 16:9 cameras. Fix: letterbox with single `det_scale`, aspect-ratio preserved.
