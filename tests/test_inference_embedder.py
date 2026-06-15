@@ -88,6 +88,21 @@ def test_adaface_embedder_does_not_call_align_without_keypoints() -> None:
     assert len(result.embedding) == 512
 
 
+def test_adaface_embedder_l2_normalises_output() -> None:
+    """Embedder must L2-normalise the raw backbone output (IR101 does not normalise internally)."""
+    sess = MagicMock()
+    # Raw output with norm ~12 — as measured from IR101 backbone
+    raw_emb = np.ones((1, 512), dtype=np.float32) * 0.5  # norm = sqrt(512)*0.5 ≈ 11.3
+    sess.run.return_value = [raw_emb]
+    embedder = AdaFaceEmbedder(session=sess)
+    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+    face = FaceWithEmbedding(bbox=(10, 10, 100, 100), confidence=0.9, embedding=())
+    result = embedder.embed(face, frame)
+    assert result is not None
+    norm = sum(v ** 2 for v in result.embedding) ** 0.5
+    assert abs(norm - 1.0) < 1e-4
+
+
 def test_adaface_preprocess_converts_bgr_to_rgb() -> None:
     """_preprocess must convert BGR→RGB: red channel of input becomes channel 0 of blob."""
     sess = _make_mock_session()
