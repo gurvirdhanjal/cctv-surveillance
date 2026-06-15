@@ -1,7 +1,10 @@
-"""AdaFace IR50 face embedder (ONNX or InsightFace fallback).
+"""AdaFace IR101/WebFace12M face embedder (ONNX or InsightFace fallback).
 
-Input:  (1, 3, 112, 112) float32, normalised (pixel - 127.5) / 127.5, BGR
+Input:  (1, 3, 112, 112) float32, normalised (pixel - 127.5) / 127.5, RGB
 Output: (1, 512) float32 L2-normalised embedding
+
+CVLFace models (IR101/WebFace12M and newer) expect RGB input.
+OpenCV frames are BGR — _preprocess converts before normalising.
 
 When the detector provides 5-point keypoints (scrfd_10g_bnkps.onnx), the embedder
 performs an affine warp to the AdaFace canonical 112×112 pose before embedding.
