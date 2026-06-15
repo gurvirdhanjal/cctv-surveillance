@@ -91,7 +91,7 @@ def _make_mock_session_kps() -> MagicMock:
     # stride-8: side=80, N=80*80*2=12800 rows
     cls8 = np.zeros((12800, 1), dtype=np.float32)
     # cell (row=40, col=40, anchor=0): flat_idx=40*80+40=3240, array_idx=6480
-    cls8[6480, 0] = 4.0  # sigmoid(4.0) ~= 0.982
+    cls8[6480, 0] = 0.95  # model outputs pre-sigmoid [0,1]; 0.95 > 0.60 threshold
 
     bbox8 = np.zeros((12800, 4), dtype=np.float32)
     bbox8[6480] = [5.0, 5.0, 5.0, 5.0]  # 40px box in stride-8 units
