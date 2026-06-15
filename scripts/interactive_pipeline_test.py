@@ -62,7 +62,7 @@ FACE_EMBEDDER = "models/adaface_ir50.onnx"
 FACE_SAMPLE_EVERY_N = 5  # default face sample rate
 ADAFACE_MIN_SIM = 0.72  # unused (no DB); shown for reference
 
-_CONF_CYCLE: tuple[float, ...] = (0.40, 0.55, 0.70)
+_CONF_CYCLE: tuple[float, ...] = (0.30, 0.40, 0.55, 0.70)
 _PANEL_H_DEFAULT = 540
 _BANNER_H = 30
 _STATS_H = 44
