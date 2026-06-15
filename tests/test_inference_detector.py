@@ -17,7 +17,7 @@ def _make_mock_session_with_detection() -> MagicMock:
     # stride-8: 80x80 grid, 2 anchors/cell = 12800 rows
     cls8 = np.zeros((12800, 1), dtype=np.float32)
     # Cell (row=40, col=40), anchor 0 -> index (40*80 + 40)*2 = 6480
-    cls8[6480, 0] = 4.0  # sigmoid(4.0) ~= 0.982 -- well above 0.60 threshold
+    cls8[6480, 0] = 0.95  # model outputs pre-sigmoid [0,1]; 0.95 > 0.60 threshold
 
     bbox8 = np.zeros((12800, 4), dtype=np.float32)
     bbox8[6480] = [5.0, 5.0, 5.0, 5.0]  # 40px box in stride-8 units
