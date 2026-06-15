@@ -129,6 +129,7 @@ class AdaFaceEmbedder:
         self._sess = session
         self._input_name: str = session.get_inputs()[0].name
         self._min_face_px = min_face_px if min_face_px is not None else get_settings().min_face_px
+        self._min_blur: float = get_settings().min_blur
 
     @classmethod
     def from_path(cls, model_path: str) -> AdaFaceEmbedder | _InsightFaceEmbedder | _NullEmbedder:
