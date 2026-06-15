@@ -530,3 +530,189 @@ def _save_snapshots(front: FrameResult | None, back: FrameResult | None) -> None
             path = _SNAPSHOTS_DIR / f"pipeline_test_{ts}_{label}.jpg"
             cv2.imwrite(str(path), result.frame)
             logger.info("Snapshot saved: %s", path.name)
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+
+def main() -> None:  # noqa: C901
+    parser = argparse.ArgumentParser(
+        description="VMS interactive pipeline test -- CPU-friendly, production face models"
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Process 10 frames per camera, log timings, exit without display",
+    )
+    parser.add_argument("--panel-height", type=int, default=_PANEL_H_DEFAULT, metavar="PX")
+    args = parser.parse_args()
+
+    front_url = os.environ.get("VMS_CAM_GATE_FRONT_URL", "")
+    back_url = os.environ.get("VMS_CAM_GATE_BACK_URL", "")
+    if not front_url or not back_url:
+        logger.error("VMS_CAM_GATE_FRONT_URL or VMS_CAM_GATE_BACK_URL not set -- check .env")
+        sys.exit(1)
+
+    logger.info("TEST_BODY_MODEL : %s  (NOT production accuracy)", TEST_BODY_MODEL)
+    logger.info("PROD_BODY_MODEL : %s  (not loaded in this harness)", PROD_BODY_MODEL)
+    logger.info("FACE_DETECTOR   : %s", FACE_DETECTOR)
+    logger.info("FACE_EMBEDDER   : %s", FACE_EMBEDDER)
+    logger.info("Loading models...")
+
+    state = PipelineState()
+
+    front_body = BodyDetector.from_config(camera_id=105)
+    back_body = BodyDetector.from_config(camera_id=110)
+    front_face = FacePipeline.from_paths(FACE_DETECTOR, FACE_EMBEDDER)
+    back_face = FacePipeline.from_paths(FACE_DETECTOR, FACE_EMBEDDER)
+
+    logger.info("Models loaded. Starting workers...")
+
+    front_worker = CameraWorker(105, "CAM105", front_url, front_body, front_face, state)
+    back_worker = CameraWorker(110, "CAM110", back_url, back_body, back_face, state)
+    front_worker.start()
+    back_worker.start()
+
+    front_result: FrameResult | None = None
+    back_result: FrameResult | None = None
+    dry_run_seen = 0
+    dry_run_face_fired = 0
+    win_title = "VMS Pipeline Test  [+/-=N  C=conf  F=face  T=timing  S=snap  R=reset  Q=quit]"
+
+    try:
+        while True:
+            fr = front_worker.latest()
+            br = back_worker.latest()
+            if fr is not None:
+                front_result = fr
+            if br is not None:
+                back_result = br
+
+            if args.dry_run:
+                if fr is not None or br is not None:
+                    dry_run_seen += 1
+                    if front_result and front_result.face_results:
+                        dry_run_face_fired += 1
+                    if back_result and back_result.face_results:
+                        dry_run_face_fired += 1
+                    logger.info(
+                        "dry-run %d/10  CAM105 fps=%.1f body_ms=%.0f faces=%d"
+                        "  CAM110 fps=%.1f body_ms=%.0f faces=%d",
+                        dry_run_seen,
+                        front_result.fps if front_result else 0.0,
+                        front_result.latency_body_ms if front_result else 0.0,
+                        len(front_result.face_results) if front_result else 0,
+                        back_result.fps if back_result else 0.0,
+                        back_result.latency_body_ms if back_result else 0.0,
+                        len(back_result.face_results) if back_result else 0,
+                    )
+                if dry_run_seen >= 10:
+                    if front_result is None or back_result is None:
+                        logger.error(
+                            "dry-run FAIL: one or both streams never delivered a frame"
+                        )
+                        sys.exit(1)
+                    logger.info(
+                        "dry-run PASS: 10 frames received, face pipeline fired %d times",
+                        dry_run_face_fired,
+                    )
+                    break
+                time.sleep(0.05)
+                continue
+
+            if front_result is None and back_result is None:
+                time.sleep(0.02)
+                continue
+
+            panel_h = args.panel_height
+            placeholder_w = int(panel_h * 16 / 9)
+
+            if front_result is not None:
+                front_panel, _ = _render_panel(front_result, panel_h)
+            else:
+                front_panel = np.zeros((panel_h, placeholder_w, 3), dtype=np.uint8)
+                cv2.putText(
+                    front_panel,
+                    "CAM105: waiting...",
+                    (20, panel_h // 2),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (60, 60, 60),
+                    1,
+                )
+
+            if back_result is not None:
+                back_panel, _ = _render_panel(back_result, panel_h)
+            else:
+                back_panel = np.zeros((panel_h, placeholder_w, 3), dtype=np.uint8)
+                cv2.putText(
+                    back_panel,
+                    "CAM110: waiting...",
+                    (20, panel_h // 2),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (60, 60, 60),
+                    1,
+                )
+
+            fw, bw = front_panel.shape[1], back_panel.shape[1]
+            if fw != bw:
+                target_w = max(fw, bw)
+                pad_w = target_w - fw if fw < target_w else target_w - bw
+                pad = np.zeros((panel_h, pad_w, 3), dtype=np.uint8)
+                if fw < target_w:
+                    front_panel = np.hstack([front_panel, pad])
+                else:
+                    back_panel = np.hstack([back_panel, pad])
+
+            side_by_side: np.ndarray[Any, np.dtype[Any]] = np.hstack([front_panel, back_panel])
+            total_w = side_by_side.shape[1]
+
+            banner = _render_banner(total_w)
+            stats = _render_stats_bar(front_result, back_result, total_w, state)
+
+            layers: list[np.ndarray[Any, np.dtype[Any]]] = [banner, side_by_side, stats]
+            if state.timing_panel:
+                layers.append(_render_timing_panel(front_result, back_result, total_w))
+
+            display: np.ndarray[Any, np.dtype[Any]] = np.vstack(layers)
+            mid_x = front_panel.shape[1]
+            cv2.line(display, (mid_x, 0), (mid_x, display.shape[0]), (60, 60, 60), 1)
+
+            cv2.imshow(win_title, display)
+            key = cv2.waitKey(1) & 0xFF
+
+            if key == ord("q"):
+                break
+            elif key == ord("+") or key == ord("="):
+                state.sample_n = min(20, state.sample_n + 1)
+                logger.info("Face sample N -> %d", state.sample_n)
+            elif key == ord("-"):
+                state.sample_n = max(1, state.sample_n - 1)
+                logger.info("Face sample N -> %d", state.sample_n)
+            elif key == ord("c"):
+                idx = _CONF_CYCLE.index(state.conf) if state.conf in _CONF_CYCLE else 1
+                state.conf = _CONF_CYCLE[(idx + 1) % len(_CONF_CYCLE)]
+                logger.info("Confidence -> %.2f", state.conf)
+            elif key == ord("f"):
+                state.face_enabled = not state.face_enabled
+                logger.info("Face pipeline %s", "ON" if state.face_enabled else "OFF")
+            elif key == ord("t"):
+                state.timing_panel = not state.timing_panel
+            elif key == ord("s"):
+                _save_snapshots(front_result, back_result)
+            elif key == ord("r"):
+                _TRACK_COLORS.clear()
+                logger.info("Track colour palette reset")
+
+    finally:
+        front_worker.stop()
+        back_worker.stop()
+        cv2.destroyAllWindows()
+        logger.info("Shutdown complete")
+
+
+if __name__ == "__main__":
+    main()
