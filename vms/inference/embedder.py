@@ -3,6 +3,10 @@
 Input:  (1, 3, 112, 112) float32, normalised (pixel - 127.5) / 128.0, RGB
 Output: (1, 512) float32 L2-normalised embedding
 
+When the detector provides 5-point keypoints (scrfd_10g_bnkps.onnx), the embedder
+performs an affine warp to the AdaFace canonical 112×112 pose before embedding.
+Without keypoints (fallback detectors) it falls back to bbox crop + resize.
+
 Model loading strategy (tried in order):
   1. ONNX file at model_path — fastest, recommended for production.
   2. InsightFace FaceAnalysis w/ recognition module — auto-downloads buffalo_l.
