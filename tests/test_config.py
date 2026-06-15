@@ -124,3 +124,11 @@ def test_phase2d_config_defaults() -> None:
     assert s.ble_mqtt_topic == "vms/ble/events"
     assert s.ble_stream_maxlen == 10_000
     assert s.ble_zone_reader_map_json == "{}"
+
+
+def test_settings_reid_quality_defaults() -> None:
+    from vms.config import Settings
+    s = Settings(db_url="postgresql://x", jwt_secret="x")
+    assert s.reid_quality_window_s == 2.0
+    assert s.reid_quality_norm_floor == 0.0
+    assert s.reid_enroll_dedup_sim == 0.95
