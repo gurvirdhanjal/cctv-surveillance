@@ -117,7 +117,12 @@ class IdentityEngine:
             last_seen_ms=now_ms,
             camera_id=camera_id,
         )
-        self._update_galleries(entry, embedding, body_embedding, settings, timestamp_ms=now_ms)
+        self._update_galleries(
+            entry, embedding, body_embedding, settings,
+            timestamp_ms=now_ms,
+            face_quality=face_quality,
+            body_quality=body_quality,
+        )
         self._registry[key] = entry
         return gid
 
