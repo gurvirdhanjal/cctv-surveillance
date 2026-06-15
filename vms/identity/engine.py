@@ -258,8 +258,8 @@ class IdentityEngine:
         window_ms = int(settings.reid_quality_window_s * 1000)
         norm_floor: float = settings.reid_quality_norm_floor
 
-        if embedding:
-            if face_quality >= norm_floor:
+        if embedding and face_quality >= norm_floor:
+            if True:
                 in_window = (timestamp_ms - entry.face_window_start_ms) < window_ms
                 if in_window:
                     if face_quality > entry.face_window_best_quality:
