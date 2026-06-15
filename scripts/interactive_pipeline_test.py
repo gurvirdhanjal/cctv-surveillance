@@ -744,6 +744,23 @@ def main() -> None:
     front_face = FacePipeline.from_paths(FACE_DETECTOR, FACE_EMBEDDER)
     back_face = FacePipeline.from_paths(FACE_DETECTOR, FACE_EMBEDDER)
 
+    identity_store: IdentityStore | None = None
+    if args.enroll_dir is not None:
+        enroll_path = args.enroll_dir if args.enroll_dir.is_absolute() else Path.cwd() / args.enroll_dir
+        if not enroll_path.is_dir():
+            logger.error("--enroll-dir %s does not exist", enroll_path)
+            sys.exit(1)
+        logger.info("Building identity store from %s ...", enroll_path)
+        _tmp_detector = SCRFDDetector.from_path(FACE_DETECTOR)
+        _tmp_embedder = AdaFaceEmbedder.from_path(FACE_EMBEDDER)
+        identity_store = IdentityStore.from_dir(enroll_path, _tmp_detector, _tmp_embedder)
+        del _tmp_detector, _tmp_embedder
+        if identity_store is None or not identity_store._persons:
+            logger.warning("Identity store is empty -- running in UNKNOWN-only mode")
+            identity_store = None
+        else:
+            logger.info("Identity store ready -- ADAFACE_MIN_SIM=%.2f", ADAFACE_MIN_SIM)
+
     logger.info("Models loaded. Starting workers...")
 
     front_worker = CameraWorker(front_cam_id, front_label, front_url, front_body, front_face, state)
