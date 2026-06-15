@@ -139,9 +139,10 @@ class IdentityStore:
     No DB required. Embeddings are extracted once at startup and held in memory.
     """
 
-    def __init__(self, persons: dict[str, list[np.ndarray]]) -> None:
+    def __init__(self, persons: dict[str, list[np.ndarray]], min_sim: float = ADAFACE_MIN_SIM) -> None:
         # persons: name → list of L2-normalised 512-d embedding arrays
         self._persons = persons
+        self.min_sim = min_sim
         total = sum(len(v) for v in persons.values())
         logger.info("IdentityStore: %d persons, %d embeddings total", len(persons), total)
 
