@@ -75,6 +75,7 @@ class DetectionFrame:
                     "bbox": list(f.bbox),
                     "confidence": f.confidence,
                     "embedding": list(f.embedding),
+                    "face_quality_norm": f.face_quality_norm,
                 }
                 for f in self.face_embeddings
             ]
