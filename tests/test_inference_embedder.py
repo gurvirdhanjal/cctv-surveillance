@@ -126,8 +126,7 @@ def test_adaface_preprocess_converts_bgr_to_rgb() -> None:
 
 def test_adaface_embedder_falls_back_to_bbox_when_alignment_returns_none() -> None:
     """When _align_face returns None (degenerate landmarks), bbox crop is used instead."""
-    sess = _make_mock_session()
-    embedder = AdaFaceEmbedder(session=sess)
+    embedder = _make_embedder()
     frame = np.zeros((480, 640, 3), dtype=np.uint8)
     face = FaceWithEmbedding(
         bbox=(80, 60, 160, 140), confidence=0.9, embedding=(), keypoints=_SAMPLE_KPS
