@@ -208,12 +208,13 @@ class AdaFaceEmbedder:
     def _preprocess(
         self, face_bgr: np.ndarray[Any, np.dtype[Any]]
     ) -> np.ndarray[Any, np.dtype[Any]]:
-        # AdaFace to_input(): PIL RGB → flip to BGR → (pixel/255 - 0.5)/0.5
-        # Our input is already BGR (OpenCV native) — do NOT convert to RGB.
-        # Divisor is 127.5, not 128.0, to match the training normalisation exactly.
+        # CVLFace models (IR101/WebFace12M) expect RGB input.
+        # OpenCV is BGR-native, so we convert before normalising.
+        # Normalisation: (pixel - 127.5) / 127.5  matches CVLFace to_input() exactly.
         face = cv2.resize(
             face_bgr, (_EMBED_INPUT_SIZE, _EMBED_INPUT_SIZE), interpolation=cv2.INTER_LANCZOS4
         )
+        face = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
         face = face.astype(np.float32)
         face = (face - 127.5) / 127.5
         return np.transpose(face, (2, 0, 1))[None]
