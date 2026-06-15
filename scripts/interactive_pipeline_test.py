@@ -128,6 +128,106 @@ class PipelineState:
 
 
 # ---------------------------------------------------------------------------
+# IdentityStore -- in-process enrollment from employees/ directory
+# ---------------------------------------------------------------------------
+
+
+class IdentityStore:
+    """Loads employee face images, extracts embeddings, identifies faces at runtime.
+
+    No DB required. Embeddings are extracted once at startup and held in memory.
+    """
+
+    def __init__(self, persons: dict[str, list[np.ndarray]]) -> None:
+        # persons: name → list of L2-normalised 512-d embedding arrays
+        self._persons = persons
+        total = sum(len(v) for v in persons.values())
+        logger.info("IdentityStore: %d persons, %d embeddings total", len(persons), total)
+
+    @classmethod
+    def from_dir(
+        cls,
+        directory: Path,
+        detector: Any,
+        embedder: Any,
+    ) -> "IdentityStore":
+        """Walk directory, one subfolder per person, extract embeddings from JPG files."""
+        persons: dict[str, list[np.ndarray]] = {}
+        subdirs = sorted(p for p in directory.iterdir() if p.is_dir())
+        if not subdirs:
+            logger.warning("IdentityStore: no subdirectories found in %s", directory)
+            return cls({})
+
+        for person_dir in subdirs:
+            name = person_dir.name
+            images = sorted(person_dir.glob("*.jpg")) + sorted(person_dir.glob("*.JPG"))
+            if not images:
+                logger.warning("IdentityStore: no JPG images in %s -- skipping", person_dir)
+                continue
+
+            embeddings: list[np.ndarray] = []
+            for img_path in images:
+                frame = cv2.imread(str(img_path))
+                if frame is None:
+                    logger.warning("IdentityStore: cannot read %s -- skipping", img_path.name)
+                    continue
+                faces = detector.detect(frame)
+                if not faces:
+                    logger.warning(
+                        "IdentityStore: no face detected in %s/%s -- skipping",
+                        name,
+                        img_path.name,
+                    )
+                    continue
+                # Use highest-confidence detection
+                best = max(faces, key=lambda f: f.confidence)
+                embedded = embedder.embed(best, frame)
+                if embedded is None or not embedded.embedding:
+                    logger.warning(
+                        "IdentityStore: embedding failed for %s/%s -- skipping",
+                        name,
+                        img_path.name,
+                    )
+                    continue
+                vec = np.array(embedded.embedding, dtype=np.float32)
+                norm = np.linalg.norm(vec)
+                if norm > 0:
+                    vec = vec / norm
+                embeddings.append(vec)
+
+            if embeddings:
+                persons[name] = embeddings
+                logger.info("IdentityStore: enrolled %s (%d embeddings)", name, len(embeddings))
+            else:
+                logger.warning("IdentityStore: no valid embeddings for %s -- skipping", name)
+
+        return cls(persons)
+
+    def identify(self, embedding: tuple[float, ...]) -> tuple[str, float]:
+        """Return (name, similarity). name='UNKNOWN' if best match < ADAFACE_MIN_SIM."""
+        if not self._persons or not embedding:
+            return "UNKNOWN", 0.0
+
+        query = np.array(embedding, dtype=np.float32)
+        norm = np.linalg.norm(query)
+        if norm > 0:
+            query = query / norm
+
+        best_name = "UNKNOWN"
+        best_sim = 0.0
+        for name, vecs in self._persons.items():
+            for vec in vecs:
+                sim = float(np.dot(query, vec))
+                if sim > best_sim:
+                    best_sim = sim
+                    best_name = name
+
+        if best_sim < ADAFACE_MIN_SIM:
+            return "UNKNOWN", best_sim
+        return best_name, best_sim
+
+
+# ---------------------------------------------------------------------------
 # FacePipeline -- SCRFD + AdaFace (production models, sampled every N frames)
 # ---------------------------------------------------------------------------
 
