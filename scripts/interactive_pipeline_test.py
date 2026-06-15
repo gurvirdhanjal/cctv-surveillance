@@ -58,9 +58,9 @@ os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
 TEST_BODY_MODEL = "yolov8n.pt"  # auto-downloaded by ultralytics (~6 MB)
 PROD_BODY_MODEL = "models/yolov8x-pose.pt"  # production accuracy -- NOT used here
 FACE_DETECTOR = "models/scrfd_10g_bnkps.onnx"
-FACE_EMBEDDER = "models/adaface_ir50.onnx"
+FACE_EMBEDDER = "models/adaface_ir101_webface12m.onnx"
 FACE_SAMPLE_EVERY_N = 5  # default face sample rate
-ADAFACE_MIN_SIM = 0.72  # unused (no DB); shown for reference
+ADAFACE_MIN_SIM = 0.72  # unused (no DB); shown for reference — needs re-calibration for IR101
 
 _CONF_CYCLE: tuple[float, ...] = (0.30, 0.40, 0.55, 0.70)
 _PANEL_H_DEFAULT = 540
