@@ -121,6 +121,7 @@ class DetectionFrame:
                 ppe_mask_conf=(
                     float(t["ppe_mask_conf"]) if t.get("ppe_mask_conf") is not None else None
                 ),
+                body_quality_norm=float(t.get("body_quality_norm", 1.0)),
             )
             for t in raw_tracklets
         )
