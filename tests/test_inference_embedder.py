@@ -110,9 +110,8 @@ def test_adaface_embedder_l2_normalises_output() -> None:
 
 
 def test_adaface_preprocess_converts_bgr_to_rgb() -> None:
-    """_preprocess must convert BGR→RGB: red channel of input becomes channel 0 of blob."""
-    sess = _make_mock_session()
-    embedder = AdaFaceEmbedder(session=sess)
+    """_preprocess must convert BGR->RGB: red channel of input becomes channel 0 of blob."""
+    embedder = _make_embedder()
     # BGR face: B=50, G=100, R=200 — all pixels identical per channel
     face_bgr = np.zeros((112, 112, 3), dtype=np.uint8)
     face_bgr[:, :, 0] = 50   # Blue
