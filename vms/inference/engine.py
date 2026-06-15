@@ -71,13 +71,15 @@ def _extract_body_embeddings(
     tracklets: tuple[Tracklet, ...],
     body_embedder: BodyEmbedder | None,
 ) -> tuple[Tracklet, ...]:
-    """Return tracklets with body_embedding populated from person bbox crops.
+    """Return tracklets with body_embedding and body_quality_norm populated from person bbox crops.
 
-    Bbox is clamped to frame dimensions before cropping.
+    Crops below the configured min_blur Laplacian-variance threshold are skipped (body_embedding
+    is left empty, body_quality_norm set to 0.0). Bbox is clamped to frame dimensions.
     Returns original tracklets unchanged when body_embedder is None.
     """
     if body_embedder is None:
         return tracklets
+    settings = get_settings()
     h, w = frame_bgr.shape[:2]
     result: list[Tracklet] = []
     for t in tracklets:
@@ -85,7 +87,14 @@ def _extract_body_embeddings(
         x1c, y1c = max(0, x1), max(0, y1)
         x2c, y2c = min(w, x2), min(h, y2)
         crop = frame_bgr[y1c:y2c, x1c:x2c]
-        body_emb = body_embedder.embed(crop) if crop.size > 0 else ()
+        if crop.size > 0:
+            blur = _blur_score(crop)
+            if blur >= settings.min_blur:
+                body_emb_tuple, body_quality = body_embedder.embed(crop)
+            else:
+                body_emb_tuple, body_quality = (), 0.0
+        else:
+            body_emb_tuple, body_quality = (), 0.0
         result.append(
             Tracklet(
                 local_track_id=t.local_track_id,
@@ -93,7 +102,8 @@ def _extract_body_embeddings(
                 bbox=t.bbox,
                 confidence=t.confidence,
                 embedding=t.embedding,
-                body_embedding=body_emb,
+                body_embedding=body_emb_tuple,
+                body_quality_norm=body_quality,
             )
         )
     return tuple(result)
