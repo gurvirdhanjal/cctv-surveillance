@@ -290,3 +290,67 @@ class TestCameraWorker:
             stale_counts.append(stale)
 
         assert stale_counts == [0, 1, 2, 3, 4, 0, 1, 2]
+
+
+class TestRendering:
+    def _make_frame_result(
+        self,
+        fps: float = 25.0,
+        tracklets: list | None = None,
+        face_results: list | None = None,
+        stale: int = 0,
+    ) -> "ipt.FrameResult":
+        return ipt.FrameResult(
+            camera_label="CAM105",
+            frame=np.zeros((1080, 1920, 3), dtype=np.uint8),
+            tracklets=tracklets or [],
+            face_results=face_results or [],
+            face_stale_frames=stale,
+            fps=fps,
+            latency_body_ms=28.0,
+            latency_scrfd_ms=112.0,
+            latency_adaface_ms=43.0,
+            frame_n=10,
+        )
+
+    def test_render_banner_has_correct_height(self) -> None:
+        banner = ipt._render_banner(total_w=1280)
+        assert banner.shape[0] == ipt._BANNER_H
+        assert banner.shape[1] == 1280
+        assert banner.shape[2] == 3
+
+    def test_render_banner_is_numpy_uint8(self) -> None:
+        banner = ipt._render_banner(total_w=800)
+        assert banner.dtype == np.uint8
+
+    def test_render_panel_output_shape(self) -> None:
+        result = self._make_frame_result()
+        panel, count = ipt._render_panel(result, panel_h=540)
+        assert panel.shape[0] == 540
+        assert panel.shape[2] == 3
+        assert count == 0
+
+    def test_render_panel_count_equals_tracklets(self) -> None:
+        from vms.inference.messages import Tracklet
+
+        t = Tracklet(local_track_id=1, camera_id=105, bbox=(10, 20, 100, 200), confidence=0.9)
+        result = self._make_frame_result(tracklets=[t])
+        _, count = ipt._render_panel(result, panel_h=540)
+        assert count == 1
+
+    def test_render_stats_bar_shape(self) -> None:
+        result = self._make_frame_result()
+        bar = ipt._render_stats_bar(result, None, total_w=1280, state=ipt.PipelineState())
+        assert bar.shape[0] == ipt._STATS_H
+        assert bar.shape[1] == 1280
+
+    def test_render_stats_bar_has_text_content(self) -> None:
+        low_fps = self._make_frame_result(fps=8.0)
+        bar = ipt._render_stats_bar(low_fps, None, total_w=1280, state=ipt.PipelineState())
+        assert bar.max() > 100
+
+    def test_render_timing_panel_shape(self) -> None:
+        result = self._make_frame_result()
+        row = ipt._render_timing_panel(result, None, total_w=1280)
+        assert row.shape[0] == ipt._TIMING_H
+        assert row.shape[1] == 1280
