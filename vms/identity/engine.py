@@ -88,7 +88,7 @@ class IdentityEngine:
         if key in self._registry:
             entry = self._registry[key]
             entry.last_seen_ms = now_ms
-            self._update_galleries(entry, embedding, body_embedding, settings)
+            self._update_galleries(entry, embedding, body_embedding, settings, timestamp_ms=now_ms)
             return entry.global_track_id
 
         emb_arr = np.array(embedding, dtype=np.float32) if embedding else None
