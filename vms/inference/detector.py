@@ -196,7 +196,8 @@ class SCRFDDetector:
             if n != side * side * _ANCHORS_PER_CELL:
                 continue
 
-            scores: np.ndarray[Any, np.dtype[Any]] = 1.0 / (1.0 + np.exp(-cls_out[:, 0]))
+            # scrfd_10g_bnkps.onnx has sigmoid baked into the graph — outputs are already in [0,1]
+            scores: np.ndarray[Any, np.dtype[Any]] = cls_out[:, 0]
             keep: np.ndarray[Any, np.dtype[Any]] = scores > self._conf_thres
             if not np.any(keep):
                 continue
