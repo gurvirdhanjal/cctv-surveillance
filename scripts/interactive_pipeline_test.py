@@ -32,7 +32,7 @@ import threading
 import time
 from collections import deque
 from dataclasses import dataclass, field  # noqa: F401
-from datetime import datetime, timezone  # noqa: F401
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -417,15 +417,11 @@ def _labeled_box(
     (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
     label_y = max(y1 - 4, th + 4)
     cv2.rectangle(img, (x1, label_y - th - 4), (x1 + tw + 6, label_y + 2), color, -1)
-    cv2.putText(
-        img, label, (x1 + 3, label_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1
-    )
+    cv2.putText(img, label, (x1 + 3, label_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
 
 def _render_banner(total_w: int) -> np.ndarray[Any, np.dtype[Any]]:
-    banner: np.ndarray[Any, np.dtype[Any]] = np.full(
-        (_BANNER_H, total_w, 3), 25, dtype=np.uint8
-    )
+    banner: np.ndarray[Any, np.dtype[Any]] = np.full((_BANNER_H, total_w, 3), 25, dtype=np.uint8)
     text = "MODE: DEMO FAST BODY DETECTOR, PRODUCTION FACE PIPELINE"
     (tw, th), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.55, 1)
     x = max(0, (total_w - tw) // 2)
@@ -433,9 +429,7 @@ def _render_banner(total_w: int) -> np.ndarray[Any, np.dtype[Any]]:
     return banner
 
 
-def _render_panel(
-    result: FrameResult, panel_h: int
-) -> tuple[np.ndarray[Any, np.dtype[Any]], int]:
+def _render_panel(result: FrameResult, panel_h: int) -> tuple[np.ndarray[Any, np.dtype[Any]], int]:
     """Scale frame, draw body + face overlays. Returns (panel, person_count)."""
     h0, w0 = result.frame.shape[:2]
     panel_w = int(w0 * (panel_h / h0))
@@ -448,7 +442,9 @@ def _render_panel(
         py1 = int(t.bbox[1] * sy)
         px2 = int(t.bbox[2] * sx)
         py2 = int(t.bbox[3] * sy)
-        _labeled_box(panel, px1, py1, px2, py2, f"T:{t.local_track_id}", _track_color(t.local_track_id))
+        _labeled_box(
+            panel, px1, py1, px2, py2, f"T:{t.local_track_id}", _track_color(t.local_track_id)
+        )
 
     stale_tag = f" s:{result.face_stale_frames}" if result.face_stale_frames > 0 else ""
     for face in result.face_results:

@@ -299,7 +299,7 @@ class TestRendering:
         tracklets: list | None = None,
         face_results: list | None = None,
         stale: int = 0,
-    ) -> "ipt.FrameResult":
+    ) -> ipt.FrameResult:
         return ipt.FrameResult(
             camera_label="CAM105",
             frame=np.zeros((1080, 1920, 3), dtype=np.uint8),
