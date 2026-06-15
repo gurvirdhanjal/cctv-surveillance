@@ -90,7 +90,7 @@ class TransReIDBodyEmbedder:
     Drop-in replacement for BodyEmbedder. Swap in by changing the embedder construction
     in the engine — the embed() signature is identical.
 
-    Input:  BGR numpy crop, any size >= 16h × 8w; resized internally to 384×128.
+    Input:  BGR numpy crop, any size >= 16h x 8w; resized internally to 384x128.
     Output: 768-dim L2-normalised embedding as tuple[float, ...], or () on failure.
 
     Export the ONNX first:
