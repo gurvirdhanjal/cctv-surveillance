@@ -8,7 +8,7 @@ from typing import Any
 
 import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
