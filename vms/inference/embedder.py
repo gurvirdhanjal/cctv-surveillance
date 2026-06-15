@@ -125,11 +125,13 @@ class AdaFaceEmbedder:
         self,
         session: Any,  # ort.InferenceSession -- stubs are incomplete; MagicMock in tests
         min_face_px: int | None = None,
+        min_blur: float | None = None,
     ) -> None:
         self._sess = session
         self._input_name: str = session.get_inputs()[0].name
-        self._min_face_px = min_face_px if min_face_px is not None else get_settings().min_face_px
-        self._min_blur: float = get_settings().min_blur
+        settings = get_settings()
+        self._min_face_px = min_face_px if min_face_px is not None else settings.min_face_px
+        self._min_blur: float = min_blur if min_blur is not None else settings.min_blur
 
     @classmethod
     def from_path(cls, model_path: str) -> AdaFaceEmbedder | _InsightFaceEmbedder | _NullEmbedder:
