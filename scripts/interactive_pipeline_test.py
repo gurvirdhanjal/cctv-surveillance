@@ -293,6 +293,19 @@ class CameraWorker:
         return result
 
     def _open_stream(self) -> cv2.VideoCapture | None:
+        if self._rtsp_url.isdigit():
+            cap = cv2.VideoCapture(int(self._rtsp_url))
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            if cap.isOpened():
+                w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                fps = cap.get(cv2.CAP_PROP_FPS)
+                logger.info("%s: webcam %s opened %dx%d @ %.1ffps", self._camera_label, self._rtsp_url, w, h, fps)
+                return cap
+            cap.release()
+            logger.warning("%s: webcam index %s not available", self._camera_label, self._rtsp_url)
+            return None
+
         for attempt, url in enumerate(
             [
                 self._rtsp_url,
