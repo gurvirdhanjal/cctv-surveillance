@@ -81,7 +81,7 @@ logger = logging.getLogger("pipeline_test")
 import cv2  # noqa: F401
 import numpy as np
 
-from vms.config import get_settings  # noqa: F401
+from vms.config import get_settings
 from vms.inference.messages import FaceWithEmbedding, Tracklet
 
 
@@ -151,9 +151,7 @@ class FacePipeline:
             embedder=AdaFaceEmbedder.from_path(embedder_path),
         )
 
-    def run(
-        self, frame: np.ndarray[Any, np.dtype[Any]]
-    ) -> tuple[list[FaceResult], float, float]:
+    def run(self, frame: np.ndarray[Any, np.dtype[Any]]) -> tuple[list[FaceResult], float, float]:
         """Detect faces + compute embeddings. Returns (results, scrfd_ms, adaface_ms)."""
         t0 = time.perf_counter()
         faces: list[FaceWithEmbedding] = self._detector.detect(frame)
@@ -197,7 +195,7 @@ class BodyDetector:
         self._camera_id = camera_id
 
     @classmethod
-    def from_config(cls, camera_id: int) -> "BodyDetector":
+    def from_config(cls, camera_id: int) -> BodyDetector:
         from ultralytics import YOLO  # type: ignore[attr-defined]
 
         settings = get_settings()
@@ -209,8 +207,8 @@ class BodyDetector:
         )
 
     def detect(
-        self, frame: "np.ndarray[Any, np.dtype[Any]]", conf: float
-    ) -> "tuple[list[Tracklet], float]":
+        self, frame: np.ndarray[Any, np.dtype[Any]], conf: float
+    ) -> tuple[list[Tracklet], float]:
         """Run tracking. Returns (tracklets, latency_ms). keypoints always empty (no pose head)."""
         t0 = time.perf_counter()
         results: Any = self._model.track(

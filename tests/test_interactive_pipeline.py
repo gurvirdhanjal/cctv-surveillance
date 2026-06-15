@@ -175,10 +175,10 @@ class TestBodyDetector:
 
     def test_returns_tracklets_for_detected_persons(self) -> None:
         model = MagicMock()
-        model.track.return_value = self._mock_yolo_result(
-            [(10, 20, 100, 200)], [3], [0.85]
+        model.track.return_value = self._mock_yolo_result([(10, 20, 100, 200)], [3], [0.85])
+        detector = ipt.BodyDetector(
+            model=model, botsort_config="botsort_custom.yaml", camera_id=105
         )
-        detector = ipt.BodyDetector(model=model, botsort_config="botsort_custom.yaml", camera_id=105)
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         tracklets, latency_ms = detector.detect(frame, conf=0.55)
         assert len(tracklets) == 1
@@ -192,14 +192,18 @@ class TestBodyDetector:
         no_id_result = MagicMock()
         no_id_result.boxes.id = None
         model.track.return_value = [no_id_result]
-        detector = ipt.BodyDetector(model=model, botsort_config="botsort_custom.yaml", camera_id=110)
+        detector = ipt.BodyDetector(
+            model=model, botsort_config="botsort_custom.yaml", camera_id=110
+        )
         tracklets, _ = detector.detect(np.zeros((480, 640, 3), dtype=np.uint8), conf=0.55)
         assert tracklets == []
 
     def test_returns_empty_when_yolo_returns_empty_list(self) -> None:
         model = MagicMock()
         model.track.return_value = []
-        detector = ipt.BodyDetector(model=model, botsort_config="botsort_custom.yaml", camera_id=105)
+        detector = ipt.BodyDetector(
+            model=model, botsort_config="botsort_custom.yaml", camera_id=105
+        )
         tracklets, _ = detector.detect(np.zeros((480, 640, 3), dtype=np.uint8), conf=0.55)
         assert tracklets == []
 
@@ -207,7 +211,9 @@ class TestBodyDetector:
         """yolov8n has no pose head -- keypoints must be empty tuple."""
         model = MagicMock()
         model.track.return_value = self._mock_yolo_result([(0, 0, 50, 50)], [1], [0.9])
-        detector = ipt.BodyDetector(model=model, botsort_config="botsort_custom.yaml", camera_id=105)
+        detector = ipt.BodyDetector(
+            model=model, botsort_config="botsort_custom.yaml", camera_id=105
+        )
         tracklets, _ = detector.detect(np.zeros((480, 640, 3), dtype=np.uint8), conf=0.55)
         assert tracklets[0].keypoints == ()
         assert tracklets[0].face_visible is False
