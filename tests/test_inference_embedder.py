@@ -98,9 +98,9 @@ def test_adaface_embedder_l2_normalises_output() -> None:
     """Embedder must L2-normalise the raw backbone output (IR101 does not normalise internally)."""
     sess = MagicMock()
     # Raw output with norm ~12 — as measured from IR101 backbone
-    raw_emb = np.ones((1, 512), dtype=np.float32) * 0.5  # norm = sqrt(512)*0.5 ≈ 11.3
+    raw_emb = np.ones((1, 512), dtype=np.float32) * 0.5  # norm = sqrt(512)*0.5 ~= 11.3
     sess.run.return_value = [raw_emb]
-    embedder = AdaFaceEmbedder(session=sess)
+    embedder = AdaFaceEmbedder(session=sess, min_blur=0.0)
     frame = np.zeros((480, 640, 3), dtype=np.uint8)
     face = FaceWithEmbedding(bbox=(10, 10, 100, 100), confidence=0.9, embedding=())
     result = embedder.embed(face, frame)
