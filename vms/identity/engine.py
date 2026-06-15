@@ -72,6 +72,8 @@ class IdentityEngine:
         local_track_id: int,
         embedding: tuple[float, ...] | None,
         body_embedding: tuple[float, ...] | None = None,
+        face_quality: float = 1.0,
+        body_quality: float = 1.0,
     ) -> uuid.UUID:
         """Return a stable global_track_id for (camera_id, local_track_id).
 
