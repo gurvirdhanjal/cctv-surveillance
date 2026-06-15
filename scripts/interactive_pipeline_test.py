@@ -586,10 +586,17 @@ def _render_panel(result: FrameResult, panel_h: int) -> tuple[np.ndarray[Any, np
         fy1 = int(face.bbox[1] * sy)
         fx2 = int(face.bbox[2] * sx)
         fy2 = int(face.bbox[3] * sy)
-        cv2.rectangle(panel, (fx1, fy1), (fx2, fy2), (255, 80, 0), 2)
-        label = f"UNKNOWN n:{face.embedding_norm:.2f}{stale_tag}"
+        if face.label == "UNKNOWN":
+            box_color = (255, 80, 0)  # orange
+            display_label = f"UNKNOWN n:{face.embedding_norm:.2f}{stale_tag}"
+            text_color = (255, 140, 0)
+        else:
+            box_color = (0, 200, 50)  # green for enrolled match
+            display_label = f"{face.label} {face.similarity:.2f}{stale_tag}"
+            text_color = (100, 255, 100)
+        cv2.rectangle(panel, (fx1, fy1), (fx2, fy2), box_color, 2)
         cv2.putText(
-            panel, label, (fx1, max(fy1 - 3, 12)), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 140, 0), 1
+            panel, display_label, (fx1, max(fy1 - 3, 12)), cv2.FONT_HERSHEY_SIMPLEX, 0.4, text_color, 1
         )
 
     count = len(result.tracklets)
