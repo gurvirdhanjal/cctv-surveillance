@@ -48,7 +48,7 @@ def _align_face(
     img_bgr: np.ndarray[Any, np.dtype[Any]],
     keypoints: tuple[tuple[float, float], ...],
 ) -> np.ndarray[Any, np.dtype[Any]] | None:
-    """Affine-warp face crop to 112×112 using 5-point landmarks.
+    """Affine-warp face crop to 112x112 using 5-point landmarks.
 
     Returns None when estimateAffinePartial2D fails (degenerate keypoints).
     """
