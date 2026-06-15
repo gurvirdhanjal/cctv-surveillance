@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
 
     # model paths
-    scrfd_model: str = "models/scrfd_2.5g.onnx"
+    scrfd_model: str = "models/scrfd_10g_bnkps.onnx"
     adaface_model: str = "models/adaface_ir50.onnx"
     bytetrack_config: str = "bytetrack_custom.yaml"
     botsort_config: str = "botsort_custom.yaml"
