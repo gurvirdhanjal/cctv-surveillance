@@ -31,7 +31,7 @@ import sys
 import threading
 import time
 from collections import deque
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -151,7 +151,7 @@ class IdentityStore:
         directory: Path,
         detector: Any,
         embedder: Any,
-    ) -> "IdentityStore":
+    ) -> IdentityStore:
         """Walk directory, one subfolder per person, extract embeddings from JPG files."""
         persons: dict[str, list[np.ndarray]] = {}
         subdirs = sorted(p for p in directory.iterdir() if p.is_dir())
@@ -596,7 +596,13 @@ def _render_panel(result: FrameResult, panel_h: int) -> tuple[np.ndarray[Any, np
             text_color = (100, 255, 100)
         cv2.rectangle(panel, (fx1, fy1), (fx2, fy2), box_color, 2)
         cv2.putText(
-            panel, display_label, (fx1, max(fy1 - 3, 12)), cv2.FONT_HERSHEY_SIMPLEX, 0.4, text_color, 1
+            panel,
+            display_label,
+            (fx1, max(fy1 - 3, 12)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.4,
+            text_color,
+            1,
         )
 
     count = len(result.tracklets)
@@ -746,7 +752,9 @@ def main() -> None:
 
     identity_store: IdentityStore | None = None
     if args.enroll_dir is not None:
-        enroll_path = args.enroll_dir if args.enroll_dir.is_absolute() else Path.cwd() / args.enroll_dir
+        enroll_path = (
+            args.enroll_dir if args.enroll_dir.is_absolute() else Path.cwd() / args.enroll_dir
+        )
         if not enroll_path.is_dir():
             logger.error("--enroll-dir %s does not exist", enroll_path)
             sys.exit(1)
@@ -763,8 +771,12 @@ def main() -> None:
 
     logger.info("Models loaded. Starting workers...")
 
-    front_worker = CameraWorker(front_cam_id, front_label, front_url, front_body, front_face, state, identity_store)
-    back_worker = CameraWorker(back_cam_id, back_label, back_url, back_body, back_face, state, identity_store)
+    front_worker = CameraWorker(
+        front_cam_id, front_label, front_url, front_body, front_face, state, identity_store
+    )
+    back_worker = CameraWorker(
+        back_cam_id, back_label, back_url, back_body, back_face, state, identity_store
+    )
     front_worker.start()
     back_worker.start()
 
