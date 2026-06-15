@@ -61,23 +61,27 @@ class BodyEmbedder:
             self._extractor = None
             self._available = False
 
-    def embed(self, crop_bgr: np.ndarray[Any, Any]) -> tuple[float, ...]:
-        """Return 512-dim L2-normalized embedding, or () if crop is too small or model unavailable."""
+    def embed(self, crop_bgr: np.ndarray[Any, Any]) -> tuple[tuple[float, ...], float]:
+        """Return (embedding, pre_norm_quality) tuple.
+
+        embedding: 512-dim L2-normalised vector, or () on failure.
+        pre_norm_quality: L2 norm before normalisation; 0.0 on failure.
+        """
         if not self._available or self._extractor is None:
-            return ()
+            return (), 0.0
         h, w = crop_bgr.shape[:2]
         if h < _MIN_H or w < _MIN_W:
-            return ()
+            return (), 0.0
         crop_rgb = cv2.cvtColor(crop_bgr, cv2.COLOR_BGR2RGB)
         import torch
 
         with torch.no_grad():
             features = self._extractor([crop_rgb])  # (1, 512) tensor
         vec: np.ndarray[Any, Any] = features[0].cpu().numpy().astype(np.float32)
-        norm = float(np.linalg.norm(vec))
-        if norm > 1e-8:
-            vec = vec / norm
-        return tuple(float(x) for x in vec)
+        quality_norm = float(np.linalg.norm(vec))
+        if quality_norm > 1e-8:
+            vec = vec / quality_norm
+        return tuple(float(x) for x in vec), quality_norm
 
 
 class TransReIDBodyEmbedder:
