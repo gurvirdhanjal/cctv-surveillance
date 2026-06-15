@@ -487,7 +487,9 @@ class CameraWorker:
             scrfd_ms = 0.0
             adaface_ms = 0.0
             if self._state.face_enabled and frame_n % self._state.sample_n == 0:
-                last_face_results, scrfd_ms, adaface_ms = self._face_pipeline.run(frame)
+                last_face_results, scrfd_ms, adaface_ms = self._face_pipeline.run(
+                    frame, self._identity_store
+                )
                 last_scrfd_ms = scrfd_ms
                 last_adaface_ms = adaface_ms
                 face_stale = 0
