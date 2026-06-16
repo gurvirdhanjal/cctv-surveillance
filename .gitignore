@@ -59,6 +59,9 @@ logs/
 Thumbs.db
 .DS_Store
 
+# Test output files — generated artifacts, not source
+pytest_*.txt
+
 # Test / lint caches
 .pytest_cache/
 .mypy_cache/
