@@ -52,7 +52,11 @@ def _s(**overrides: object) -> object:
 
 
 def test_gallery_grows_to_max_size(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("vms.identity.engine.get_settings", lambda: _s(reid_gallery_size=4))
+    # reid_quality_window_s=0 → window_ms=0 → each call is its own window → FIFO append
+    monkeypatch.setattr(
+        "vms.identity.engine.get_settings",
+        lambda: _s(reid_gallery_size=4, reid_quality_window_s=0),
+    )
     engine = _make_engine()
     emb = _norm_emb(0)
     for _ in range(10):
@@ -61,7 +65,10 @@ def test_gallery_grows_to_max_size(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_gallery_capped_at_most_recent(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("vms.identity.engine.get_settings", lambda: _s(reid_gallery_size=3))
+    monkeypatch.setattr(
+        "vms.identity.engine.get_settings",
+        lambda: _s(reid_gallery_size=3, reid_quality_window_s=0),
+    )
     engine = _make_engine()
     embs = [_norm_emb(i) for i in range(5)]
     for e in embs:
