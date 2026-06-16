@@ -407,6 +407,10 @@ def main() -> None:
         help="Camera IDs to activate (default: 105 110). Available: 105 110 141 200",
     )
     parser.add_argument("--panel-h", type=int, default=_PANEL_H, help="Panel height per camera")
+    parser.add_argument(
+        "--yolo-every", type=int, default=_YOLO_SAMPLE_DEFAULT, metavar="N",
+        help=f"Run YOLO every N frames (default {_YOLO_SAMPLE_DEFAULT}); reuses last boxes between runs",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Process 10 frames and exit")
     args = parser.parse_args()
 
