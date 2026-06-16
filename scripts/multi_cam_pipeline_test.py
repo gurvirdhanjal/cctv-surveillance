@@ -220,41 +220,60 @@ class CameraWorker:
         logger.error("%s: cannot connect — check network/credentials", self._label)
         return None
 
-    def _run(self) -> None:
-        settings = get_settings()
+    def _read_frames(self) -> None:
+        """Dedicated reader thread: drain RTSP buffer at full camera speed.
+
+        Continuously calls cap.read() and stores only the latest frame.
+        The inference thread reads from _latest_raw_frame without blocking on I/O.
+        This prevents H.265 keyframe-interval stalls (2+ seconds) from blocking inference.
+        """
         cap = self._open()
         if cap is None:
             return
-
-        fps_deque: deque[float] = deque(maxlen=30)
-        frame_n = 0
-        t_prev = time.monotonic()
-        _consecutive_fails = 0
-        _RECONNECT_AFTER = 8  # consecutive failures before reconnect attempt
-
+        consecutive_fails = 0
         while not self._stop.is_set():
             ret, frame = cap.read()
             if not ret:
-                _consecutive_fails += 1
-                if _consecutive_fails == 1:
+                consecutive_fails += 1
+                if consecutive_fails == 1:
                     logger.warning("%s: frame read failed", self._label)
-                if _consecutive_fails >= _RECONNECT_AFTER:
-                    logger.warning("%s: %d consecutive failures — reconnecting", self._label, _consecutive_fails)
+                if consecutive_fails >= _RECONNECT_AFTER:
+                    logger.warning(
+                        "%s: %d consecutive failures — reconnecting", self._label, consecutive_fails
+                    )
                     cap.release()
                     time.sleep(2.0)
                     new_cap = self._open()
                     if new_cap is not None:
                         cap = new_cap
-                        _consecutive_fails = 0
+                        consecutive_fails = 0
                     else:
                         logger.error("%s: reconnect failed — retry in 10s", self._label)
                         time.sleep(10.0)
-                        # loop continues; next iteration tries _open again via the reconnect block
-                        _consecutive_fails = _RECONNECT_AFTER  # stay in reconnect path
+                        consecutive_fails = _RECONNECT_AFTER
                 else:
                     time.sleep(0.05)
                 continue
-            _consecutive_fails = 0
+            consecutive_fails = 0
+            with self._frame_lock:
+                self._latest_raw_frame = frame
+        cap.release()
+        logger.info("%s: reader stopped", self._label)
+
+    def _run(self) -> None:
+        fps_deque: deque[float] = deque(maxlen=30)
+        face_fps_deque: deque[float] = deque(maxlen=10)
+        frame_n = 0
+        t_prev = time.monotonic()
+        t_last_face_emb = time.monotonic()
+
+        while not self._stop.is_set():
+            with self._frame_lock:
+                frame = self._latest_raw_frame
+
+            if frame is None:
+                time.sleep(0.02)  # wait for reader thread to get first frame
+                continue
 
             t0 = time.monotonic()
             frame_n += 1
@@ -319,6 +338,14 @@ class CameraWorker:
             t_prev = t1
             latency_ms = (t1 - t0) * 1000
 
+            # Track face embedding rate (faces with a real embedding, not just SCRFD detections)
+            embedded_faces = [f for f in faces if f.embedding]
+            if embedded_faces:
+                now = time.monotonic()
+                face_fps_deque.append(1.0 / max(now - t_last_face_emb, 1e-6))
+                t_last_face_emb = now
+            face_fps = sum(face_fps_deque) / len(face_fps_deque) if face_fps_deque else 0.0
+
             result = FrameResult(
                 camera_id=self._id,
                 camera_label=self._label,
@@ -329,6 +356,7 @@ class CameraWorker:
                 fps=sum(fps_deque) / len(fps_deque),
                 latency_ms=latency_ms,
                 frame_n=frame_n,
+                face_fps=face_fps,
             )
             try:
                 self._q.put_nowait(result)
@@ -339,8 +367,7 @@ class CameraWorker:
                 except queue.Empty:
                     pass
 
-        cap.release()
-        logger.info("%s: stopped", self._label)
+        logger.info("%s: inference stopped", self._label)
 
 
 # ---------------------------------------------------------------------------
