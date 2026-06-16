@@ -70,13 +70,13 @@ class Settings(BaseSettings):
     reid_confirmed_sim: float = 0.60  # face gallery threshold (confirmed tracks)
     reid_confirmed_stale_ms: int = 600_000
     reid_camera_topology_json: str = "{}"
-    # Body Re-ID thresholds — calibrated on DukeMTMC-reID with OSNet AIN x1.0 msmt17
-    # Simulation: Rank-1=73%, mAP=58.8%, same-person p5=0.511, diff-person p99=0.713
-    # Conservative (95% recall): confirmed=0.51, cross-cam=0.56
-    # Balanced   (99% FP guard): confirmed=0.69, cross-cam=0.74
-    # See scripts/simulate_osnet_reid.py to re-calibrate on your camera setup.
-    reid_body_confirmed_sim: float = 0.51  # body gallery, confirmed tracks (95% recall)
-    reid_body_cross_cam_sim: float = 0.56  # body gallery, unconfirmed tracks
+    # Body Re-ID thresholds — TransReID ViT-B/16+ICS MSMT17 (768-dim, webcam-calibrated 2026-06-16)
+    # Webcam calibration: 27 captures, 2 persons; same_p5=0.843, diff_p99=0.450, gap=0.393
+    # Real-camera degradation estimated: same_p5~0.70-0.75, diff_p99~0.50-0.55
+    # cross_cam > confirmed intentional: unconfirmed tracks (sparse gallery) are highest-risk merge.
+    # Re-calibrate on real CAM105/CAM110 footage before tightening. Mandatory /advisor before change.
+    reid_body_confirmed_sim: float = 0.65  # body gallery, confirmed tracks (8-slot gallery)
+    reid_body_cross_cam_sim: float = 0.70  # body gallery, unconfirmed tracks (tighter — sparse gallery)
     # ReID quality hardening (Phase 3) — all defaults conservative (no-op until calibrated)
     reid_quality_window_s: float = 2.0  # temporal window; keep best crop per window
     reid_quality_norm_floor: float = 0.0  # pre-norm L2 floor; 0.0 = accept all
