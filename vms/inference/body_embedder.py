@@ -162,3 +162,26 @@ class TransReIDBodyEmbedder:
         rgb = (rgb - _IMAGENET_MEAN) / _IMAGENET_STD  # (H, W, 3)
         chw = np.transpose(rgb, (2, 0, 1))[None]  # (1, 3, H, W)
         return chw
+
+
+def create_body_embedder(
+    transreid_path: str = "",
+    osnet_path: str = "",
+    device: str = "cpu",
+) -> "BodyEmbedder | TransReIDBodyEmbedder | None":
+    """Return the best available body embedder based on configured model paths.
+
+    Priority: TransReID ONNX > OSNet torchreid > None.
+    TransReID is preferred when both paths are set because it uses onnxruntime
+    (no torch dependency) and is lighter on CPU.
+
+    Pass empty string or omit a path to skip that embedder.
+    Returns None when no valid model path is provided.
+    """
+    import os
+
+    if transreid_path and os.path.exists(transreid_path):
+        return TransReIDBodyEmbedder(transreid_path)
+    if osnet_path and os.path.exists(osnet_path):
+        return BodyEmbedder(osnet_path, device=device)
+    return None
