@@ -183,6 +183,10 @@ class CameraWorker:
         self._latest_raw_frame: np.ndarray | None = None  # type: ignore[type-arg]
 
     def start(self) -> None:
+        self._reader_thread = threading.Thread(
+            target=self._read_frames, name=f"reader-{self._id}", daemon=True
+        )
+        self._reader_thread.start()
         self._thread = threading.Thread(target=self._run, name=f"cam-{self._id}", daemon=True)
         self._thread.start()
 
@@ -190,6 +194,8 @@ class CameraWorker:
         self._stop.set()
         if self._thread:
             self._thread.join(timeout=4.0)
+        if self._reader_thread:
+            self._reader_thread.join(timeout=4.0)
 
     def latest(self) -> FrameResult | None:
         result: FrameResult | None = None
