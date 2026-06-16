@@ -447,7 +447,11 @@ def main() -> None:
     else:
         logger.info("Body Re-ID: DISABLED (no model path configured)")
 
-    state = PipelineState(conf=settings.scrfd_conf)
+    state = PipelineState(
+        conf=settings.scrfd_conf,
+        yolo_conf=settings.yolo_person_conf,
+        yolo_sample_n=args.yolo_every,
+    )
 
     # Tracker model: use configured pose model or fall back to yolov8n (CPU-safe, ~15ms/frame).
     # To force the light model: set VMS_YOLOV8X_POSE_MODEL= (empty) in .env.
