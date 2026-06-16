@@ -134,6 +134,7 @@ class FrameResult:
     fps: float
     latency_ms: float
     frame_n: int
+    face_fps: float = 0.0  # rolling face-embedding rate (embedded frames with ≥1 face)
 
 
 # ---------------------------------------------------------------------------
