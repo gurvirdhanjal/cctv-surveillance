@@ -133,3 +133,8 @@ def test_settings_reid_quality_defaults() -> None:
     assert s.reid_quality_window_s == 2.0
     assert s.reid_quality_norm_floor == 0.0
     assert s.reid_enroll_dedup_sim == 0.95
+
+
+def test_yolo_person_conf_default() -> None:
+    s = Settings(db_url="postgresql://x", jwt_secret="x")  # type: ignore[call-arg]
+    assert s.yolo_person_conf == 0.50
