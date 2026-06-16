@@ -26,6 +26,13 @@ runs/
 employee_db.npy
 employees/
 
+# DukeMTMC-reID derived data — dataset officially retracted, legal risk
+# See CLAUDE.md §3 Known Gaps. Do not re-add under any name.
+data/duke_embeddings/
+
+# Large dataset directories — images/thumbnails not committed
+data/market1501/
+
 # Environment / secrets
 .env
 .env.*
