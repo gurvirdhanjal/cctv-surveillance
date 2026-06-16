@@ -160,7 +160,7 @@ class InferenceEngine:
         trackers: dict[int, PerCameraTracker],
         redis_client: aioredis.Redis,
         violence: ViolenceModel | None = None,
-        body_embedder: BodyEmbedder | None = None,
+        body_embedder: BodyEmbedder | TransReIDBodyEmbedder | None = None,
         ppe: PPEModel | None = None,
     ) -> None:
         self._camera_ids = camera_ids
