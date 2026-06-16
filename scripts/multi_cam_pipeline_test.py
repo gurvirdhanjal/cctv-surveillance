@@ -455,6 +455,10 @@ def main() -> None:
         "--yolo-every", type=int, default=_YOLO_SAMPLE_DEFAULT, metavar="N",
         help=f"Run YOLO every N frames (default {_YOLO_SAMPLE_DEFAULT}); reuses last boxes between runs",
     )
+    parser.add_argument(
+        "--device", default=None, choices=["cpu", "cuda"],
+        help="Inference device (default: cuda if available, else cpu)",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Process 10 frames and exit")
     args = parser.parse_args()
 
