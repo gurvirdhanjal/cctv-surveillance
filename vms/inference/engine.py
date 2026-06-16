@@ -69,7 +69,7 @@ def _associate_faces(
 def _extract_body_embeddings(
     frame_bgr: np.ndarray[Any, Any],
     tracklets: tuple[Tracklet, ...],
-    body_embedder: BodyEmbedder | None,
+    body_embedder: BodyEmbedder | TransReIDBodyEmbedder | None,
 ) -> tuple[Tracklet, ...]:
     """Return tracklets with body_embedding and body_quality_norm populated from person bbox crops.
 
