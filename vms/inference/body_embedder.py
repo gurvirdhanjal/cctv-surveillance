@@ -1,13 +1,13 @@
 """Body Re-ID embedders.
 
-Two implementations — same embed() interface, swap via config:
+Two implementations — same embed() interface, selected by create_body_embedder():
 
-  BodyEmbedder         — OSNet AIN x1.0 msmt17 (512-dim, 256x128).  Current production.
-                         Requires torchreid. Download: python scripts/download_osnet_ain_msmt17.py
-
-  TransReIDBodyEmbedder — ViT-B/16+ICS msmt17 ONNX (768-dim, 384x128).  Phase 6 upgrade.
+  TransReIDBodyEmbedder — ViT-B/16+ICS msmt17 ONNX (768-dim, 384x128).  Current production.
                           Requires onnxruntime. Export: python scripts/export_transreid_onnx.py
-                          Set VMS_TRANSREID_BODY_MODEL=models/transreid_body_msmt17.onnx to activate.
+                          Calibrated 2026-06-16; thresholds: confirmed=0.65, cross_cam=0.70.
+
+  BodyEmbedder          — OSNet AIN x1.0 msmt17 (512-dim, 256x128).  Legacy / fallback.
+                          Requires torchreid. Model file deleted from this deployment.
 """
 
 from __future__ import annotations
