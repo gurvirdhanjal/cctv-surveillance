@@ -118,7 +118,7 @@ def test_phase2d_config_defaults() -> None:
     s = Settings(db_url="postgresql://x", jwt_secret="x")  # type: ignore[call-arg]
     assert s.botsort_config == "botsort_custom.yaml"
     assert s.yolov8x_pose_model == "models/yolov8x-pose.pt"
-    assert s.osnet_ain_model == "models/osnet_ain_x1_0_msmt17.pth"
+    assert s.osnet_ain_model == ""  # OSNet model deleted; default empty so factory skips it
     assert s.face_kpt_min_conf == 0.5
     assert s.ble_mqtt_broker == ""
     assert s.ble_mqtt_topic == "vms/ble/events"
