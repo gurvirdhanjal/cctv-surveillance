@@ -55,6 +55,9 @@ class Settings(BaseSettings):
 
     # inference thresholds (spec v1 §6 + v2 §C)
     scrfd_conf: float = 0.60
+    # YOLO person-class detection threshold — separate from SCRFD face conf.
+    # Raise to 0.60-0.70 for overhead factory views to suppress false positives on equipment.
+    yolo_person_conf: float = 0.50
     adaface_min_sim: float = 0.72
     reid_cross_cam_sim: float = 0.65
     reid_margin: float = 0.08
