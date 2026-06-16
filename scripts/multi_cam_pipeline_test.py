@@ -529,7 +529,15 @@ def main() -> None:
             elif key == ord("c"):
                 idx = (_CONF_CYCLE.index(state.conf) + 1) % len(_CONF_CYCLE) if state.conf in _CONF_CYCLE else 0
                 state.conf = _CONF_CYCLE[idx]
-                logger.info("Confidence: %.2f", state.conf)
+                logger.info("Face (SCRFD) confidence: %.2f", state.conf)
+            elif key == ord("y"):
+                idx = (_YOLO_CONF_CYCLE.index(state.yolo_conf) + 1) % len(_YOLO_CONF_CYCLE) if state.yolo_conf in _YOLO_CONF_CYCLE else 1
+                state.yolo_conf = _YOLO_CONF_CYCLE[idx]
+                logger.info("YOLO person confidence: %.2f", state.yolo_conf)
+            elif key == ord("t"):
+                idx = (_YOLO_SAMPLE_CYCLE.index(state.yolo_sample_n) + 1) % len(_YOLO_SAMPLE_CYCLE) if state.yolo_sample_n in _YOLO_SAMPLE_CYCLE else 0
+                state.yolo_sample_n = _YOLO_SAMPLE_CYCLE[idx]
+                logger.info("YOLO runs every %d frames", state.yolo_sample_n)
             elif key == ord("s"):
                 _SNAPSHOTS_DIR.mkdir(parents=True, exist_ok=True)
                 ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
