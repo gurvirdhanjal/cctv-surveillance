@@ -69,6 +69,9 @@ os.environ.setdefault("VMS_DB_URL", "postgresql://localhost/vms_unused")
 os.environ.setdefault("VMS_JWT_SECRET", "smoke-test-dummy-secret")
 os.environ.setdefault("VMS_SCRFD_CONF", "0.50")
 os.environ.setdefault("VMS_MIN_FACE_PX", "28")
+# Lower blur gate for live validation — gate cameras capture moving workers.
+# Production default (25.0) rejects slightly-blurred faces from motion; 8.0 keeps them.
+os.environ.setdefault("VMS_MIN_BLUR", "8.0")
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
 # Force RTSP over TCP — prevents HEVC bitstream corruption from UDP packet loss
 os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
