@@ -247,8 +247,13 @@ class CameraWorker:
             frame_n += 1
 
             try:
-                # Body tracking — every frame (light YOLO or BoT-SORT)
-                tracklets = self._tracker.update(frame)
+                # Body tracking — every yolo_sample_n frames; reuse last boxes in between.
+                # BoT-SORT with persist=True handles gaps gracefully.
+                if frame_n % self._state.yolo_sample_n == 0:
+                    self._last_tracklets = self._tracker.update(
+                        frame, conf=self._state.yolo_conf
+                    )
+                tracklets = self._last_tracklets
 
                 # Face pipeline — every N frames when enabled
                 faces: list[FaceWithEmbedding] = []
