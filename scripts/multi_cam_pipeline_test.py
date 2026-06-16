@@ -497,7 +497,7 @@ def main() -> None:
     body_embedder = create_body_embedder(
         transreid_path=settings.transreid_body_model,
         osnet_path=settings.osnet_ain_model,
-        device="cpu",
+        device=_device,
     )
 
     if body_embedder is not None:
