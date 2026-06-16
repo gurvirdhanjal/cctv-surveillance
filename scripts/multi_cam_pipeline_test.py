@@ -76,10 +76,13 @@ os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
 # Face pipeline runs every N body frames — keep CPU load manageable.
 _FACE_SAMPLE_DEFAULT = 5
 _BODY_REID_SAMPLE_DEFAULT = 5   # body ReID every N frames (TransReID ~60ms on CPU)
+_YOLO_SAMPLE_DEFAULT = 2        # YOLO inference every N frames; last boxes reused in between
 _PANEL_H = 540
 _STATS_H = 60
 _SNAPSHOTS_DIR = Path(__file__).resolve().parent / "snapshots"
 _CONF_CYCLE: tuple[float, ...] = (0.40, 0.55, 0.70)
+_YOLO_CONF_CYCLE: tuple[float, ...] = (0.40, 0.50, 0.60, 0.70)
+_YOLO_SAMPLE_CYCLE: tuple[int, ...] = (1, 2, 3, 5)
 
 logging.basicConfig(
     level=logging.INFO,
