@@ -348,11 +348,10 @@ def _render_panel(result: FrameResult, target_h: int, show_reid_dim: bool) -> np
         color = _track_color(t.local_track_id)
         cv2.rectangle(panel, (x1, y1), (x2, y2), color, 2)
 
-        label = f"T{t.local_track_id}"
+        label = f"T{t.local_track_id} {t.confidence:.2f}"
         if t.body_embedding and show_reid_dim:
-            dim = len(t.body_embedding)
             q = t.body_quality_norm
-            label += f" [{dim}d q={q:.2f}]"
+            label += f" q={q:.2f}"
 
         cv2.putText(panel, label, (x1, max(y1 - 6, 12)),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
