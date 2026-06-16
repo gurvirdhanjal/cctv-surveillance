@@ -492,8 +492,12 @@ def main() -> None:
                 total_persons = sum(len(r.tracklets) for r in current_results if r is not None)
                 face_tag = f"Face:{'ON' if state.face_enabled else 'OFF'} N={state.face_sample_n}"
                 reid_tag = f"ReID:{'ON' if state.body_reid_enabled else 'OFF'}"
-                conf_tag = f"Conf:{state.conf:.2f}"
-                footer_text = f"  HEAD COUNT: {total_persons}   {face_tag}   {reid_tag}   {conf_tag}"
+                fconf_tag = f"FConf:{state.conf:.2f}"
+                yolo_tag = f"YConf:{state.yolo_conf:.2f} Ev:{state.yolo_sample_n}"
+                footer_text = (
+                    f"  HEAD COUNT: {total_persons}   {face_tag}   {reid_tag}"
+                    f"   {fconf_tag}   {yolo_tag}"
+                )
                 footer = np.zeros((36, grid.shape[1], 3), dtype=np.uint8)
                 cv2.putText(footer, footer_text, (10, 25),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 200), 2)
