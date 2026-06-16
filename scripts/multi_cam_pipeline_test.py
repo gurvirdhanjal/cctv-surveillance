@@ -112,7 +112,9 @@ class PipelineState:
     body_reid_enabled: bool = True
     face_sample_n: int = _FACE_SAMPLE_DEFAULT
     reid_sample_n: int = _BODY_REID_SAMPLE_DEFAULT
-    conf: float = 0.55
+    yolo_sample_n: int = _YOLO_SAMPLE_DEFAULT  # run YOLO every N frames; reuse boxes between
+    conf: float = 0.55            # SCRFD face detection confidence
+    yolo_conf: float = 0.55       # YOLO person class confidence (overrides yolo_person_conf)
 
 
 # ---------------------------------------------------------------------------
