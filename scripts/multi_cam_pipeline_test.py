@@ -464,6 +464,17 @@ def main() -> None:
 
     settings = get_settings()
 
+    # Resolve inference device
+    if args.device:
+        _device = args.device
+    else:
+        try:
+            import torch as _torch
+            _device = "cuda" if _torch.cuda.is_available() else "cpu"
+        except ImportError:
+            _device = "cpu"
+    logger.info("Inference device: %s", _device)
+
     # Build camera list
     cameras: list[tuple[int, str, str]] = []  # (id, label, url)
     for cid in args.cameras:
