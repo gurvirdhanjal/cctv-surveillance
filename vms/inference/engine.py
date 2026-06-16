@@ -16,7 +16,7 @@ import numpy as np
 import redis.asyncio as aioredis
 
 from vms.config import get_settings
-from vms.inference.body_embedder import BodyEmbedder
+from vms.inference.body_embedder import BodyEmbedder, TransReIDBodyEmbedder, create_body_embedder
 from vms.inference.detector import (
     SCRFDDetector,
     _InsightFaceBackend,
