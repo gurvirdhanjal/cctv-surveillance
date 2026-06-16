@@ -407,11 +407,12 @@ def _render_panel(result: FrameResult, target_h: int, show_reid_dim: bool) -> np
     # Stats bar
     person_count = len(result.tracklets)
     reid_tag = " ReID" if result.body_reid_active else ""
+    face_rate = f" Face~{result.face_fps:.1f}/s" if result.face_fps > 0 else ""
     hud = (
         f"{result.camera_label}  "
         f"P:{person_count}  "
         f"F:{int(result.fps)}fps  "
-        f"{result.latency_ms:.0f}ms{reid_tag}"
+        f"{result.latency_ms:.0f}ms{reid_tag}{face_rate}"
     )
     bar = np.zeros((32, w_scaled, 3), dtype=np.uint8)
     cv2.putText(bar, hud, (8, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (220, 220, 220), 1)
