@@ -221,6 +221,7 @@ def test_body_embedding_gallery_used_when_no_face(monkeypatch: pytest.MonkeyPatc
 
 
 def test_face_takes_priority_over_body_for_gallery(monkeypatch: pytest.MonkeyPatch) -> None:
+    # reid_quality_window_s=0 ensures each sighting opens a new window → gallery grows
     monkeypatch.setattr(
         "vms.identity.engine.get_settings",
         lambda: _s(
@@ -228,6 +229,7 @@ def test_face_takes_priority_over_body_for_gallery(monkeypatch: pytest.MonkeyPat
             reid_cross_cam_sim=0.65,
             reid_confirmed_sim=0.60,
             reid_margin=0.0,
+            reid_quality_window_s=0,
         ),
     )
     engine = _make_engine()
