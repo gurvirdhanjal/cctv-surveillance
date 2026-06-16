@@ -28,7 +28,9 @@ Keyboard controls:
     F        toggle face pipeline (SCRFD + AdaFace)
     B        toggle body Re-ID (TransReID / OSNet)
     +/-      increase/decrease face sample rate (every N frames)
-    C        cycle detection confidence: 0.40 -> 0.55 -> 0.70
+    C        cycle SCRFD face confidence: 0.40 -> 0.55 -> 0.70
+    Y        cycle YOLO person confidence: 0.40 -> 0.50 -> 0.60 -> 0.70
+    T        cycle YOLO frame-skip: every 1 -> 2 -> 3 -> 5 frames
     S        save snapshot of current frame
     Q        quit
 
