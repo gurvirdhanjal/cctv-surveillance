@@ -173,6 +173,7 @@ class CameraWorker:
         self._q: queue.Queue[FrameResult] = queue.Queue(maxsize=2)
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
+        self._last_tracklets: list[Tracklet] = []  # reused on YOLO-skipped frames
 
     def start(self) -> None:
         self._thread = threading.Thread(target=self._run, name=f"cam-{self._id}", daemon=True)
