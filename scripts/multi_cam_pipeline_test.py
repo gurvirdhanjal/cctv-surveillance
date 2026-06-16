@@ -175,7 +175,12 @@ class CameraWorker:
         self._q: queue.Queue[FrameResult] = queue.Queue(maxsize=2)
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
+        self._reader_thread: threading.Thread | None = None
         self._last_tracklets: list[Tracklet] = []  # reused on YOLO-skipped frames
+        # Dedicated reader thread writes here; inference thread reads the latest frame.
+        # Reader drains the RTSP buffer continuously so inference never blocks on cap.read().
+        self._frame_lock = threading.Lock()
+        self._latest_raw_frame: np.ndarray | None = None  # type: ignore[type-arg]
 
     def start(self) -> None:
         self._thread = threading.Thread(target=self._run, name=f"cam-{self._id}", daemon=True)
