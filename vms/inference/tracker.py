@@ -35,12 +35,12 @@ class PerCameraTracker:
 
         return cls(camera_id=camera_id, model=YOLO(model_path))
 
-    def update(self, frame_bgr: np.ndarray[Any, Any]) -> list[Tracklet]:
+    def update(self, frame_bgr: np.ndarray[Any, Any], conf: float | None = None) -> list[Tracklet]:
         """Run pose detection + BoT-SORT tracking on one frame. Returns confirmed tracklets."""
         settings = get_settings()
         results = self._model.track(
             frame_bgr,
-            conf=settings.scrfd_conf,
+            conf=conf if conf is not None else settings.yolo_person_conf,
             persist=True,
             tracker=settings.botsort_config,
             verbose=False,
