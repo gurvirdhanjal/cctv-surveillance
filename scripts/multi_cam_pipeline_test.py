@@ -121,6 +121,7 @@ class PipelineState:
     yolo_sample_n: int = _YOLO_SAMPLE_DEFAULT  # run YOLO every N frames; reuse boxes between
     conf: float = 0.55            # SCRFD face detection confidence
     yolo_conf: float = 0.55       # YOLO person class confidence (overrides yolo_person_conf)
+    fullscreen_cam: int | None = None  # None = grid; 0-based index = fullscreen that camera
 
 
 # ---------------------------------------------------------------------------
