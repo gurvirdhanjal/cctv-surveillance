@@ -98,9 +98,9 @@ class TransReIDBodyEmbedder:
     Then activate via config:
         VMS_TRANSREID_BODY_MODEL=models/transreid_body_msmt17.onnx
 
-    NOTE: reid_body_confirmed_sim (currently 0.51, calibrated for OSNet) must be
-    re-calibrated on real footage before deploying this embedder in production.
-    Mandatory /advisor before changing that threshold (CLAUDE.md §0.5).
+    Thresholds calibrated for TransReID 768-dim embeddings (webcam session 2026-06-16):
+    reid_body_confirmed_sim=0.65, reid_body_cross_cam_sim=0.70. Any further change to
+    these thresholds requires a mandatory /advisor session (CLAUDE.md §0.5).
     """
 
     def __init__(self, model_path: str) -> None:

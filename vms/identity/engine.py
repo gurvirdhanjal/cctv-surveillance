@@ -92,7 +92,7 @@ class IdentityEngine:
         """Return a stable global_track_id for (camera_id, local_track_id).
 
         Matching priority:
-          1. Body Re-ID (OSNet) — angle-invariant, works from top-down CCTV views.
+          1. Body Re-ID (TransReID) — angle-invariant, works from top-down CCTV views.
           2. Face Re-ID (AdaFace) — used when body is absent (e.g. face-only crop).
         Both galleries are maintained independently and searched when available.
         Face wins for FAISS person identification; body wins for cross-camera tracking.
