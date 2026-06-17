@@ -215,13 +215,18 @@ class _CameraWorker:
         last_seq = -1
         _fps_t0 = time.monotonic()
         _fps_count = 0
-        # Cap inference at 10fps for enrollment — no need to process all 50fps.
-        _min_interval = 0.1
+        # Cap inference at 15fps — no need to process all 50fps for enrollment.
+        _min_interval = 1.0 / 15.0
         _last_infer = 0.0
+        # SCRFD letterboxes to 640×640 internally; resize input to 640px height first
+        # so the CPU preprocessing step (1920×1080→640) is replaced by a much cheaper
+        # (640×360→640) pass. AdaFace crops from the same resized frame — 640px height
+        # is more than enough for a frontal entry camera at 0.5–3 m range.
+        _INFER_H = 640
         while not self._stop.is_set():
             now = time.monotonic()
             if now - _last_infer < _min_interval:
-                time.sleep(0.01)
+                time.sleep(0.005)
                 continue
             with self._frame_lock:
                 frame = self._latest_frame
@@ -232,14 +237,36 @@ class _CameraWorker:
             last_seq = seq
             _last_infer = time.monotonic()
 
+            # Downscale to inference height; maintain aspect ratio.
+            h0, w0 = frame.shape[:2]
+            if h0 > _INFER_H:
+                scale = _INFER_H / h0
+                infer_frame = cv2.resize(
+                    frame,
+                    (int(w0 * scale), _INFER_H),
+                    interpolation=cv2.INTER_LINEAR,
+                )
+            else:
+                infer_frame = frame
+                scale = 1.0
+
             faces: list[FaceWithEmbedding] = []
             try:
-                raw = self._detector.detect(frame)
+                raw = self._detector.detect(infer_frame)
                 for f in raw:
                     if f.confidence < self._conf:
                         continue
-                    emb = self._embedder.embed(f, frame)
+                    emb = self._embedder.embed(f, infer_frame)
                     if emb is not None:
+                        # Scale bboxes back to original frame coords for display overlay.
+                        if scale != 1.0:
+                            x1, y1, x2, y2 = f.bbox
+                            scaled_bbox = (
+                                int(x1 / scale), int(y1 / scale),
+                                int(x2 / scale), int(y2 / scale),
+                            )
+                            from dataclasses import replace as _dc_replace
+                            emb = _dc_replace(emb, bbox=scaled_bbox)
                         faces.append(emb)
             except Exception:
                 logger.exception("Inference error")
