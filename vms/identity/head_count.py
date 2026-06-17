@@ -2,8 +2,8 @@
 
 In-memory aggregator subscribed (in production) to the same DetectionFrames
 the orchestrator consumes. Maintains:
-  - by_zone: dict[int, set[gid]]
-  - last_seen: dict[gid, (zone_id, ts)]
+  - by_zone: dict[int, set[Key]]
+  - last_seen: dict[Key, (zone_id, ts)]
 
 Not thread-safe — single owner per process.
 """
@@ -25,13 +25,15 @@ class HeadCountSnapshot:
     plant_total: int
     by_zone: dict[int, int]
     ts: datetime
+    uncertain_count: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "plant_total": self.plant_total,
             "by_zone": dict(self.by_zone),
+            "uncertain_count": self.uncertain_count,
             "ts": self.ts.isoformat() + "Z",
-            "schema_version": "1",
+            "schema_version": "2",
         }
 
 
@@ -39,6 +41,7 @@ class HeadCountSnapshot:
 class HeadCountAggregator:
     _by_zone: dict[int, set[Key]] = field(default_factory=lambda: defaultdict(set))
     _last_seen: dict[Key, tuple[int, datetime]] = field(default_factory=dict)
+    overlapping_zones: set[int] = field(default_factory=set)
     # EMA state for smooth_snapshot() — not used by snapshot()
     _ema_total: float = field(default=0.0)
     _ema_by_zone: dict[int, float] = field(default_factory=dict)
@@ -74,10 +77,17 @@ class HeadCountAggregator:
 
     def snapshot(self) -> HeadCountSnapshot:
         non_empty = {zid: len(s) for zid, s in self._by_zone.items() if s}
+        uncertain = sum(
+            1
+            for zid in self.overlapping_zones
+            for key in self._by_zone.get(zid, set())
+            if isinstance(key, uuid.UUID)
+        )
         return HeadCountSnapshot(
             plant_total=sum(non_empty.values()),
             by_zone=non_empty,
             ts=datetime.now(timezone.utc).replace(tzinfo=None),
+            uncertain_count=uncertain,
         )
 
     def counts_by_zone(self) -> dict[int, int]:
@@ -108,4 +118,5 @@ class HeadCountAggregator:
             plant_total=round(self._ema_total),
             by_zone=smoothed_by_zone,
             ts=datetime.now(timezone.utc).replace(tzinfo=None),
+            uncertain_count=raw.uncertain_count,
         )
