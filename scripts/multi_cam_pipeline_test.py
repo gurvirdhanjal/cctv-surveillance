@@ -455,10 +455,11 @@ def _render_panel(result: FrameResult, target_h: int, show_reid_dim: bool) -> np
 def _camera_spec(camera_id: int) -> tuple[str, str] | None:
     """Return (label, rtsp_url) for a given camera_id, or None if not configured."""
     mapping = {
-        105: ("Back Gate",  os.environ.get("VMS_CAM_GATE_BACK_URL", "")),
-        110: ("Front Gate", os.environ.get("VMS_CAM_GATE_FRONT_URL", "")),
-        141: ("Gate 4",     os.environ.get("VMS_CAM_GATE_4_URL", "")),
-        200: ("ANPR",       os.environ.get("VMS_CAM_ANPR_URL", "")),
+        105: ("Back Gate",    os.environ.get("VMS_CAM_GATE_BACK_URL", "")),
+        110: ("Front Gate",   os.environ.get("VMS_CAM_GATE_FRONT_URL", "")),
+        141: ("Plant 1",      os.environ.get("VMS_CAM_GATE_4_URL", "")),
+        144: ("Plant 2",      os.environ.get("VMS_CAM_PLANT_2_URL", "")),
+        200: ("ANPR",         os.environ.get("VMS_CAM_ANPR_URL", "")),
     }
     entry = mapping.get(camera_id)
     if entry and entry[1]:
