@@ -86,7 +86,12 @@ class Settings(BaseSettings):
     )
     # ReID quality hardening (Phase 3) — all defaults conservative (no-op until calibrated)
     reid_quality_window_s: float = 2.0  # temporal window; keep best crop per window
-    reid_quality_norm_floor: float = 0.0  # pre-norm L2 floor; 0.0 = accept all
+    # Face and body quality floors are kept separate because the signals have different
+    # units: face_quality = AdaFace pre-norm L2 (~10-32), body_quality = Laplacian
+    # variance (~0-500+). Set independently after per-signal calibration on real footage.
+    # Mandatory /advisor before raising either above 0.0.
+    reid_face_quality_floor: float = 0.0  # AdaFace pre-norm L2 floor; 0.0 = accept all
+    reid_body_quality_floor: float = 0.0  # Laplacian variance floor; 0.0 = accept all
     reid_enroll_dedup_sim: float = 0.95  # cosine sim ceiling for enrollment dedup
     # Pose-normalized torso crop for TransReID body Re-ID (Phase 3).
     # Extracts a shoulder+hip-bounded rect instead of the raw person bbox.

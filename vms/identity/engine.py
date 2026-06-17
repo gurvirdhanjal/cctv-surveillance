@@ -307,9 +307,10 @@ class IdentityEngine:
         diversity across windows.
         """
         window_ms = int(settings.reid_quality_window_s * 1000)
-        norm_floor: float = settings.reid_quality_norm_floor
+        face_floor: float = settings.reid_face_quality_floor
+        body_floor: float = settings.reid_body_quality_floor
 
-        if embedding and face_quality >= norm_floor:
+        if embedding and face_quality >= face_floor:
             in_window = (timestamp_ms - entry.face_window_start_ms) < window_ms
             if in_window:
                 if face_quality > entry.face_window_best_quality:
@@ -325,7 +326,7 @@ class IdentityEngine:
                 entry.face_window_start_ms = timestamp_ms
                 entry.face_window_best_quality = face_quality
 
-        if body_embedding and body_quality >= norm_floor:
+        if body_embedding and body_quality >= body_floor:
             in_window = (timestamp_ms - entry.body_window_start_ms) < window_ms
             if in_window:
                 if body_quality > entry.body_window_best_quality:

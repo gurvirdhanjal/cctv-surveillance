@@ -733,7 +733,8 @@ def _print_calibration_stats(
     print("  Active thresholds:")
     print(f"    scrfd_conf              = {state.conf:.2f}")
     print(f"    min_blur                = {settings.min_blur:.1f}")
-    print(f"    reid_quality_norm_floor = {settings.reid_quality_norm_floor:.2f}")
+    print(f"    reid_face_quality_floor = {settings.reid_face_quality_floor:.2f}  (AdaFace L2, range ~10-32)")
+    print(f"    reid_body_quality_floor = {settings.reid_body_quality_floor:.2f}  (Laplacian, range ~0-500+)")
     print(f"    torso_kp_conf_threshold = {settings.torso_kp_conf_threshold:.2f}")
     print(f"    torso_crop_pad_fraction = {settings.torso_crop_pad_fraction:.2f}")
     print(f"    reid_body_confirmed_sim = {settings.reid_body_confirmed_sim:.2f}")
@@ -747,10 +748,10 @@ def _print_calibration_stats(
             bq = list(s.body_quality_norms)
             f_det = s.total_faces_detected
             f_rej = s.total_faces_rejected
-        if bq and min(bq) < 0.40:
+        if bq and min(bq) < 20.0:
             hints.append(
-                f"CAM{s.camera_id}: body_q min={min(bq):.3f} -- very low-norm crops in gallery;"
-                f" consider raising reid_quality_norm_floor above {min(bq):.2f}"
+                f"CAM{s.camera_id}: body_q min={min(bq):.1f} (Laplacian) -- blurry crops in gallery;"
+                f" consider raising reid_body_quality_floor above {min(bq):.0f}"
             )
         if f_det > 20 and f_rej / f_det > 0.35:
             hints.append(

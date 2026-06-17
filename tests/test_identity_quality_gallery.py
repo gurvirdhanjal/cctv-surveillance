@@ -34,7 +34,8 @@ class _FakeSettings:
     reid_gallery_size = 8
     reid_confirm_after_sightings = 3
     reid_quality_window_s = 2.0
-    reid_quality_norm_floor = 0.0
+    reid_face_quality_floor = 0.0
+    reid_body_quality_floor = 0.0
 
 
 def test_within_window_lower_quality_rejected() -> None:
@@ -117,17 +118,49 @@ def test_gallery_respects_max_size() -> None:
     assert len(entry.gallery) <= s.reid_gallery_size
 
 
-def test_quality_norm_floor_rejects_low_norm() -> None:
-    """Embeddings with quality below reid_quality_norm_floor are discarded."""
+def test_face_quality_floor_rejects_low_norm() -> None:
+    """Face embeddings with quality below reid_face_quality_floor are discarded."""
     engine = _make_engine()
     entry = _make_entry()
 
-    class _StrictSettings(_FakeSettings):
-        reid_quality_norm_floor = 5.0
+    class _StrictFaceSettings(_FakeSettings):
+        reid_face_quality_floor = 5.0
 
     emb = (0.3,) * 512
     engine._update_galleries(
-        entry, emb, None, _StrictSettings(), timestamp_ms=0, face_quality=2.0, body_quality=0.0
+        entry, emb, None, _StrictFaceSettings(), timestamp_ms=0, face_quality=2.0, body_quality=0.0
     )
 
     assert len(entry.gallery) == 0
+
+
+def test_body_quality_floor_rejects_low_blur() -> None:
+    """Body embeddings with Laplacian quality below reid_body_quality_floor are discarded."""
+    engine = _make_engine()
+    entry = _make_entry()
+
+    class _StrictBodySettings(_FakeSettings):
+        reid_body_quality_floor = 30.0
+
+    body_emb = (0.3,) * 768
+    engine._update_galleries(
+        entry, None, body_emb, _StrictBodySettings(), timestamp_ms=0, face_quality=0.0, body_quality=10.0
+    )
+
+    assert len(entry.body_gallery) == 0
+
+
+def test_body_quality_floor_accepts_sharp_crop() -> None:
+    """Body embeddings with Laplacian quality above reid_body_quality_floor are accepted."""
+    engine = _make_engine()
+    entry = _make_entry()
+
+    class _StrictBodySettings(_FakeSettings):
+        reid_body_quality_floor = 30.0
+
+    body_emb = (0.3,) * 768
+    engine._update_galleries(
+        entry, None, body_emb, _StrictBodySettings(), timestamp_ms=0, face_quality=0.0, body_quality=100.0
+    )
+
+    assert len(entry.body_gallery) == 1
