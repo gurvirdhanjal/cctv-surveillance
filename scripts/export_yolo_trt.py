@@ -1,16 +1,17 @@
-"""Export yolov8x-pose (.pt or .onnx) to a TensorRT engine for maximum GPU throughput (§6.1).
+"""Export yolo26m-pose (.pt or .onnx) to a TensorRT engine for maximum GPU throughput (§6.1).
 
+YOLO26m-pose: equal accuracy to yolov8x-pose (~69 mAP), 2x faster on TRT (5ms vs ~10ms T4).
 RTX 2000 Ada Gen (compute cap 8.9) has strong FP16 support; --fp16 is the default.
 The .engine file is gitignored. Engine build takes 2-5 minutes the first run; Ultralytics
 caches it and subsequent loads are instant.
 
 Usage:
     python scripts/export_yolo_trt.py
-    python scripts/export_yolo_trt.py --model models/yolov8x-pose.pt --fp16
-    python scripts/export_yolo_trt.py --model models/yolov8x-pose.onnx
+    python scripts/export_yolo_trt.py --model models/yolo26m-pose.pt --fp16
+    python scripts/export_yolo_trt.py --model models/yolo26m-pose.onnx
 
 After export, activate via:
-    VMS_YOLOV8X_POSE_MODEL=models/yolov8x-pose.engine
+    VMS_YOLOV8X_POSE_MODEL=models/yolo26m-pose.engine
 
 Note: the TRT engine is tied to the exact GPU architecture + driver version it was built on.
 Rebuild after driver upgrades or when moving the model to a different GPU.
@@ -35,10 +36,10 @@ if os.path.exists(_torch_lib):
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Export YOLOv8x-pose -> TensorRT .engine")
+    parser = argparse.ArgumentParser(description="Export YOLO26m-pose -> TensorRT .engine")
     parser.add_argument(
         "--model",
-        default="models/yolov8x-pose.pt",
+        default="models/yolo26m-pose.pt",
         help="Source .pt or .onnx path",
     )
     parser.add_argument(

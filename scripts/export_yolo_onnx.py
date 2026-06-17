@@ -1,15 +1,15 @@
-"""Export yolov8x-pose.pt to ONNX for TensorRT EP or runtime flexibility (§6.0.5).
+"""Export yolo26m-pose.pt to ONNX for TensorRT EP or runtime flexibility (§6.0.5).
 
 The exported ONNX file is gitignored (models/*.onnx).
 Ultralytics writes the output next to the source .pt file by default; use --out to override.
 
 Usage:
     python scripts/export_yolo_onnx.py
-    python scripts/export_yolo_onnx.py --model models/yolov8x-pose.pt
-    python scripts/export_yolo_onnx.py --model models/yolov8x-pose.pt --out models/yolov8x-pose.onnx
+    python scripts/export_yolo_onnx.py --model models/yolo26m-pose.pt
+    python scripts/export_yolo_onnx.py --model models/yolo26m-pose.pt --out models/yolo26m-pose.onnx
 
 After export, activate via:
-    VMS_YOLOV8X_POSE_MODEL=models/yolov8x-pose.onnx
+    VMS_YOLOV8X_POSE_MODEL=models/yolo26m-pose.onnx
 """
 
 from __future__ import annotations
@@ -31,8 +31,8 @@ if os.path.exists(_torch_lib):
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Export YOLOv8x-pose .pt -> .onnx")
-    parser.add_argument("--model", default="models/yolov8x-pose.pt", help="Source .pt path")
+    parser = argparse.ArgumentParser(description="Export YOLO26m-pose .pt -> .onnx")
+    parser.add_argument("--model", default="models/yolo26m-pose.pt", help="Source .pt path")
     parser.add_argument("--out", default="", help="Output .onnx path (default: next to source)")
     parser.add_argument("--imgsz", type=int, default=640)
     parser.add_argument("--opset", type=int, default=17)

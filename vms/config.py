@@ -32,7 +32,9 @@ class Settings(BaseSettings):
     # BoT-SORT lost-track retention (ghost tracklet bridge for short same-camera gaps).
     # Rendered into the tracker config at runtime — keep in sync with botsort_custom.yaml default.
     tracker_buffer_frames: int = 90
-    yolov8x_pose_model: str = "models/yolov8x-pose.pt"
+    # YOLO26m-pose replaces yolov8x-pose: equal accuracy (~69 mAP), 2x faster on TRT.
+    # Accepts any Ultralytics-compatible path: .pt, .onnx, or .engine
+    yolov8x_pose_model: str = "models/yolo26m-pose.pt"
     # TransReID ViT-B/16+ICS msmt17 — body Re-ID (768-dim, 384x128) — current production
     # Export: python scripts/export_transreid_onnx.py
     # Calibrated 2026-06-16 on webcam; re-calibrate on real footage before tightening thresholds.
