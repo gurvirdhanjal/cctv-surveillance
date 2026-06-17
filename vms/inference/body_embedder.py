@@ -164,6 +164,55 @@ class TransReIDBodyEmbedder:
         return chw
 
 
+def extract_torso_crop(
+    frame_bgr: np.ndarray[Any, Any],
+    bbox: tuple[int, int, int, int],
+    keypoints: tuple[tuple[float, float, float], ...],
+    conf_threshold: float,
+    pad_fraction: float,
+) -> np.ndarray[Any, Any]:
+    """Return a torso-region crop using shoulder+hip keypoints, or the full-bbox crop on fallback.
+
+    Falls back to the full bbox when: keypoints tuple has < 17 entries, fewer than 3 of the
+    4 torso landmarks (KP 5,6,11,12) exceed conf_threshold, or the padded rect is degenerate
+    (< _MIN_H x _MIN_W). Fail-open: behaviour is never worse than the raw bbox crop.
+    """
+    h, w = frame_bgr.shape[:2]
+    x1, y1, x2, y2 = bbox
+    x1c, y1c = max(0, x1), max(0, y1)
+    x2c, y2c = min(w, x2), min(h, y2)
+    fallback: np.ndarray[Any, Any] = frame_bgr[y1c:y2c, x1c:x2c]
+
+    if len(keypoints) < 17:
+        return fallback
+
+    # COCO torso landmarks: left_shoulder=5, right_shoulder=6, left_hip=11, right_hip=12
+    valid: list[tuple[float, float]] = []
+    for idx in (5, 6, 11, 12):
+        kx, ky, kc = keypoints[idx]
+        if kc >= conf_threshold:
+            valid.append((kx, ky))
+
+    if len(valid) < 3:
+        return fallback
+
+    xs = [p[0] for p in valid]
+    ys = [p[1] for p in valid]
+    min_x, max_x = min(xs), max(xs)
+    min_y, max_y = min(ys), max(ys)
+    pad_x = (max_x - min_x) * pad_fraction
+    pad_y = (max_y - min_y) * pad_fraction
+    tx1 = max(0, int(min_x - pad_x))
+    ty1 = max(0, int(min_y - pad_y))
+    tx2 = min(w, int(max_x + pad_x))
+    ty2 = min(h, int(max_y + pad_y))
+
+    if (ty2 - ty1) < _MIN_H or (tx2 - tx1) < _MIN_W:
+        return fallback
+
+    return frame_bgr[ty1:ty2, tx1:tx2]
+
+
 def create_body_embedder(
     transreid_path: str = "",
     osnet_path: str = "",

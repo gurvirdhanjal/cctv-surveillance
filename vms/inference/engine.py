@@ -16,7 +16,7 @@ import numpy as np
 import redis.asyncio as aioredis
 
 from vms.config import get_settings
-from vms.inference.body_embedder import BodyEmbedder, TransReIDBodyEmbedder
+from vms.inference.body_embedder import BodyEmbedder, TransReIDBodyEmbedder, extract_torso_crop
 from vms.inference.detector import (
     SCRFDDetector,
     _InsightFaceBackend,
@@ -92,7 +92,14 @@ def _extract_body_embeddings(
         if crop.size > 0 and crop_w >= min_px and crop_h >= min_px:
             blur = _blur_score(crop)
             if blur >= settings.min_blur:
-                body_emb_tuple, body_quality = body_embedder.embed(crop)
+                torso = extract_torso_crop(
+                    frame_bgr,
+                    t.bbox,
+                    t.keypoints,
+                    settings.torso_kp_conf_threshold,
+                    settings.torso_crop_pad_fraction,
+                )
+                body_emb_tuple, body_quality = body_embedder.embed(torso)
             else:
                 body_emb_tuple, body_quality = (), 0.0
         else:
@@ -106,6 +113,8 @@ def _extract_body_embeddings(
                 embedding=t.embedding,
                 body_embedding=body_emb_tuple,
                 body_quality_norm=body_quality,
+                keypoints=t.keypoints,
+                face_visible=t.face_visible,
             )
         )
     return tuple(result)

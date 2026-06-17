@@ -90,6 +90,10 @@ class Settings(BaseSettings):
     reid_quality_window_s: float = 2.0  # temporal window; keep best crop per window
     reid_quality_norm_floor: float = 0.0  # pre-norm L2 floor; 0.0 = accept all
     reid_enroll_dedup_sim: float = 0.95  # cosine sim ceiling for enrollment dedup
+    # Pose-normalized torso crop for TransReID body Re-ID (Phase 3).
+    # Extracts a shoulder+hip-bounded rect instead of the raw person bbox.
+    torso_kp_conf_threshold: float = 0.3  # VMS_TORSO_KP_CONF_THRESHOLD
+    torso_crop_pad_fraction: float = 0.20  # VMS_TORSO_CROP_PAD_FRACTION
     # Cross-camera Kalman floor-plane predictor (Phase 3 crosscam-accuracy).
     # Conservative defaults — spatial gate stays disabled until set per-pair in topology JSON.
     reid_predictor_history_len: int = 8  # floor positions retained per gid for the fit

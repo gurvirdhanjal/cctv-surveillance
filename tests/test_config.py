@@ -138,3 +138,9 @@ def test_settings_reid_quality_defaults() -> None:
 def test_yolo_person_conf_default() -> None:
     s = Settings(db_url="postgresql://x", jwt_secret="x")  # type: ignore[call-arg]
     assert s.yolo_person_conf == 0.50
+
+
+def test_settings_torso_crop_defaults() -> None:
+    s = Settings(db_url="postgresql://x", jwt_secret="x")  # type: ignore[call-arg]
+    assert s.torso_kp_conf_threshold == 0.3
+    assert s.torso_crop_pad_fraction == 0.20

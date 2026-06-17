@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import fakeredis.aioredis as fake_aioredis
@@ -246,3 +247,105 @@ def test_extract_body_embeddings_clamps_bbox_to_frame() -> None:
     )
     result = _extract_body_embeddings(frame, tracklets, embedder)
     assert len(result) == 1  # no crash
+
+
+# -------------------------------------------------------------------------
+# Task 2 — pose-normalized torso crop + keypoints/face_visible preservation
+# -------------------------------------------------------------------------
+
+
+def _make_torso_kpts(conf: float = 0.9) -> tuple[tuple[float, float, float], ...]:
+    """17 COCO kpts with valid torso landmarks at a known position."""
+    raw: list[tuple[float, float, float]] = [(0.0, 0.0, 0.0)] * 17
+    raw[5] = (150.0, 100.0, conf)  # left_shoulder
+    raw[6] = (250.0, 100.0, conf)  # right_shoulder
+    raw[11] = (150.0, 280.0, conf)  # left_hip
+    raw[12] = (250.0, 280.0, conf)  # right_hip
+    return tuple(raw)
+
+
+def test_extract_body_embeddings_uses_torso_crop_when_keypoints_present() -> None:
+    """When valid torso keypoints exist, embedder receives a smaller (torso) crop."""
+    from unittest.mock import MagicMock, patch
+
+    from vms.inference.engine import _extract_body_embeddings
+    from vms.inference.messages import Tracklet
+
+    received_crops: list[Any] = []
+
+    def _capture_embed(crop: Any) -> tuple[tuple[float, ...], float]:
+        received_crops.append(crop)
+        return tuple([0.1] * 768), 0.9
+
+    embedder = MagicMock()
+    embedder.embed.side_effect = _capture_embed
+
+    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+    kpts = _make_torso_kpts(conf=0.9)
+    # bbox spans x 50-400, y 30-450 (full person box)
+    tracklet = Tracklet(
+        local_track_id=1, camera_id=1, bbox=(50, 30, 400, 450), confidence=0.9, keypoints=kpts
+    )
+    with patch("vms.inference.engine._blur_score", return_value=100.0):
+        _extract_body_embeddings(frame, (tracklet,), embedder)
+
+    assert len(received_crops) == 1
+    crop_h, crop_w = received_crops[0].shape[:2]
+    # Full bbox would be 420h x 350w; torso crop should be smaller
+    assert crop_h < 420
+    assert crop_w < 350
+
+
+def test_extract_body_embeddings_falls_back_to_bbox_without_keypoints() -> None:
+    """When keypoints are empty, embedder receives the full-bbox crop."""
+    from unittest.mock import MagicMock, patch
+
+    from vms.inference.engine import _extract_body_embeddings
+    from vms.inference.messages import Tracklet
+
+    received_crops: list[Any] = []
+
+    def _capture_embed(crop: Any) -> tuple[tuple[float, ...], float]:
+        received_crops.append(crop)
+        return tuple([0.1] * 768), 0.9
+
+    embedder = MagicMock()
+    embedder.embed.side_effect = _capture_embed
+
+    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+    tracklet = Tracklet(
+        local_track_id=1, camera_id=1, bbox=(50, 30, 250, 430), confidence=0.9, keypoints=()
+    )
+    with patch("vms.inference.engine._blur_score", return_value=100.0):
+        _extract_body_embeddings(frame, (tracklet,), embedder)
+
+    assert len(received_crops) == 1
+    # Full bbox: y30:430, x50:250 -> 400h x 200w
+    assert received_crops[0].shape[:2] == (400, 200)
+
+
+def test_extract_body_embeddings_preserves_keypoints_and_face_visible() -> None:
+    """Rebuilt Tracklet must carry forward the input keypoints and face_visible."""
+    from unittest.mock import MagicMock, patch
+
+    from vms.inference.engine import _extract_body_embeddings
+    from vms.inference.messages import Tracklet
+
+    embedder = MagicMock()
+    embedder.embed.return_value = (tuple([0.1] * 768), 0.9)
+
+    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+    kpts = _make_torso_kpts()
+    tracklet = Tracklet(
+        local_track_id=1,
+        camera_id=1,
+        bbox=(50, 30, 400, 450),
+        confidence=0.9,
+        keypoints=kpts,
+        face_visible=True,
+    )
+    with patch("vms.inference.engine._blur_score", return_value=100.0):
+        result = _extract_body_embeddings(frame, (tracklet,), embedder)
+
+    assert result[0].keypoints == kpts
+    assert result[0].face_visible is True

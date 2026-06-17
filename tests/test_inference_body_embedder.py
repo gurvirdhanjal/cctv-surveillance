@@ -1,94 +1,146 @@
-"""Unit tests for BodyEmbedder. Mocks Torchreid FeatureExtractor — no model file required.
+"""Tests for body_embedder: TransReIDBodyEmbedder and extract_torso_crop.
 
-Run with: pytest -m heavy_models
-Excluded from default suite — importing torch alongside TensorFlow (MoViNet) in the same
-process causes OOM on limited VRAM. Run separately: pytest -m heavy_models
+OSNet/BodyEmbedder tests removed — model deleted, class being removed in Task 3.
 """
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from typing import Any
 
 import numpy as np
-import pytest
 
-pytestmark = pytest.mark.heavy_models
-
-
-def _mock_extractor(out_dim: int = 512) -> MagicMock:
-    """Return a mock FeatureExtractor instance whose __call__ returns (N, out_dim) tensor."""
-    import torch  # lazy — only loaded when tests actually execute (not at collection time)
-
-    instance = MagicMock()
-    instance.side_effect = lambda imgs: torch.from_numpy(
-        np.random.default_rng(0).standard_normal((len(imgs), out_dim)).astype(np.float32)
-    )
-    return instance
+# extract_torso_crop uses module-level _MIN_H/_MIN_W constants.
+from vms.inference.body_embedder import _MIN_H, _MIN_W, extract_torso_crop
 
 
-def _patch_extractor(monkeypatch: pytest.MonkeyPatch, out_dim: int = 512) -> MagicMock:
-    instance = _mock_extractor(out_dim)
-    monkeypatch.setattr("torchreid.utils.FeatureExtractor", MagicMock(return_value=instance))
-    return instance
+def _kpts(positions: list[tuple[float, float, float]]) -> tuple[tuple[float, float, float], ...]:
+    """Build 17-kpt tuple; fill unspecified positions with (0,0,0) for irrelevant joints."""
+    kpts: list[tuple[float, float, float]] = [(0.0, 0.0, 0.0)] * 17
+    for idx, val in enumerate(positions):
+        kpts[idx] = val
+    return tuple(kpts)
 
 
-from vms.inference.body_embedder import BodyEmbedder  # noqa: E402
+def _frame(h: int = 480, w: int = 640) -> np.ndarray[Any, Any]:
+    return np.zeros((h, w, 3), dtype=np.uint8)
 
 
-def test_body_embedder_returns_512_tuple(monkeypatch: pytest.MonkeyPatch) -> None:
-    _patch_extractor(monkeypatch)
-    emb, quality = BodyEmbedder("fake.pth", device="cpu").embed(
-        np.zeros((64, 32, 3), dtype=np.uint8)
-    )
-    assert isinstance(emb, tuple) and len(emb) == 512
-    assert isinstance(quality, float) and quality > 0.0
+# KP indices: left_shoulder=5, right_shoulder=6, left_hip=11, right_hip=12
+_LS, _RS, _LH, _RH = 5, 6, 11, 12
 
 
-def test_body_embedder_output_is_l2_normalized(monkeypatch: pytest.MonkeyPatch) -> None:
-    _patch_extractor(monkeypatch)
-    emb, _quality = BodyEmbedder("fake.pth", device="cpu").embed(
-        np.zeros((64, 32, 3), dtype=np.uint8)
-    )
-    norm = float(np.linalg.norm(np.array(emb, dtype=np.float32)))
-    assert abs(norm - 1.0) < 1e-5
+def _torso_kpts(
+    ls: tuple[float, float],
+    rs: tuple[float, float],
+    lh: tuple[float, float],
+    rh: tuple[float, float],
+    conf: float = 0.9,
+) -> tuple[tuple[float, float, float], ...]:
+    raw: list[tuple[float, float, float]] = [(0.0, 0.0, 0.0)] * 17
+    raw[_LS] = (ls[0], ls[1], conf)
+    raw[_RS] = (rs[0], rs[1], conf)
+    raw[_LH] = (lh[0], lh[1], conf)
+    raw[_RH] = (rh[0], rh[1], conf)
+    return tuple(raw)
 
 
-def test_body_embedder_quality_norm_is_pre_normalisation(monkeypatch: pytest.MonkeyPatch) -> None:
-    """quality_norm is the L2 norm captured before normalisation — must differ from 1.0."""
-    _patch_extractor(monkeypatch)
-    _emb, quality = BodyEmbedder("fake.pth", device="cpu").embed(
-        np.zeros((64, 32, 3), dtype=np.uint8)
-    )
-    # Random vector from rng(0) is very unlikely to have norm exactly 1.0.
-    assert quality > 0.0
+class TestExtractTorsoCrop:
+    def test_all_keypoints_returns_torso_rect(self) -> None:
+        """4 high-conf torso kpts → crop strictly inside bbox and at shoulder→hip span."""
+        frame = _frame(480, 640)
+        bbox = (100, 50, 300, 450)
+        # Shoulder at y=120, hips at y=280; x spans 150-250
+        kpts = _torso_kpts(
+            ls=(150.0, 120.0), rs=(250.0, 120.0), lh=(150.0, 280.0), rh=(250.0, 280.0)
+        )
+        crop = extract_torso_crop(frame, bbox, kpts, conf_threshold=0.5, pad_fraction=0.0)
+        # Without padding, crop should be the exact shoulder/hip span
+        h_crop, w_crop = crop.shape[:2]
+        assert h_crop == 280 - 120  # 160
+        assert w_crop == 250 - 150  # 100
 
+    def test_three_of_four_keypoints_uses_torso(self) -> None:
+        """Exactly 3 of 4 above threshold → torso rect (not fallback)."""
+        frame = _frame(480, 640)
+        bbox = (100, 50, 300, 450)
+        raw: list[tuple[float, float, float]] = [(0.0, 0.0, 0.0)] * 17
+        raw[_LS] = (150.0, 120.0, 0.9)
+        raw[_RS] = (250.0, 120.0, 0.9)
+        raw[_LH] = (150.0, 280.0, 0.9)
+        raw[_RH] = (250.0, 280.0, 0.1)  # below threshold
+        kpts = tuple(raw)
+        crop = extract_torso_crop(frame, bbox, kpts, conf_threshold=0.5, pad_fraction=0.0)
+        # 3 valid points: LS(150,120), RS(250,120), LH(150,280) → x:150-250, y:120-280
+        h_crop, w_crop = crop.shape[:2]
+        assert h_crop == 280 - 120
+        assert w_crop == 250 - 150
 
-def test_body_embedder_tiny_crop_returns_empty(monkeypatch: pytest.MonkeyPatch) -> None:
-    _patch_extractor(monkeypatch)
-    emb, quality = BodyEmbedder("fake.pth", device="cpu").embed(
-        np.zeros((15, 7, 3), dtype=np.uint8)
-    )
-    assert emb == ()
-    assert quality == 0.0
+    def test_two_keypoints_falls_back_to_bbox(self) -> None:
+        """Only 2 above threshold → full-bbox fallback."""
+        frame = _frame(480, 640)
+        bbox = (100, 50, 300, 450)
+        raw: list[tuple[float, float, float]] = [(0.0, 0.0, 0.0)] * 17
+        raw[_LS] = (150.0, 120.0, 0.9)
+        raw[_RS] = (250.0, 120.0, 0.9)
+        # _LH and _RH below threshold
+        kpts = tuple(raw)
+        crop = extract_torso_crop(frame, bbox, kpts, conf_threshold=0.5, pad_fraction=0.0)
+        # fallback = full bbox clamped: 100:300 x 50:450 -> 400h x 200w
+        assert crop.shape[:2] == (400, 200)
 
+    def test_no_keypoints_falls_back_to_bbox(self) -> None:
+        """Empty keypoints tuple → full-bbox fallback."""
+        frame = _frame(480, 640)
+        bbox = (100, 50, 300, 450)
+        crop = extract_torso_crop(frame, bbox, (), conf_threshold=0.5, pad_fraction=0.0)
+        assert crop.shape[:2] == (400, 200)
 
-def test_body_embedder_minimum_crop_runs(monkeypatch: pytest.MonkeyPatch) -> None:
-    _patch_extractor(monkeypatch)
-    emb, quality = BodyEmbedder("fake.pth", device="cpu").embed(
-        np.zeros((16, 8, 3), dtype=np.uint8)
-    )
-    assert len(emb) == 512
-    assert quality > 0.0
+    def test_low_confidence_keypoints_fall_back(self) -> None:
+        """4 points present but all conf < threshold → fallback."""
+        frame = _frame(480, 640)
+        bbox = (50, 50, 250, 400)
+        kpts = _torso_kpts(
+            ls=(80.0, 100.0), rs=(200.0, 100.0), lh=(80.0, 300.0), rh=(200.0, 300.0), conf=0.1
+        )
+        crop = extract_torso_crop(frame, bbox, kpts, conf_threshold=0.5, pad_fraction=0.0)
+        assert crop.shape[:2] == (350, 200)
 
+    def test_padding_expands_rect(self) -> None:
+        """pad_fraction=0.20 expands the bare shoulder/hip rect by 20% on each side."""
+        frame = _frame(480, 640)
+        bbox = (0, 0, 640, 480)
+        # torso rect: x 200-400 (w=200), y 100-300 (h=200)
+        kpts = _torso_kpts(
+            ls=(200.0, 100.0), rs=(400.0, 100.0), lh=(200.0, 300.0), rh=(400.0, 300.0)
+        )
+        crop = extract_torso_crop(frame, bbox, kpts, conf_threshold=0.5, pad_fraction=0.20)
+        # pad_x = 200 * 0.20 = 40; pad_y = 200 * 0.20 = 40
+        # rect after pad: x 160-440 (w=280), y 60-340 (h=280)
+        h_crop, w_crop = crop.shape[:2]
+        assert h_crop == 280
+        assert w_crop == 280
 
-def test_body_embedder_unavailable_when_import_fails(monkeypatch: pytest.MonkeyPatch) -> None:
-    """BodyEmbedder degrades gracefully when torchreid raises ImportError."""
-    monkeypatch.setattr(
-        "torchreid.utils.FeatureExtractor",
-        MagicMock(side_effect=ImportError("torchreid missing")),
-    )
-    emb, quality = BodyEmbedder("fake.pth", device="cpu").embed(
-        np.zeros((64, 32, 3), dtype=np.uint8)
-    )
-    assert emb == ()
-    assert quality == 0.0
+    def test_clamps_to_frame_bounds(self) -> None:
+        """Padding near frame edge is clamped — slice indices never exceed frame dims."""
+        frame = _frame(480, 640)
+        bbox = (0, 0, 200, 200)
+        # Torso landmarks near the top-left corner; padding would go negative
+        kpts = _torso_kpts(ls=(10.0, 10.0), rs=(50.0, 10.0), lh=(10.0, 80.0), rh=(50.0, 80.0))
+        crop = extract_torso_crop(frame, bbox, kpts, conf_threshold=0.5, pad_fraction=0.5)
+        # Should not raise; crop must be a valid (non-zero) slice
+        assert crop.size > 0
+        h_crop, w_crop = crop.shape[:2]
+        assert h_crop >= _MIN_H
+        assert w_crop >= _MIN_W
+
+    def test_degenerate_rect_falls_back_to_bbox(self) -> None:
+        """Torso rect after padding smaller than _MIN_H x _MIN_W -> fallback."""
+        frame = _frame(480, 640)
+        bbox = (100, 100, 300, 400)
+        # All 4 points at nearly the same pixel → degenerate (0 size) torso rect
+        kpts = _torso_kpts(
+            ls=(150.0, 200.0), rs=(151.0, 200.0), lh=(150.0, 201.0), rh=(151.0, 201.0)
+        )
+        crop = extract_torso_crop(frame, bbox, kpts, conf_threshold=0.5, pad_fraction=0.0)
+        # Padded rect: x 150-151 (w=1 < _MIN_W=8) → fallback
+        assert crop.shape[:2] == (300, 200)  # full bbox: y100:400, x100:300
