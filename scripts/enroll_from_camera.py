@@ -173,28 +173,38 @@ class _CameraWorker:
         self._embedder = AdaFaceEmbedder(ada_sess, min_face_px=self._min_px, min_blur=self._blur)
         logger.info("Models ready")
 
+    def _open_cap(self) -> "cv2.VideoCapture | None":
+        """Open RTSP stream or local webcam. Returns None if unavailable."""
+        if self._url.isdigit():
+            cap = cv2.VideoCapture(int(self._url))
+        else:
+            cap = cv2.VideoCapture(self._url, cv2.CAP_FFMPEG)
+        if not cap.isOpened():
+            cap.release()
+            return None
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        fourcc = int(cap.get(cv2.CAP_PROP_FOURCC))
+        codec = "".join(chr((fourcc >> (i * 8)) & 0xFF) for i in range(4)).strip()
+        w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        src = f"webcam:{self._url}" if self._url.isdigit() else "RTSP"
+        self.codec_info = f"{src} {codec} {w}x{h} @ {fps:.0f}fps"
+        logger.info("Connected: %s", self.codec_info)
+        return cap
+
     def _read_loop(self) -> None:
         cap: Any = None
         fail = 0
         while not self._stop.is_set():
             if cap is None or not cap.isOpened():
                 logger.info("Connecting to camera…")
-                cap = cv2.VideoCapture(self._url, cv2.CAP_FFMPEG)
-                if cap.isOpened():
-                    # Minimise internal FFMPEG buffer so we always get the latest frame.
-                    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-                    fourcc = int(cap.get(cv2.CAP_PROP_FOURCC))
-                    codec = "".join(chr((fourcc >> (i * 8)) & 0xFF) for i in range(4)).strip()
-                    w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                    h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                    fps = cap.get(cv2.CAP_PROP_FPS)
-                    self.codec_info = f"{codec} {w}x{h} @ {fps:.0f}fps"
-                    logger.info("Connected: %s", self.codec_info)
-                    fail = 0
-                else:
+                cap = self._open_cap()
+                if cap is None:
                     logger.warning("Could not open stream, retry in 3s")
                     time.sleep(3.0)
                     continue
+                fail = 0
 
             ok, frame = cap.read()
             if not ok:
@@ -441,8 +451,20 @@ def _draw_faces(
 # ── main ──────────────────────────────────────────────────────────────────────
 
 def _parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Enroll persons from a live RTSP camera.")
-    p.add_argument("--url", default=_DEFAULT_URL, help="RTSP URL")
+    p = argparse.ArgumentParser(description="Enroll persons from a live RTSP camera or webcam.")
+    p.add_argument("--url", default=None, help="RTSP URL (default: VMS_CAM_GATE_FRONT_URL from .env)")
+    p.add_argument(
+        "--webcam",
+        action="store_true",
+        help="Use local webcam instead of RTSP (device index 0 unless --webcam-index is set)",
+    )
+    p.add_argument(
+        "--webcam-index",
+        type=int,
+        default=0,
+        metavar="INDEX",
+        help="Webcam device index (default 0). Only used with --webcam.",
+    )
     p.add_argument(
         "--db-url",
         default=os.environ.get("VMS_ENROLL_DB_URL", _DEFAULT_DB),
@@ -457,8 +479,15 @@ def _parse_args() -> argparse.Namespace:
 def main() -> None:
     args = _parse_args()
 
+    if args.webcam:
+        url = str(args.webcam_index)
+        stream_label = f"webcam (index {args.webcam_index})"
+    else:
+        url = args.url if args.url is not None else _DEFAULT_URL
+        stream_label = url[:60] + "…" if len(url) > 60 else url
+
     print(f"\n  VMS Enrollment Script")
-    print(f"  Stream  : {args.url[:60]}…")
+    print(f"  Stream  : {stream_label}")
     print(f"  DB      : {args.db_url}")
     print(f"  SCRFD   : conf={args.conf}  blur={args.blur}  min_px={args.min_px}")
     print(f"\n  Loading models (first run may take ~10s)…\n")
@@ -477,7 +506,7 @@ def main() -> None:
         sys.exit(1)
 
     # Start camera + inference
-    worker = _CameraWorker(args.url, args.conf, args.blur, args.min_px)
+    worker = _CameraWorker(url, args.conf, args.blur, args.min_px)
     worker.start()
 
     # Count enrolled persons at start
