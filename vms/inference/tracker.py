@@ -10,16 +10,38 @@ SCRFD+AdaFace to frames where a face is actually frontal (nose+eye confidence).
 
 from __future__ import annotations
 
+import functools
 import logging
+import tempfile
+from pathlib import Path
 from typing import Any
 
 import numpy as np
+import yaml
 
 from vms.config import get_settings
 from vms.inference.keypoints import KP_DIM, face_visible
 from vms.inference.messages import Tracklet
 
 logger = logging.getLogger(__name__)
+
+
+@functools.lru_cache(maxsize=8)
+def _render_tracker_config(base_config: str, track_buffer: int) -> str:
+    """Render base BoT-SORT YAML with config-driven track_buffer into a cached temp file."""
+    with open(base_config) as fh:
+        data = yaml.safe_load(fh)
+    data["track_buffer"] = track_buffer
+    out = Path(tempfile.gettempdir()) / f"vms_botsort_buf{track_buffer}.yaml"
+    with open(out, "w") as fh:
+        yaml.safe_dump(data, fh)
+    return str(out)
+
+
+def resolve_tracker_config() -> str:
+    """Return a tracker-config path with track_buffer rendered from settings."""
+    settings = get_settings()
+    return _render_tracker_config(settings.botsort_config, settings.tracker_buffer_frames)
 
 
 class PerCameraTracker:
@@ -42,7 +64,7 @@ class PerCameraTracker:
             frame_bgr,
             conf=conf if conf is not None else settings.yolo_person_conf,
             persist=True,
-            tracker=settings.botsort_config,
+            tracker=resolve_tracker_config(),
             verbose=False,
         )
         if not results:

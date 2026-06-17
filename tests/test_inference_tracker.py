@@ -109,9 +109,13 @@ def test_tracker_no_keypoints_model_falls_back_gracefully() -> None:
 
 
 def test_tracker_uses_botsort_config(monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    """PerCameraTracker passes botsort_config (not bytetrack_config) to model.track."""
-    from vms.config import Settings
+    """PerCameraTracker passes resolve_tracker_config() (botsort-based) to model.track."""
+    import yaml as _yaml
 
+    from vms.config import Settings
+    from vms.inference.tracker import _render_tracker_config
+
+    _render_tracker_config.cache_clear()
     monkeypatch.setattr(
         "vms.inference.tracker.get_settings",
         lambda: Settings(db_url="x", jwt_secret="x"),  # type: ignore[call-arg]
@@ -122,4 +126,10 @@ def test_tracker_uses_botsort_config(monkeypatch) -> None:  # type: ignore[no-un
     tracker.update(np.zeros((100, 100, 3), dtype=np.uint8))
 
     call_kwargs = mock_model.track.call_args[1]
-    assert call_kwargs["tracker"] == "botsort_custom.yaml"
+    tracker_path: str = call_kwargs["tracker"]
+    # The rendered config must exist and declare tracker_type = botsort.
+    with open(tracker_path) as fh:
+        cfg = _yaml.safe_load(fh)
+    assert cfg["tracker_type"] == "botsort"
+    assert cfg["track_buffer"] == 90
+    _render_tracker_config.cache_clear()
