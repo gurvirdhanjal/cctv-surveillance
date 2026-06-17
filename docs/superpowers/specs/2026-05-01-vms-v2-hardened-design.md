@@ -1,6 +1,6 @@
 # VMS v2 — Hardened Design (Existing-Camera Retrofit + Anomaly Suite + Maintenance + Scaling)
 
-**Design Specification** · 2026-05-01
+**Design Specification** · 2026-05-01 · **Last updated: 2026-06-13**
 **Status:** Approved · Supersedes the v1 baseline for in-scope sections; v1 sections marked *unchanged* below remain authoritative.
 **Supersedes (in part):** `docs/superpowers/specs/2026-04-23-vms-facial-recognition-design.md`
 
@@ -20,8 +20,11 @@
 | Audit log | Not in scope | Immutable append-only `audit_log` with hash-chain tamper detection |
 | Capacity planning | "Multi-node upgrade path" mentioned | Concrete per-GPU-SKU capacity table + 3-step scaling runbook (single-GPU → two-node → Kafka) |
 | Production hardening | Implicit | 12 explicit failure modes covered (clock skew, embedding drift, GDPR erasure, anti-spoofing hook, model rollback, privacy-at-rest, etc.) |
-| Theft / harassment / mobile app / SaaS / PPE / shift emails / klaxon / CAD heatmap / tampering detection | — | All explicitly **deferred to v2.x** to keep v1 shippable |
+| Theft / harassment / mobile app / SaaS / shift emails / klaxon / CAD heatmap / tampering detection | — | All explicitly **deferred to v2.x** to keep v1 shippable |
+| **PPE compliance (helmet/vest/gloves/mask)** | Not in v1 | **Delivered post-Phase 2d** — `PPEDetector` + `PPEModel` (YOLOv8l SH17 ONNX). See §C detector matrix. |
+| **Multi-modal person Re-ID** | ByteTrack + face-only | **Delivered Phase 2d** — YOLOv8x-pose (keypoints) + BoT-SORT + OSNet AIN x1.0 msmt17 (body Re-ID) + BLE badge fallback + `FusionResolver` (Face ≻ Body ≻ BLE) |
 | Model lifecycle | Models bundled with code | **Models downloaded on first run** from a manifest (HF Hub or customer mirror, SHA-256 verified). Fine-tunable on customer data via reference recipes. Per-camera version + threshold overrides. CLI: `vms-models download / verify / pin / swap` |
+| **GPU acceleration (Phase 6)** | Plain CUDA-EP inference; §G capacity table is the pre-acceleration baseline | **Planned** — `2026-06-13-vms-gpu-acceleration.md` specifies: detector-interval decoupling (§6.0.25), model format normalisation to ONNX (§6.0.5), TensorRT EP FP16 (~2–3× throughput/GPU, §6.1), INT8 detectors (§6.2, arch-gated), NVDEC hardware decode (§6.3), Triton cross-camera dynamic batching (§6.4), multi-GPU sharding (§6.5). DeepStream evaluated last-resort only (§6.6). Target: 52 cameras on one 32 GB GPU at ≤50 ms/frame; second GPU expands to ~100+ cameras. See §G.5 and §K |
 | Scheduled jobs | Implicit, scattered | **§M centralises** all 12 production cron jobs under `vms.scheduler` with idempotency, audit logging, and timeout/failure handling |
 | Real-time state | Frontend referenced `/api/state/snapshot` and `head_count` WebSocket event with no spec backing | **§N defines** `HeadCountAggregator` component, full snapshot response schema, and adds `head_count`, `alert_state_changed`, `degraded_mode` to the event matrix |
 
@@ -50,7 +53,6 @@
 - Harassment detection (action recognition immaturity)
 - Mobile companion app
 - Multi-tenant SaaS variant
-- PPE compliance (helmet/vest)
 - Plant-floor klaxon / GPIO relay output
 - CAD heatmap export
 - Shift-end auto-email reports
@@ -105,15 +107,50 @@ ALTER TABLE cameras ADD profile_data NVARCHAR(MAX) NULL;     -- JSON of measured
 ALTER TABLE cameras ADD profiled_at DATETIME2 NULL;
 ALTER TABLE cameras ADD CONSTRAINT chk_camera_tier
     CHECK (capability_tier IN ('FULL', 'MID', 'LOW'));
+
+-- Shutter type: detected by CameraProfiler, confirmed/overridden by Super Admin.
+-- 'unknown' treated conservatively as 'rolling' in InferenceEngine.
+ALTER TABLE cameras ADD shutter_type NVARCHAR(10) NOT NULL DEFAULT 'unknown';
+ALTER TABLE cameras ADD CONSTRAINT chk_camera_shutter
+    CHECK (shutter_type IN ('rolling', 'global', 'unknown'));
 ```
 
 ### API
 
 ```
-POST   /api/cameras/{id}/profile               # re-runs profiler; useful when a camera is replaced
-GET    /api/cameras/{id}/profile               # returns last profile data + tier reason
+# Camera CRUD (Admin+)
+GET    /api/cameras                             # list: id, name, tier, shutter_type, is_active, status
+POST   /api/cameras                             # create camera
+GET    /api/cameras/{id}                        # full detail
+PATCH  /api/cameras/{id}                        # core fields: name, is_active, rtsp_url
+PATCH  /api/cameras/{id}/hardware               # shutter_type + tier override (Super Admin only)
+PATCH  /api/cameras/{id}/overrides              # model_overrides JSON (Admin+)
+GET    /api/cameras/{id}/resolved-config        # full config with source labels — powers Overrides diff view
+
+# Camera profiling (Admin+)
+POST   /api/cameras/{id}/profile               # re-runs profiler; detects shutter_type + tier
+GET    /api/cameras/{id}/profile               # returns last profile data + tier reason + shutter suggestion
 GET    /api/sites/readiness-report.pdf?site=  # generates signed PDF
 ```
+
+Every `PATCH /hardware` or `PATCH /overrides` request:
+1. Writes to `audit_log` (`event_type = CAMERA_HARDWARE_UPDATED` or `CAMERA_OVERRIDES_UPDATED`) with `{actor, camera_id, from, to}`.
+2. Publishes `camera_config_changed:{camera_id}` to Redis so `InferenceEngine` hot-reloads that camera's config without a full worker restart.
+
+`GET /api/cameras/{id}/resolved-config` response shape:
+```json
+{
+  "camera_id": 3,
+  "settings": {
+    "adaface_min_sim": { "value": 0.68, "source": "shutter:rolling" },
+    "scrfd_conf":      { "value": 0.45, "source": "shutter:rolling" },
+    "burst_frames":    { "value": 5,    "source": "shutter:rolling" },
+    "violence_model":  { "value": "movinet_a2", "source": "global_default" },
+    "loitering_s":     { "value": 300,  "source": "global_default" }
+  }
+}
+```
+`source` values: `"manual_override"` | `"shutter:rolling"` | `"shutter:global"` | `"detector_config"` | `"env_var"` | `"global_default"`.
 
 ---
 
@@ -123,25 +160,30 @@ GET    /api/sites/readiness-report.pdf?site=  # generates signed PDF
 
 ```python
 class AnomalyDetector(ABC):
-    alert_type: str                  # e.g. "VIOLENCE"
-    severity: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
-    requires_models: list[str]       # ["yolo_person", "violence_classifier"]
-    requires_tier: list[str]         # ["FULL", "MID"] — tier gate
+    alert_type: str                    # e.g. "VIOLENCE"
+    severity: Severity                 # LOW | MEDIUM | HIGH | CRITICAL
+    requires_models: tuple[str, ...]   # ("violence",) — gate check
+    requires_tier: tuple[str, ...]     # ("FULL", "MID") — tier gate
+
+    def __init__(self, config: dict[str, Any]) -> None: ...
 
     @abstractmethod
-    def should_run(self, frame_meta: FrameMeta, prior_outputs: dict) -> bool:
-        """Trigger gate. Return False to skip on this frame."""
+    def should_run(self, ctx: DetectorContext) -> bool:
+        """Cheap CPU-side gate. Return False to skip evaluate()."""
 
     @abstractmethod
-    def evaluate(self, frame: np.ndarray, prior_outputs: dict) -> AnomalyEvent | None:
-        """Run model + emit candidate event."""
+    def evaluate(self, ctx: DetectorContext) -> AnomalyEvent | None:
+        """Run rule/model. Return candidate event or None."""
 
     @abstractmethod
     def fsm_config(self) -> FSMConfig:
-        """Sustain duration, cooldown, dedup window, severity escalation rules."""
+        """Sustain duration, cooldown, dedup window."""
 ```
 
-Adding theft / harassment / PPE / fall detection in v2.x = one new class + one row in `anomaly_detectors`. **Core architecture never changes.**
+`DetectorContext` carries `frame: DetectionFrame`, `zone_lookup`, `active_track_zones`, `head_count`, and `violence_score` — everything a detector needs without accessing the DB or Redis directly.
+
+Adding theft / harassment / fall detection in v2.x = one new class + one row in `anomaly_detectors`. **Core architecture never changes.**
+PPE compliance is already delivered (see detector matrix below).
 
 ### Detector registry (DB)
 
@@ -158,23 +200,28 @@ CREATE TABLE anomaly_detectors (
 );
 ```
 
-### v1 detector matrix
+### Detector matrix (as implemented)
 
 | `alert_type` | Model / mechanism | Trigger gate | Sustained | Cooldown | Severity | Tier required |
 |---|---|---|---|---|---|---|
-| `UNKNOWN_PERSON` | Existing pipeline | Person tracklet without `person_id` | >500ms in frame | 60s/zone | HIGH | FULL |
+| `UNKNOWN_PERSON` | FAISS identity pipeline | Person tracklet without `person_id` | >500ms in frame | 60s/zone | HIGH | FULL |
 | `PERSON_LOST` | Tracker state | `global_track_id` absent everywhere | >30s | 120s | MEDIUM | FULL |
-| `CROWD_DENSITY` | YOLO count + zone | `count > zone.max_capacity` | >10s continuous | 300s/zone | MEDIUM | FULL, MID |
-| `INTRUSION` | YOLO + zone + schedule | Person enters `is_restricted=true` zone outside `zones.allowed_hours` | >2s | 60s/zone | CRITICAL | FULL, MID, LOW |
-| `VIOLENCE` | MoViNet-A0 (ONNX, pre-trained on RWF-2000) | YOLO sees ≥2 persons in frame; run model on rolling 16-frame clip every 1s | confidence >0.65 sustained over 2 consecutive clips | 30s/zone | CRITICAL | FULL, MID |
-| `LOITERING` | Tracker dwell | Single tracklet in zone >`zones.loiter_threshold_s` (default 180s) | continuous | 600s/zone | LOW | FULL, MID |
+| `CROWD_DENSITY` | YOLO head count + zone | `count > zone.max_capacity` | >10s continuous | 300s/zone | MEDIUM | FULL, MID |
+| `INTRUSION` | Zone + schedule rule | Person enters `is_restricted=true` zone outside `zones.allowed_hours` | >2s | 60s/zone | CRITICAL | FULL, MID, LOW |
+| `VIOLENCE` | **MoViNet A2 Stream** (TF SavedModel) | YOLOv8x-pose sees ≥2 persons in frame | confidence >0.65 sustained 2s | 30s/zone | CRITICAL | FULL, MID |
+| `LOITERING` | Tracker dwell via ZonePresence DB | Single tracklet in zone >`zones.loiter_threshold_s` (default 180s) | continuous | 600s/zone | LOW | FULL, MID |
+| `PPE_VIOLATION` | **YOLOv8l SH17** (ONNX, 17-class) — helmet(10), vest(16), gloves(9), mask(5) | Per-tracklet: `ppe_helmet_conf < threshold` OR `ppe_vest_conf < threshold` (gloves/mask opt-in) | >3s continuous | 120s/track | HIGH | FULL, MID |
+
+**Note on VIOLENCE model:** The implementation uses **MoViNet A2 Stream** (not A0 as originally specced). A2 provides streaming-frame inference (~4ms/frame on CPU) via a stateful per-camera context, avoiding the 16-frame clip batch approach. Accuracy: 78.6% Top-1 on Kinetics-400. A0 was the original design choice; A2 was adopted for latency and state management advantages.
 
 ### Trigger-gated execution
 
 The `InferenceEngine` separates models into two pools:
 
-- **Always-on pool:** SCRFD (face), YOLOv8n (person). Run on every frame at the camera's configured fps.
-- **Gated pool:** AdaFace (only on faces ≥`MIN_FACE_PX`), MoViNet violence (only when YOLO output passes the gate condition for that camera/frame).
+- **Always-on pool:** SCRFD (face detection), **YOLOv8x-pose** (person detection + 17 COCO keypoints), **BoT-SORT** tracker. Run on every frame.
+- **Gated pool:** AdaFace face embedding (only when keypoint confidence indicates a frontal face — nose + eye conf ≥ `face_kpt_min_conf=0.5`); MoViNet A2 Stream violence (only when ≥2 persons detected); PPEModel (only when configured and persons present); OSNet AIN body Re-ID (per-person crop, only when `VMS_PPE_MODEL` / `VMS_OSNet_MODEL` set).
+
+**Keypoint gate (Phase 2d addition):** YOLOv8x-pose provides 17 COCO keypoints per tracklet. If nose/eye keypoints have low confidence (person facing away, helmet covering face, top-down angle), SCRFD + AdaFace are skipped entirely. This saves ~30% GPU on ceiling cameras where frontal faces are rare.
 
 Gate predicates run in a CPU-side rule layer between model passes — cost ~0ms. The framework calls `should_run()` on every detector before invoking `evaluate()`.
 
@@ -423,19 +470,28 @@ A scheduled job runs `verify` daily and emits a CRITICAL alert on any broken lin
 ```
 Per camera @ 1080p/15fps H.264, software decode  : ~0.07 CPU cores
 1 modern Xeon core decodes                       : ~13 cameras
-With NVDEC enabled                               : ~30+ cameras per process
+With NVDEC (Phase 6.3, hardware-dependent)       : ~30+ cameras per process
                                                    (decode moves to GPU video engine,
-                                                    separate hardware unit from CUDA cores)
+                                                    separate hardware unit from CUDA cores;
+                                                    consumer cards have 1–2 NVDEC units —
+                                                    a real ceiling at 52 streams;
+                                                    data-centre cards are effectively unlimited)
 ```
 
-Adding cameras adds CPU load linearly. 4 ingestion workers × 13 cams = 52 cams comfortably. Beyond 100 cams: enable NVDEC or add ingestion hosts.
+Adding cameras adds CPU load linearly. 4 ingestion workers × 13 cams = 52 cams comfortably. Beyond 100 cams: enable NVDEC (Phase 6.3 — requires hardware probe to determine unit count and whether all streams fit) or add ingestion hosts.
+
+**NVDEC is not a free toggle.** It is a Phase 6.3 deliverable gated on `detect_gpu_profile().nvdec_units`. Consumer-grade GPUs may not support all 52 streams in hardware; the excess falls back to software decode. See `2026-06-13-vms-gpu-acceleration.md` §6.3 for the probe-and-fallback design.
 
 #### G.2 GPU inference (the real ceiling)
+
+> **These are plain CUDA-EP baselines** — the floor, not the ceiling. Phase 6 GPU acceleration
+> (TensorRT EP FP16 + dynamic batching) targets ≥2× throughput/GPU on the same hardware. See §G.5
+> for the post-acceleration model and `2026-06-13-vms-gpu-acceleration.md` for the full design.
 
 ```
 Total budget = Σ (cameras × fps × model_cost)
 
-Per-camera GPU time @ 15fps with trigger-gated heavy models:
+Per-camera GPU time @ 15fps with trigger-gated heavy models (plain CUDA-EP baseline):
   SCRFD (face)          : 15 fps × 6 ms    =  90 ms/sec/cam
   AdaFace (embed)       :  5 fps × 4 ms    =  20 ms/sec/cam   (only on detected faces)
   YOLOv8n (person)      : 15 fps × 4 ms    =  60 ms/sec/cam
@@ -447,16 +503,32 @@ Per-camera GPU time @ 15fps with trigger-gated heavy models:
 Per-camera GPU steady-state ≈ 200-300 ms/sec → ≈ 25-30% utilisation per camera
 ```
 
-#### G.3 GPU SKU capacity at 1080p / 15fps
+**What Phase 6 changes:** detector-interval decoupling (§6.0.25) cuts the primary-detector passes
+by the interval factor; TensorRT FP16 (§6.1) delivers 2–3× inference throughput; dynamic batching
+(§6.4) amortizes kernel-launch overhead across cameras. Actual numbers will be measured against this
+baseline by the §6.0 benchmark harness on the real deployment GPU before any claim is made.
 
-| GPU | VRAM | Camera capacity | Indicative cost (₹) |
-|---|---|---|---|
-| RTX 4060 / A2000 | 8 GB | 10 – 15 | ~80k |
-| RTX 4090 / A4000 | 16 GB | 30 – 40 | ~2.5L |
-| RTX 6000 Ada / L40S | 48 GB | 80 – 100 | ~6L |
-| A100 / H100 | 40-80 GB | 150+ | ~10L+ |
+#### G.3 GPU SKU capacity at 1080p / 15fps (CUDA-EP baseline)
 
-The 52-camera plant fits **one A4000-class GPU** comfortably with headroom for v2.x additions. For >80 cameras, add a second GPU server rather than buying a larger one — cheaper and adds redundancy.
+| GPU | VRAM | Camera capacity (CUDA-EP) | Camera capacity (Phase 6 TRT+batching, estimated) | Indicative cost (₹) |
+|---|---|---|---|---|
+| RTX 4060 / A2000 | 8 GB | 10 – 15 | 20 – 30† | ~80k |
+| RTX 4090 / A4000 | 16 GB | 30 – 40 | 60 – 80† | ~2.5L |
+| **32 GB GPU (deployment target)** | **32 GB** | **50 – 65** | **100 – 130†** | ~3–5L |
+| RTX 6000 Ada / L40S | 48 GB | 80 – 100 | 160 – 200† | ~6L |
+| A100 / H100 | 40–80 GB | 150+ | 300+† | ~10L+ |
+
+† TensorRT FP16 + Triton dynamic batching estimates. **These are hypotheses, not guarantees** — the
+§6.0 benchmark harness will measure them against the actual deployment GPU before any claim ships.
+
+**Important: VRAM is not the bottleneck** for this model stack (SCRFD + AdaFace + YOLOv8x-pose +
+OSNet + MoViNet + PPE + CLIP ≈ 6–9 GB resident). The binding constraint is CUDA compute throughput.
+A 32 GB card's compute tier determines camera capacity — the surplus VRAM enables aggressive batching
+and a second model replica per GPU.
+
+The 52-camera plant fits a **32 GB GPU** comfortably at the CUDA-EP baseline, with substantial
+headroom when Phase 6 acceleration is applied. The second available 32 GB GPU (§G.5) then
+expands capacity to ~100–130 cameras before any infrastructure change is needed.
 
 #### G.4 DB writes — negligible at v1 scale
 
@@ -464,27 +536,76 @@ The 52-camera plant fits **one A4000-class GPU** comfortably with headroom for v
 
 ### Scaling runbook — "add 50 more cameras"
 
-1. **Up to ~80 cameras (single GPU server)**
+1. **Up to ~80 cameras (single GPU + Phase 6 acceleration)**
    - Add ingestion worker processes; partition cameras across workers via `cameras.worker_group`.
-   - No GPU change needed if running A4000+.
-   - No code change.
+   - Apply Phase 6 GPU acceleration (§G.5): TensorRT FP16 + Triton dynamic batching alone pushes
+     the 32 GB GPU to ~100–130 cameras (estimated). Detector-interval decoupling (§6.0.25) is the
+     cheapest first lever.
+   - No infrastructure change.
 
-2. **80 → 200 cameras (two-node)**
-   - Stand up a second GPU host.
-   - Move Redis to its own machine (becomes shared message bus).
-   - Each GPU node runs its own `InferenceEngine`, consuming a partition of `frames:groupX` Redis Streams.
-   - `IdentityService` stays single (it's not GPU-bound) — receives detections from all nodes.
-   - `DBWriter` scales out trivially: each writer commits its own partition.
-   - Documented as the **"two-node deploy"** in production runbook.
+2. **80 → 150 cameras (two GPUs, one host)**
+   - Add the second available 32 GB GPU to the same server (Phase 6.5).
+   - Shard cameras across GPUs via `cameras.worker_group` (already used for ingestion partitioning —
+     no new concept introduced).
+   - Each GPU runs its own TensorRT engines / Triton instance consuming its camera partition from
+     `frames:groupN` Redis Streams.
+   - `IdentityService` stays single (not GPU-bound) — receives detections from both GPUs.
+   - `DBWriter` scales per GPU partition.
+   - This is the two-node topology from step 3, **collapsed onto one host with two cards** — lower
+     infrastructure cost, higher GPU–GPU bandwidth via PCIe, clean failover (one GPU's cameras
+     degrade, the other's are unaffected).
+   - Documented as the **"dual-GPU single-host"** deploy in the production runbook.
 
-3. **200+ cameras (multi-tenant or multi-site)**
+3. **150 → 400 cameras (two separate GPU hosts)**
+   - Stand up a second GPU host (same spec as the first).
+   - Move Redis to its own machine (shared message bus between hosts).
+   - Each host runs its own `InferenceEngine` + Triton, consuming a partition of `frames:groupX`.
+   - `IdentityService` stays single, receives detections from all hosts.
+   - `DBWriter` scales out trivially per partition.
+   - Documented as the **"two-node deploy"** in the production runbook.
+
+4. **400+ cameras (multi-tenant or multi-site)**
    - Swap Redis Streams for **Kafka** — same consumer-group API shape, no logic rewrite.
    - Shard `IdentityService` by zone-cluster.
-   - Multi-site: each site is a self-contained deployment that ships only alerts + tracking summaries to a central management instance.
+   - Multi-site: each site is a self-contained deployment that ships only alerts + tracking summaries
+     to a central management instance.
+
+### G.5 GPU acceleration roadmap (Phase 6)
+
+> **Full design:** `docs/superpowers/specs/2026-06-13-vms-gpu-acceleration.md`
+>
+> **Status:** Draft spec approved. No implementation until Phase 5 priorities are weighed and each
+> sub-phase has its own plan file (`docs/superpowers/plans/`).
+
+The §G.2 capacity table is a plain CUDA-EP baseline. Phase 6 climbs a ladder of independently
+shippable sub-phases, stopping as soon as the 52-camera / ≤50 ms/frame target is met:
+
+| Sub-phase | What it does | Expected effect | Needs TensorRT? |
+|---|---|---|---|
+| §6.0 — Harness | GPU hardware probe (`detect_gpu_profile()`) + benchmark framework | Establishes the actual baseline on the real card | No |
+| §6.0.25 — Detector interval | YOLO runs every Nth frame; tracker coasts between runs | Cuts primary-detector GPU-time by ~1/N; cascade stages (face/body embedding) are **exempt** and stay gate-based | No |
+| §6.0.5 — ONNX normalisation | Export all models to ONNX (`.pt` → Ultralytics export, `.pth` → `torch.onnx.export`, TF SavedModel → `tf2onnx`); validate numerically | Prerequisite for §6.1+; MoViNet may stay on native TF runtime | No |
+| §6.1 — TensorRT FP16 | Add `TensorrtExecutionProvider` to ONNX Runtime provider list in `detector.py`, `embedder.py`, `ppe.py`; warm-up pass on startup | **2–3× inference throughput/GPU** — the single biggest win | Yes |
+| §6.2 — INT8 detectors | Post-training quantisation on YOLO/SCRFD; **embedding models stay FP16** | +30–50% on detector stages (arch-gated: Turing+ only) | Yes |
+| §6.3 — NVDEC | Move RTSP decode from CPU to GPU video engine (hardware-probe gated) | Frees CPU cores; removes §G.1 decode ceiling | No |
+| §6.4 — Triton batching | `InferenceEngine` becomes a Triton client; frames from all cameras batched into single GPU pass | Largest multiplier at high camera counts | Yes |
+| §6.5 — Multi-GPU | Shard cameras across both 32 GB GPUs via `cameras.worker_group`; each GPU its own Triton instance | ~2× aggregate capacity; redundancy | Yes |
+| §6.6 — DeepStream | **Go/no-go only** — spike if §6.1–6.5 still fall short | Potential further gain; CUDA lock-in + pipeline rewrite cost | N/A |
+
+**Identity correctness is non-negotiable across all sub-phases.** FP16/INT8 changes embedding
+numerics. Before any precision change ships on AdaFace or OSNet, the §6.0 harness must confirm
+cosine-similarity drift vs FP32 stays within threshold — and any threshold adjustment requires
+`/advisor` sign-off per CLAUDE.md §0.5. INT8 is applied to detectors first; embedders require
+explicit evaluation and approval.
+
+**The Redis-Streams bus and FAISS-as-derived-cache invariants (CLAUDE.md §17) are preserved
+throughout.** Triton (§6.4) changes only what happens inside `InferenceEngine`'s model-execution
+call — ingestion → inference still flows through `frames:groupN`; PostgreSQL remains the source
+of truth; FAISS is rebuilt from `person_embeddings` at startup.
 
 ### Why doubling cameras doesn't double Redis load
 
-The shared-memory frame transport is the architecture's "secret weapon." Redis carries only 24-byte frame pointers; raw pixels never traverse the bus. Adding cameras adds ingestion CPU but not message-bus bandwidth.
+The shared-memory frame transport is the architecture's "secret weapon." Redis carries only 24-byte frame pointers; raw pixels never traverse the bus. Adding cameras adds ingestion CPU but not message-bus bandwidth. Phase 6.4 (Triton batching) exploits this further: the GPU processes one large batch from N cameras in the same kernel launch that previously processed one frame from one camera.
 
 ---
 
@@ -514,6 +635,8 @@ All v2 schema changes summarised. Canonical DDL lives in the referenced sections
 | Change | Section with full DDL |
 |---|---|
 | `cameras` ALTERs (`capability_tier`, `profile_data`, `profiled_at`, CHECK) | §B |
+| `cameras` ALTER (`shutter_type`, CHECK `chk_camera_shutter`) | §B, §L.3.1 |
+| `cameras` ALTER (`model_overrides`) | §L.3 |
 | `CREATE TABLE anomaly_detectors` | §C |
 | `zones` ALTERs (`allowed_hours`, `loiter_threshold_s`) | §C |
 | `CREATE TABLE maintenance_windows` | §D |
@@ -532,6 +655,15 @@ All new tables follow the v2 conventions (BIGSERIAL PK on high-write tables, SER
 ## §J. API delta (consolidated)
 
 ```
+# §B: camera CRUD + hardware config
+GET    /api/cameras
+POST   /api/cameras
+GET    /api/cameras/{id}
+PATCH  /api/cameras/{id}
+PATCH  /api/cameras/{id}/hardware              # Super Admin only
+PATCH  /api/cameras/{id}/overrides             # Admin+
+GET    /api/cameras/{id}/resolved-config       # Admin+
+
 # §B: camera profiling
 POST   /api/cameras/{id}/profile
 GET    /api/cameras/{id}/profile
@@ -598,11 +730,43 @@ React: Guard view, Management view, Admin view (incl. maintenance calendar + cam
 - Hardening items H3, H4, H5, H7, H10
 - Systemd/NSSM unit files
 
-### Phase 6 — Camera rollout
+### Field Deployment *(operational, runs in parallel with Phase 3–5 — not a software phase)*
 - Procurement (when customer opts for new cameras) per relaxed v2 spec
 - Per-camera homography calibration + capability profiling on real RTSP
 - Zone polygon mapping on customer's CAD floor plan
 - Security review (auth, RTSP credential encryption, role permissions)
+
+### Phase 6 — GPU Acceleration *(spec approved; plan not yet written)*
+> Full design: `docs/superpowers/specs/2026-06-13-vms-gpu-acceleration.md`
+>
+> This phase begins after Phase 5 priorities are confirmed by the user. Each sub-phase gets its
+> own plan file before code. Recommended entry sequence: §6.0 → §6.0.25 → §6.0.5 → §6.1.
+
+- **§6.0** — GPU hardware probe (`detect_gpu_profile()`) + benchmark harness; record CUDA-EP
+  baseline on the actual deployment card.
+- **§6.0.25** — Detector-interval decoupling: YOLO every Nth frame, tracker coasts. Cascade
+  stages (SCRFD→AdaFace, YOLO→OSNet) are **exempt** — they stay gate-based. Cheapest win,
+  requires no TensorRT.
+- **§6.0.5** — Model format normalisation to ONNX: `.pt` (Ultralytics export), `.pth`
+  (`torch.onnx.export`), TF SavedModel (`tf2onnx`). Every export validated numerically.
+  MoViNet may stay on native TF if stateful ONNX export is impractical — decision recorded.
+- **§6.1** — ONNX Runtime TensorRT EP, FP16. Provider list change in `detector.py`,
+  `embedder.py`, `ppe.py` + engine cache + startup warm-up. Identity-accuracy guard mandatory
+  before shipping. Target: ≥2× frames/sec/GPU.
+- **§6.2** — INT8 quantisation on detectors (Turing+ arch only). Embedding models (AdaFace,
+  OSNet) stay FP16. INT8-on-embedders requires `/advisor` sign-off.
+- **§6.3** — NVDEC hardware decode, hardware-probe gated. Consumer-card NVDEC unit limit
+  handled by probe-and-fallback; no silent truncation.
+- **§6.4** — Triton Inference Server: cross-camera dynamic batching. `InferenceEngine` becomes
+  Triton client; Redis-Streams bus and FAISS invariants preserved.
+- **§6.5** — Multi-GPU sharding: both 32 GB GPUs active, cameras sharded via
+  `cameras.worker_group`. `IdentityService` stays single.
+- **§6.6** — DeepStream go/no-go: only evaluated if §6.1–6.5 cannot reach the ≤50 ms/frame
+  target. Decision record required; not a rewrite by default.
+
+**Hard target:** sustained 52 cameras at ≤50 ms/frame end-to-end on a single 32 GB GPU (CLAUDE.md
+§0.6). The second GPU provides headroom to ~100–130 cameras and redundancy — it is not required
+for the base 52-camera deployment.
 
 ---
 
@@ -706,16 +870,36 @@ ALTER TABLE cameras ADD model_overrides NVARCHAR(MAX) NULL;
 
 `InferenceEngine` resolves overrides at camera-config-load time and routes that camera's frames to the appropriate model instance. Models are loaded once and shared across cameras that use them — no per-camera GPU memory blowup.
 
+Manual overrides in `model_overrides` always win over shutter-type adjustments (§L.3.1) — an operator can restore a rolling-shutter camera to global thresholds if they know the specific camera handles motion well.
+
+### L.3.1 ShutterProfile — pipeline adjustments by shutter type
+
+`cameras.shutter_type` is detected by `CameraProfiler` (motion-skew analysis on a 30-frame clip) and confirmed/overridden by a Super Admin via `PATCH /api/cameras/{id}/hardware`. `unknown` is treated conservatively as `rolling`.
+
+**Threshold adjustments applied when `shutter_type = 'rolling'`:**
+
+| Setting | Global default | Rolling adjustment | Reason |
+|---|---|---|---|
+| `adaface_min_sim` | 0.78 | **0.68** | Face geometry distortion lowers embedding fidelity |
+| `scrfd_conf` | 0.55 | **0.45** | Skewed bounding boxes reduce detector confidence |
+| `burst_frames` | 1 | **5** | Pick highest-SCRFD-confidence frame from 5 consecutive frames (InferenceEngine config, not a DB column) |
+| FusionResolver body weight | 1.0× | **1.2×** | Body Re-ID (OSNet) is distortion-tolerant; upweight it |
+
+When `shutter_type = 'global'`: all settings use global defaults; single-frame face ID is reliable.
+
+**Detection heuristic** (CameraProfiler): captures 30 frames with a subject walking laterally at ~1.5 m/s; measures horizontal skew variance of SCRFD bounding boxes across frames. Skew variance > 0.04 → suggest `rolling` (confidence = 1 − variance/0.10, clamped to 60–95%). Operator sees the suggestion with confidence score and clicks Confirm or overrides in the Hardware tab.
+
 ### L.4 Configuration storage hierarchy
 
 ```
-1. Per-camera override                (cameras.model_overrides — both models and thresholds)
-2. Per-detector global config         (anomaly_detectors.config_json + .model_version)
-3. Global env vars / settings.toml    (VMS_ADAFACE_MIN_SIM, VMS_SCRFD_CONF, ...)
-4. Hard-coded defaults                (vms/config.py)
+1. Per-camera manual override    (cameras.model_overrides — models + thresholds)
+2. Shutter-type adjustment       (cameras.shutter_type → ShutterProfile, see §L.3.1)
+3. Per-detector global config    (anomaly_detectors.config_json + .model_version)
+4. Global env vars / settings    (VMS_ADAFACE_MIN_SIM, VMS_SCRFD_CONF, ...)
+5. Hard-coded defaults           (vms/config.py)
 ```
 
-First match wins. Admin UI shows the **resolved value + which level it came from** — operators always see what the system is actually using. "Reset to defaults" button on every override.
+First match wins. `GET /api/cameras/{id}/resolved-config` (§B API) shows the **resolved value + which level it came from** for every setting — operators always see what the system is actually using. "Reset to defaults" button on every override.
 
 ### L.5 Versioning, rollback, audit
 
@@ -903,6 +1087,131 @@ When the system is in degraded mode, `degraded` is non-null:
 ### N.4 Implementation note
 
 `HeadCountAggregator` lives in **Phase 2** (alongside the alert FSM); the `/api/state/snapshot` endpoint ships in **Phase 1B** initially with a stub head_count, upgraded to real values in Phase 2.
+
+---
+
+## §O. Multi-Modal Person Tracking (Phase 2c/2d — delivered)
+
+This section documents design decisions made and implemented after the original v2 spec was written.
+
+### §O.1 Tracker upgrade
+
+| Component | Original spec | Implemented |
+|---|---|---|
+| Person detector | YOLOv8n | **YOLOv8x-pose** (person + 17 COCO keypoints) |
+| Tracker | ByteTrack | **BoT-SORT** (camera motion compensation via sparse optical flow) |
+| Config | `bytetrack_custom.yaml` | `botsort_custom.yaml` |
+
+### §O.2 Body Re-ID (OSNet)
+
+Cross-camera re-identification now uses body appearance as the **primary** signal and face as secondary. This is the correct priority for factory ceiling cameras where frontal faces are rarely visible.
+
+| Model | OSNet AIN x1.0 msmt17 |
+|---|---|
+| Output | 512-dim L2-normalised body embedding |
+| Training data | MSMT17 (15 diverse datasets, 1,041 identities) |
+| Rank-1 accuracy | 73% on DukeMTMC-reID (8 cameras, calibrated 2026-06-01) |
+| Thresholds | `reid_body_confirmed_sim=0.51` (95% recall), `reid_body_cross_cam_sim=0.56` |
+
+### §O.3 FusionResolver — multi-modal identity
+
+Once a person is identified (at entry gate via face, or via BLE badge), their `person_id` propagates to all cameras tracking the same `global_track_id` via body Re-ID.
+
+Priority order: **Face (FAISS) ≻ Body gallery anchor ≻ BLE badge**
+
+`assign_and_identify()` returns `(global_track_id, person_id, resolved_via)` where `resolved_via` is one of `'face' | 'body' | 'ble' | 'unknown'`. This is written to `tracking_events.resolved_via` for audit.
+
+### §O.4 BLE badge fallback
+
+When camera-based Re-ID fails (person in a dead zone, occluded, or too small), a Bluetooth Low Energy badge reader confirms zone-level presence. MQTT-based reader → Redis stream → `BleConsumer` → `anchor_person_by_badge()` in IdentityEngine.
+
+Config: `VMS_BLE_MQTT_BROKER`, `VMS_BLE_ZONE_READER_MAP_JSON`. Empty broker = BLE disabled (default).
+
+### §O.5 PPE Compliance (delivered, not deferred)
+
+See §C detector matrix (`PPE_VIOLATION` row). The implementation uses YOLOv8l trained on SH17 (17 classes). Factory-relevant classes: helmet(10), vest(16), gloves(9), mask(5) — verified from model.names. Gloves and mask checking is **opt-in** via `check_gloves=True` / `check_mask=True` in the detector config row.
+
+---
+
+## §P. Future Development — Post-Phase 5 *(NOT scheduled — record for next design cycle)*
+
+This section captures known limitations identified during Phase 2d/3 implementation that are out of scope for Phase 5 but must not be forgotten. Each item has a concrete trigger condition that should prompt a design session before implementation.
+
+---
+
+### §P.1 Appearance Drift — Returning Person After Long Absence
+
+**Problem.** A person who was last seen weeks or months ago may have changed appearance significantly (weight loss/gain, haircut, facial hair, ageing). The current gallery system stores embeddings as an unweighted buffer (N=8 most recent per tracklet, Phase 2c). After a long gap the buffer holds only stale embeddings, and cosine similarity at re-entry may fall below the `adaface_min_sim` threshold even though the person is genuinely the same individual.
+
+**Observed failure modes:**
+
+| Weight change | Entry gate (face-forward cam) | Floor cam (ceiling, body only) | Outcome |
+|---|---|---|---|
+| ≤10 kg | cos_sim drops ~0.02–0.04, typically still ≥ 0.72 | Body sim borderline | Correctly identified |
+| 10–20 kg | cos_sim drops ~0.05–0.10, may fall to 0.65–0.71 | Body sim likely below 0.51 | UNKNOWN_PERSON alert fires incorrectly |
+| >20 kg | cos_sim < 0.65 | Body sim fails | New identity record created — duplicate person |
+
+The same degradation applies to:
+- Ageing (slower drift, same mechanism)
+- Significant haircut (frontal hairline changes AdaFace input region)
+- New glasses or beard (partial occlusion changes embedding)
+
+**Two mechanisms to implement:**
+
+**P.1.1 — Soft-match + operator confirmation queue**
+
+When cosine similarity is in the range `[adaface_soft_min_sim, adaface_min_sim)` (suggested: 0.62–0.72), rather than firing `UNKNOWN_PERSON` immediately:
+
+1. Compute top-3 candidate matches from FAISS ranked by similarity.
+2. Create a `soft_match_candidate` alert (new alert type, LOW severity, no notification — UI only).
+3. Alert payload: `{person_id, similarity, camera_id, thumbnail_url, timestamp}` for each candidate.
+4. Guard dashboard shows a "Pending Confirmation" queue. Operator clicks "Yes, same person" or "No, new person."
+5. On confirmation: merge galleries, update `person_embeddings` with the new embedding, clear the alert.
+6. On rejection: promote to full `UNKNOWN_PERSON`, create new person record.
+
+Config additions:
+```
+VMS_ADAFACE_SOFT_MIN_SIM=0.62   # lower bound of soft-match zone (below = hard unknown)
+```
+
+**P.1.2 — Gallery freshness monitoring + re-enrollment nudge**
+
+Flag person records whose most recent embedding is older than a configurable threshold:
+
+1. Nightly cron job queries `person_embeddings` for records with `created_at < now() - VMS_GALLERY_STALE_DAYS` (suggested default: 60 days).
+2. Creates a `GALLERY_STALE` maintenance alert per person (INFO severity, suppressed from guard view).
+3. Next time the person appears at an entry gate with a frontal-quality face (SCRFD confidence ≥ 0.85, face area ≥ 12000 px²): automatically enrol the new embedding alongside existing ones. Log `event_type='GALLERY_REFRESHED'` to audit_log.
+4. Management dashboard shows a "Gallery age" column on the Persons list with colour coding (green < 30d, amber 30–90d, red > 90d).
+
+Config additions:
+```
+VMS_GALLERY_STALE_DAYS=60       # days before gallery considered stale
+VMS_AUTO_REFRESH_GALLERY=true   # enable auto-enrol on high-quality re-sighting
+VMS_AUTO_REFRESH_SCRFD_MIN=0.85 # minimum face confidence for auto-refresh
+```
+
+**Implementation notes for the design session:**
+- Soft-match threshold must be per-camera-tier: FULL tier can use 0.62, MID/LOW tier should use 0.65 (lower quality embeddings from these cameras have higher noise floors).
+- Gallery refresh must write through `vms.identity.faiss_dirty.publish_enrol()` — same path as manual enrolment.
+- GDPR: a refreshed embedding is new biometric data. The auto-refresh audit entry must record the trigger condition so a GDPR audit can confirm it was the same person who consented at initial enrolment.
+
+**Spec refs when designing:** §C (anomaly framework, new alert type), §D (maintenance windows — suppress nudges during downtime), §G.7 (audit_log constraints), GDPR purge rules in §F.3.
+
+---
+
+### §P.2 Body Re-ID Threshold Re-Calibration After Appearance Change
+
+**Problem.** The `reid_body_confirmed_sim=0.51` threshold was calibrated from simulation on DukeMTMC (Phase 2d). This dataset does not model large intra-person appearance changes across time. After significant weight loss, body embeddings from the same person can drop to cosine similarity ~0.40–0.48 — below the current threshold.
+
+**Proposed fix (design session required):**
+- After a successful face re-identification (sim ≥ adaface_min_sim), capture the body embedding for that sighting.
+- If the body sim against the existing body gallery is below 0.51 but face confirmed ≥ 0.72: **accept the body match as "face-assisted confirmed"** and add the new body embedding to the gallery.
+- Effectively: face identity acts as a trusted label to update the body gallery, re-anchoring it to the new appearance.
+- Do NOT lower the global `reid_body_confirmed_sim` threshold — that increases false-positive body matches across all cameras.
+
+---
+
+*End of §P. These items are NOT in any active phase plan. They require a design session and a new spec section before implementation.*
 
 ---
 

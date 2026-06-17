@@ -1,9 +1,9 @@
-"""ORM models for all VMS v2 database tables."""
+﻿"""ORM models for all VMS v2 database tables."""
 
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from pgvector.sqlalchemy import Vector  # type: ignore[import-untyped]
 from sqlalchemy import (
@@ -19,20 +19,30 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     Uuid,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from vms.db.session import Base
 
-# ─────────────────────────────────────────────────────────────────────
+
+def _utcnow_naive() -> datetime:
+    """Return timezone-naive UTC datetime per CLAUDE.md timezone convention."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Topology
-# ─────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 class Camera(Base):
     __tablename__ = "cameras"
     __table_args__ = (
         CheckConstraint("capability_tier IN ('FULL', 'MID', 'LOW')", name="chk_camera_tier"),
+        CheckConstraint(
+            "shutter_type IN ('rolling', 'global', 'unknown')", name="chk_camera_shutter"
+        ),
     )
 
     camera_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -42,9 +52,11 @@ class Camera(Base):
     capability_tier: Mapped[str] = mapped_column(String(10), nullable=False, default="FULL")
     profile_data: Mapped[str | None] = mapped_column(Text, nullable=True)
     profiled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    shutter_type: Mapped[str] = mapped_column(String(10), nullable=False, default="unknown")
     model_overrides: Mapped[str | None] = mapped_column(Text, nullable=True)
     worker_group: Mapped[int | None] = mapped_column(Integer, nullable=True)
     homography_matrix: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recalibrate_required_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class Zone(Base):
@@ -60,9 +72,9 @@ class Zone(Base):
     adjacent_zone_ids: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
-# ─────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Users and permissions
-# ─────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 class User(Base):
@@ -91,9 +103,9 @@ class UserCameraPermission(Base):
     )
 
 
-# ─────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Persons and embeddings
-# ─────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 class Person(Base):
@@ -103,9 +115,10 @@ class Person(Base):
     employee_id: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    badge_id: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
     thumbnail_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     purged_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow_naive)
 
     embeddings: Mapped[list[PersonEmbedding]] = relationship(
         "PersonEmbedding", back_populates="person", cascade="all, delete-orphan"
@@ -128,14 +141,14 @@ class PersonEmbedding(Base):
     )
     embedding: Mapped[list[float]] = mapped_column(Vector(512), nullable=False)
     quality_score: Mapped[float] = mapped_column(Float, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow_naive)
 
     person: Mapped[Person] = relationship("Person", back_populates="embeddings")
 
 
-# ─────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Maintenance windows (declared before Alert due to FK)
-# ─────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 class MaintenanceWindow(Base):
@@ -176,12 +189,12 @@ class MaintenanceWindow(Base):
         ForeignKey("users.user_id", ondelete="NO ACTION"),
         nullable=False,
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow_naive)
 
 
-# ─────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Alerts
-# ─────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 class Alert(Base):
@@ -194,16 +207,38 @@ class Alert(Base):
             "      OR resolved_at >= acknowledged_at)",
             name="chk_alert_resolution_order",
         ),
+        CheckConstraint(
+            "state IN ('active', 'acknowledged', 'resolved', 'suppressed')",
+            name="chk_alert_state",
+        ),
+        CheckConstraint(
+            "alert_type IN ('UNKNOWN_PERSON','PERSON_LOST','CROWD_DENSITY',"
+            "'INTRUSION','VIOLENCE','LOITERING','PPE_VIOLATION','SYSTEM_CRITICAL')",
+            name="chk_alert_type",
+        ),
+        CheckConstraint(
+            "alert_type = 'SYSTEM_CRITICAL' OR camera_id IS NOT NULL",
+            name="chk_alert_camera_id_required",
+        ),
         Index("ix_alerts_alert_type", "alert_type"),
         Index("ix_alerts_triggered_at", "triggered_at"),
+        Index("ix_alerts_state", "state"),
+        Index(
+            "ix_alerts_dedup_key_active",
+            "dedup_key",
+            postgresql_where=text("state = 'active'"),
+        ),
     )
 
     alert_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     alert_type: Mapped[str] = mapped_column(String(30), nullable=False)
     severity: Mapped[str] = mapped_column(String(10), nullable=False)
     state: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
-    camera_id: Mapped[int] = mapped_column(
-        ForeignKey("cameras.camera_id", ondelete="NO ACTION"), nullable=False
+    # camera_id is None for SYSTEM_CRITICAL alerts
+    camera_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("cameras.camera_id", ondelete="NO ACTION"),
+        nullable=True,
     )
     # zone_id and person_id intentionally not FK'd: zones reshape; persons are purged
     zone_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -218,6 +253,7 @@ class Alert(Base):
     suppressed_by_window_id: Mapped[int | None] = mapped_column(
         ForeignKey("maintenance_windows.window_id", ondelete="SET NULL"), nullable=True
     )
+    dedup_key: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     dispatches: Mapped[list[AlertDispatch]] = relationship(
         "AlertDispatch", back_populates="alert", cascade="all, delete-orphan"
@@ -253,9 +289,7 @@ class AlertDispatch(Base):
     channel: Mapped[str] = mapped_column(String(20), nullable=False)
     target: Mapped[str] = mapped_column(String(500), nullable=False)
     attempt_n: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    dispatched_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    dispatched_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow_naive)
     success: Mapped[bool] = mapped_column(Boolean, nullable=False)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     response_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -263,9 +297,9 @@ class AlertDispatch(Base):
     alert: Mapped[Alert] = relationship("Alert", back_populates="dispatches")
 
 
-# ─────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Tracking
-# ─────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 class TrackingEvent(Base):
@@ -291,7 +325,10 @@ class TrackingEvent(Base):
     )
     # zone_id intentionally not FK'd: zones can reshape or be retired
     zone_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    event_ts: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    # primary_key=True here makes (event_id, event_ts) a composite PK, matching
+    # the PostgreSQL partitioning requirement that the partition key appear in
+    # every unique constraint on the parent table.
+    event_ts: Mapped[datetime] = mapped_column(DateTime, primary_key=True, nullable=False)
     ingest_ts: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     bbox_x1: Mapped[int] = mapped_column(Integer, nullable=False)
     bbox_y1: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -300,6 +337,37 @@ class TrackingEvent(Base):
     floor_x: Mapped[float | None] = mapped_column(Float, nullable=True)
     floor_y: Mapped[float | None] = mapped_column(Float, nullable=True)
     seq_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    resolved_via: Mapped[str | None] = mapped_column(
+        String(16),
+        CheckConstraint(
+            "resolved_via IN ('face','body','ble','unknown')",
+            name="chk_tracking_resolved_via",
+        ),
+        nullable=True,
+    )
+
+
+class BleEvent(Base):
+    """Records a BLE badge detection near a fixed reader."""
+
+    __tablename__ = "ble_events"
+    __table_args__ = (
+        Index("ix_ble_events_person_id", "person_id"),
+        Index("ix_ble_events_badge_id", "badge_id"),
+        Index("ix_ble_events_event_ts", "event_ts"),
+    )
+
+    event_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    person_id: Mapped[int | None] = mapped_column(
+        ForeignKey("persons.person_id", ondelete="SET NULL"), nullable=True
+    )
+    badge_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    zone_id: Mapped[int | None] = mapped_column(
+        ForeignKey("zones.zone_id", ondelete="SET NULL"), nullable=True
+    )
+    rssi: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    reader_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    event_ts: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow_naive)
 
 
 class ReidMatch(Base):
@@ -341,9 +409,9 @@ class ZonePresence(Base):
     exited_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
-# ─────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Anomaly detectors registry
-# ─────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 class AnomalyDetector(Base):
@@ -355,13 +423,13 @@ class AnomalyDetector(Base):
     is_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     config_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     model_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow_naive)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow_naive)
 
 
-# ─────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Forensic CLIP embeddings
-# ─────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 class PersonClipEmbedding(Base):
@@ -382,9 +450,9 @@ class PersonClipEmbedding(Base):
     snapshot_path: Mapped[str] = mapped_column(String(500), nullable=False)
 
 
-# ─────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Model registry (manifest DB projection)
-# ─────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 class ModelRegistry(Base):
@@ -398,12 +466,12 @@ class ModelRegistry(Base):
     purpose: Mapped[str] = mapped_column(String(50), nullable=False)
     fine_tunable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow_naive)
 
 
-# ─────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Audit log (immutable; written only via vms.db.audit.write_audit_event)
-# ─────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 class AuditLog(Base):
@@ -423,4 +491,5 @@ class AuditLog(Base):
     payload: Mapped[str | None] = mapped_column(Text, nullable=True)
     prev_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     row_hash: Mapped[str] = mapped_column(String(64), nullable=False)
-    event_ts: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    row_hash_version: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
+    event_ts: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow_naive)

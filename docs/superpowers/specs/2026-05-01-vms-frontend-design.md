@@ -1,10 +1,36 @@
 # VMS v2 — Frontend Design Specification
 
-**Design Specification** · 2026-05-01
+**Design Specification** · 2026-05-01 · **Last updated: 2026-06-01**
 **Status:** Approved · Companion to `2026-05-01-vms-v2-hardened-design.md` §12 (high-level frontend)
 **Audience:** Frontend engineers implementing the React app in Phase 4.
 
+> **Implementation status (2026-06-01): Frontend is DEFERRED — not starting until Phase 3 (Dispatcher + Profiler + Audit) backend work is complete.** The design below is correct and ready to build from; the sequencing decision is that Phase 3 API surface must exist before frontend development begins. See §0 for prerequisites.
+
 This document is the source of truth for the frontend. Every component, screen, and interaction below should be implementable without further design discussion.
+
+---
+
+## §0. Backend Prerequisites (must exist before frontend starts)
+
+The frontend spec assumes the following backend capabilities. As of 2026-06-01, items marked ✗ are not yet implemented and block the indicated views.
+
+| Prerequisite | Blocks | Status |
+|---|---|---|
+| `GET /api/persons`, `POST /api/persons`, enrollment API | Admin persons view | ✓ Done |
+| JWT auth, role-based access | All views | ✓ Done |
+| `GET /api/alerts` (paginated, filtered) | Alert history, analytics | ✗ Phase 3 |
+| `GET /api/cameras`, `POST /api/cameras`, `PATCH /api/cameras/{id}` | Admin cameras view | ✗ Phase 3 |
+| `GET /api/zones`, `POST /api/zones`, zone CRUD | Admin zone editor | ✗ Phase 3 |
+| `GET /api/anomaly-detectors`, `PATCH` enable/disable + config | Admin detector config | ✗ Phase 3 |
+| `GET /api/state/snapshot` (head count, active tracks) | Guard live floor plan | ✗ Phase 3 |
+| **WebSocket / Socket.io server** bridging Redis alert stream | Guard real-time alerts | ✗ Phase 3 |
+| **RTSP → HLS transcoder** (separate service: FFmpeg / MediaMTX) | Guard live video feeds | ✗ Infrastructure — not in any current plan |
+| Alert dispatcher (email/Slack/Telegram/webhook) | Admin alert-routing | ✗ Phase 3 |
+| Camera profiler API | Admin camera profiling | ✗ Phase 3 |
+| `GET /api/tracking/timeline` (time-series query) | Analytics timeline | ✗ Phase 5 |
+| Forensic CLIP search API | Forensic view | ✗ Phase 5 |
+
+**Critical blocker:** HLS video streaming for the Guard live view requires a separate infrastructure service (FFmpeg pipeline or MediaMTX). This is not a backend code change — it is a deployment architecture decision that must be made before Phase 4.
 
 ---
 
@@ -458,7 +484,7 @@ Light theme. Sidebar navigation; main pane is the active section.
 |---|---|---|
 | Dashboard | `/admin` | Worker health, GPU util, PostgreSQL write queue depth, Redis stream lag, latest schema migration, model versions |
 | Persons | `/admin/persons` | List + enrolment wizard (4-step: name/ID → capture → quality check → save) |
-| Cameras | `/admin/cameras` | List + add/edit; per-row "Run profiler" CTA, capability tier badge, calibration wizard launch |
+| Cameras | `/admin/cameras` | List + add/edit; per-row tier badge + shutter type chip; "Run profiler" CTA. Detail page at `/admin/cameras/{id}` — tabbed layout (see `<CameraDetail />` below) |
 | Zones | `/admin/zones` | Polygon editor on the floor-plan image; allowed_hours editor; max_capacity; loiter threshold |
 | Users | `/admin/users` | CRUD + permission toggle matrix (zones × users) |
 | Maintenance | `/admin/maintenance` | Calendar widget (Gantt) + create/edit/delete; one-time + cron |
@@ -472,6 +498,35 @@ Light theme. Sidebar navigation; main pane is the active section.
 - **Wizard steps** — multi-step modals with explicit progress indicator. "Cancel" requires confirmation if any field has been edited.
 - **Inline edit + undo** — table cells become inputs on click; Esc cancels, Enter saves; toast with Undo for 6s.
 - **Soft delete only** — destructive actions (deactivate camera, archive zone, delete user) require typed confirmation matching the entity name.
+
+### `<CameraDetail />` — tabbed layout (`/admin/cameras/{id}`)
+
+Five tabs. Role column = minimum role to **edit** that tab (all tabs are readable by Admin+).
+
+| Tab | Edit role | Contents |
+|---|---|---|
+| Overview | Admin+ | Live thumbnail, tier badge, shutter chip, status, last profiled timestamp, quick action buttons |
+| Hardware | **Super Admin** | Profiler CTA + suggestion banner; shutter type confirm/override dropdown; capability tier display; measured properties table (resolution, fps, focus score) |
+| Overrides | Admin+ | Diff view sourced from `GET /api/cameras/{id}/resolved-config`; shows only rows where `source != "global_default"` by default; "Show all settings" toggle; "+Add Override" button; amber banner when shutter adjustments are active |
+| Maintenance | Admin+ | Maintenance windows scoped to this camera; reuses `<MaintenanceCalendar />` filtered by `scope_type=camera, scope_id={id}` |
+| Calibration | Admin+ | Homography calibration wizard — see `<HomographyCalibrator />` below |
+
+**Hardware tab detail — shutter type UX:**
+- "Run Profiler" button triggers `POST /api/cameras/{id}/profile` (async; progress shown inline).
+- On completion, if detected shutter type differs from current `shutter_type`, a suggestion banner appears: `"Profiler detected: Rolling Shutter (confidence 87%) — Confirm · Override"`.
+- Confirm → `PATCH /api/cameras/{id}/hardware { shutter_type: "rolling" }`.
+- Override → dropdown (Rolling / Global / Unknown) → same PATCH.
+- Hardware tab fields are read-only for Admin role; Super Admin sees edit controls.
+
+**Overrides tab detail — diff view:**
+- On mount: `GET /api/cameras/{id}/resolved-config`.
+- Render only rows with `source !== "global_default"` (the diff).
+- Amber label on rows with `source` starting with `"shutter:"` — tooltip explains the adjustment.
+- "Show all settings" checkbox reveals the full list with inherited values muted.
+- "+Add Override" opens a key-picker modal (validated against known settings keys).
+- Save → `PATCH /api/cameras/{id}/overrides`.
+
+**Role gating implementation:** Hardware tab's edit form renders `disabled` (read-only) when `currentUser.role !== 'super_admin'`. A muted label reads "Super Admin required to edit hardware settings." No separate route — same component, conditional controls.
 
 ### `<HomographyCalibrator />` flow
 
@@ -517,7 +572,7 @@ Office HR Door     adaface_ir50_acme_v2     default        adaface_min_sim=0.78
 | Event | Direction | Payload | Throttling |
 |---|---|---|---|
 | `person_location` | server → client | `{global_track_id, person_id, camera_id, bbox, floor_x, floor_y, ts}` | 5fps per `global_track_id`, diff-only |
-| `alert_fired` | server → client | `{alert_id, alert_type, severity, camera_id, zone_id, snapshot_url, ts}` | immediate |
+| `alert_fired` | server → client | `{alert_id, alert_type, severity, camera_id, zone_id, global_track_id, snapshot_url, ts}` — `alert_type` includes `PPE_VIOLATION` | immediate |
 | `alert_state_changed` | server → client | `{alert_id, new_state, actor_user_id, ts}` | immediate |
 | `track_corrected` | server → client | `{global_track_id, new_person_id, ts}` | immediate |
 | `camera_snapshot` | server → client | `{camera_id, url, ts}` | 2s per subscribed camera |

@@ -29,18 +29,43 @@ os.environ.setdefault("VMS_BYTETRACK_CONFIG", "bytetrack_custom.yaml")
 
 @pytest.fixture(scope="session", autouse=True)
 def _create_schema() -> Iterator[None]:
-    """Run Alembic migrations once per test session; downgrade when done."""
+    """Run Alembic migrations once per test session; downgrade when done.
+
+    Downgrades first so that a previous session that crashed mid-run (e.g. OOM)
+    does not leave stale rows that cause unique-constraint failures in API tests.
+    """
     try:
+        import contextlib
+
         from alembic import command
         from alembic.config import Config
 
         cfg = Config("alembic.ini")
+        # Downgrade first: idempotent — safe even if no schema exists yet
+        with contextlib.suppress(Exception):
+            command.downgrade(cfg, "base")
         command.upgrade(cfg, "head")
         yield
         command.downgrade(cfg, "base")
     except ImportError:
         # Alembic not available; skip schema setup
         yield
+
+
+@pytest.fixture(scope="session")
+def db_engine():  # type: ignore[no-untyped-def]
+    """Return the SQLAlchemy engine bound to the test database."""
+    from vms.db.session import engine as _engine
+
+    return _engine
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _ensure_partitions(_create_schema: None, db_engine) -> None:  # type: ignore[no-untyped-def]
+    """Ensure current-month tracking_events partition exists for integration tests."""
+    from vms.db.partition_manager import ensure_future_partitions
+
+    ensure_future_partitions(db_engine, months_ahead=1)
 
 
 @pytest.fixture()

@@ -60,3 +60,14 @@ def test_shm_slot_seq_id_is_preserved(slot: SHMSlot) -> None:
     assert result is not None
     _, seq_id, _ = result
     assert seq_id == 42
+
+
+def test_shm_slot_open_raises_value_error_on_size_mismatch() -> None:
+    # Create a slot at 64x48, then try to open it as 32x24 (different size)
+    creator = SHMSlot.create("vms_test_slot_sizemismatch", width=64, height=48)
+    try:
+        with pytest.raises(ValueError, match="SHM size mismatch"):
+            SHMSlot.open("vms_test_slot_sizemismatch", width=32, height=24)
+    finally:
+        creator.close()
+        creator.unlink()

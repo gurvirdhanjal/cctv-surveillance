@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+import json
+from datetime import datetime, timezone
 from typing import Any
 
 import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from vms.api.deps import get_api_redis, get_current_user, get_db
@@ -18,14 +20,33 @@ from vms.api.schemas import (
     PersonResponse,
     PurgeRequest,
 )
+from vms.config import get_settings
 from vms.db.audit import write_audit_event
-from vms.db.models import Person, PersonEmbedding
+from vms.db.models import Person, PersonClipEmbedding, PersonEmbedding, TrackingEvent
 from vms.db.models import User as DBUser
 from vms.identity import faiss_dirty
+from vms.storage.factory import get_storage
 
 router = APIRouter()
 
 _MANAGER_ROLES = {"manager", "admin"}
+
+
+def _is_near_duplicate(
+    new_emb: np.ndarray[Any, np.dtype[Any]],
+    existing: list[Any],
+    threshold: float,
+) -> bool:
+    """Return True if any existing embedding has cosine sim >= threshold with new_emb."""
+    for row in existing:
+        stored = np.array(row.embedding, dtype=np.float32)
+        norm = np.linalg.norm(stored)
+        if norm > 0:
+            stored = stored / norm
+        sim = float(np.dot(new_emb, stored))
+        if sim >= threshold:
+            return True
+    return False
 
 
 def _require_manager(user: dict[str, Any]) -> None:
@@ -60,12 +81,31 @@ async def add_embedding(
     body: EmbeddingCreate,
     db: Session = Depends(get_db),  # noqa: B008
     user: dict[str, Any] = Depends(get_current_user),  # noqa: B008
-) -> PersonEmbedding:
+) -> PersonEmbedding | JSONResponse:
     _require_manager(user)
     person = db.get(Person, person_id)
     if person is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Person not found")
     emb_array = np.array(body.embedding, dtype=np.float32)
+    norm = np.linalg.norm(emb_array)
+    if norm > 0:
+        emb_array = emb_array / norm
+
+    existing_embs = (
+        db.query(PersonEmbedding)
+        .filter(
+            PersonEmbedding.person_id == person_id,
+        )
+        .all()
+    )
+
+    settings = get_settings()
+    if _is_near_duplicate(emb_array, existing_embs, settings.reid_enroll_dedup_sim):
+        return JSONResponse(
+            status_code=200,
+            content={"enrolled": False, "reason": "near_duplicate"},
+        )
+
     record = PersonEmbedding(
         person_id=person_id,
         embedding=emb_array,
@@ -105,7 +145,9 @@ async def purge_person(
     if user.get("role") != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required")
 
-    person = db.get(Person, person_id)
+    person = db.execute(
+        select(Person).where(Person.person_id == person_id).with_for_update()
+    ).scalar_one_or_none()
     if person is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Person not found")
     if person.name != body.confirmation_name:
@@ -121,8 +163,31 @@ async def purge_person(
         emb.embedding = blank
         emb.quality_score = 0.0
 
+    # Collect CLIP snapshot keys before deletion so we can remove them post-commit
+    clip_keys: list[str] = list(
+        db.execute(
+            select(PersonClipEmbedding.snapshot_path)
+            .join(
+                TrackingEvent,
+                PersonClipEmbedding.global_track_id == TrackingEvent.global_track_id,
+            )
+            .where(TrackingEvent.person_id == person_id)
+            .distinct()
+        ).scalars()
+    )
+
+    # Server-side bulk delete for CLIP embeddings associated with this person
+    db.execute(
+        delete(PersonClipEmbedding).where(
+            PersonClipEmbedding.global_track_id.in_(
+                select(TrackingEvent.global_track_id).where(TrackingEvent.person_id == person_id)
+            )
+        )
+    )
+
     person.is_active = False
-    person.purged_at = datetime.utcnow()
+    person.purged_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    thumbnail_key = person.thumbnail_path
     person.thumbnail_path = None
 
     # Resolve actor_user_id only when the user exists in DB — handles deleted-user edge case
@@ -137,7 +202,15 @@ async def purge_person(
         actor_user_id=actor_id,
         target_type="person",
         target_id=str(person_id),
-        payload=body.reason,
+        payload=json.dumps({"reason": body.reason, "embeddings_blanked": len(emb_ids)}),
     )
+
+    # Remove media files after commit via storage backend
+    storage = get_storage()
+    if thumbnail_key:
+        storage.delete(thumbnail_key)
+    for key in clip_keys:
+        storage.delete(key)
+
     await faiss_dirty.publish_remove(get_api_redis(), person_id=person_id, embedding_ids=emb_ids)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -8,6 +8,16 @@ version = "0.1.0"
 description = "Video Management System with facial recognition and anomaly detection"
 requires-python = ">=3.10"
 
+[project.scripts]
+vms-cli = "vms.cli.main:cli"
+
+[project.optional-dependencies]
+dev = ["moto[s3]>=5.0", "click>=8.1", "prometheus-client>=0.20"]
+
+[project.dependencies]
+# boto3 is a runtime dependency when storage_backend="minio"
+# croniter, click, prometheus-client are runtime deps — install via pip
+
 [tool.black]
 line-length = 100
 target-version = ["py310"]
@@ -15,15 +25,33 @@ target-version = ["py310"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+exclude = ["legacy/"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
 ignore = ["E501"]
 
+[tool.ruff.lint.per-file-ignores]
+# scripts/interactive_pipeline_test.py sets env vars before importing vms modules
+# so the late imports (cv2, numpy, vms.*) after module-level code are intentional.
+"scripts/interactive_pipeline_test.py" = ["E402", "I001"]
+
 [tool.mypy]
 python_version = "3.10"
 strict = true
 plugins = ["sqlalchemy.ext.mypy.plugin"]
+exclude = ["^legacy/"]
+
+# These files use lazy optional imports (tensorflow, insightface) that may or
+# may not be installed in any given environment. warn_unused_ignores would flip
+# depending on whether the optional dep is present.
+[[tool.mypy.overrides]]
+module = ["vms.inference.violence", "vms.inference.detector"]
+warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+module = ["reportlab.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -31,5 +59,11 @@ asyncio_mode = "auto"
 markers = [
     "unit: fast in-process tests (default)",
     "integration: requires real PostgreSQL/Redis",
+    "heavy_models: loads PyTorch + TensorFlow simultaneously — run separately to avoid OOM",
+    "eval: accuracy regression against real employee photos — requires models + employees/ folder",
 ]
-addopts = "-ra --strict-markers"
+# Exclude heavy_models and eval from default pytest run.
+# heavy_models: crash if run with full suite due to PyTorch + TensorFlow OOM.
+# eval: load real ONNX models and employee photos — slow, environment-dependent.
+# Run eval explicitly: pytest -m eval -v
+addopts = "-ra --strict-markers -m 'not heavy_models and not eval'"

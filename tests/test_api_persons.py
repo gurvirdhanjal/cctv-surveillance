@@ -2,16 +2,27 @@
 
 from __future__ import annotations
 
+import json
+import pathlib
+import uuid
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, patch
 
 import numpy as np
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from vms.api.deps import create_access_token
 from vms.api.main import app
-from vms.db.models import Person
+from vms.db.models import (
+    AuditLog,
+    Camera,
+    Person,
+    PersonClipEmbedding,
+    TrackingEvent,
+)
 
 
 def _auth_headers(role: str = "admin") -> dict[str, str]:
@@ -212,6 +223,276 @@ async def test_add_embedding_publishes_faiss_add() -> None:
             )
         assert response.status_code == 201
         mock_pub.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_purge_audit_payload_is_json_with_required_keys() -> None:
+    from vms.db.session import SessionLocal
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        create_resp = await client.post(
+            "/api/persons",
+            json={"name": "AuditPayloadTest", "employee_id": "E_APT_99"},
+            headers=_auth_headers(role="admin"),
+        )
+        assert create_resp.status_code == 201
+        person_id = create_resp.json()["person_id"]
+        resp = await client.request(
+            "DELETE",
+            f"/api/persons/{person_id}",
+            json={"confirmation_name": "AuditPayloadTest", "reason": "GDPR audit payload test"},
+            headers=_auth_headers(role="admin"),
+        )
+    assert resp.status_code == 204
+
+    with SessionLocal() as sess:
+        audit = sess.execute(
+            select(AuditLog)
+            .where(AuditLog.event_type == "PERSON_PURGED")
+            .where(AuditLog.target_id == str(person_id))
+            .order_by(AuditLog.audit_id.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+
+    assert audit is not None
+    assert audit.payload is not None
+    payload = json.loads(audit.payload)
+    assert payload["reason"] == "GDPR audit payload test"
+    assert isinstance(payload["embeddings_blanked"], int)
+
+
+@pytest.mark.asyncio
+async def test_purge_person_deletes_thumbnail_file(tmp_path: pathlib.Path) -> None:
+    from unittest.mock import patch
+
+    from vms.db.session import SessionLocal
+    from vms.storage.backends import LocalStorageBackend
+
+    key = "thumbnails/2026/05/28/person_thumb.jpg"
+    local = LocalStorageBackend(str(tmp_path))
+    local.write(key, b"fake-jpeg-data")
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        create_resp = await client.post(
+            "/api/persons",
+            json={"name": "ThumbDeleteTest", "employee_id": "E_THUMB_99"},
+            headers=_auth_headers(role="admin"),
+        )
+        assert create_resp.status_code == 201
+        person_id = create_resp.json()["person_id"]
+
+    with SessionLocal() as sess:
+        p = sess.get(Person, person_id)
+        assert p is not None
+        p.thumbnail_path = key
+        sess.commit()
+
+    with patch("vms.api.routes.persons.get_storage", return_value=local):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.request(
+                "DELETE",
+                f"/api/persons/{person_id}",
+                json={
+                    "confirmation_name": "ThumbDeleteTest",
+                    "reason": "Testing thumbnail deletion",
+                },
+                headers=_auth_headers(role="admin"),
+            )
+    assert resp.status_code == 204
+    assert not local.exists(key)
+
+
+@pytest.mark.asyncio
+async def test_purge_person_deletes_clip_embeddings(tmp_path: pathlib.Path) -> None:
+    from unittest.mock import patch
+
+    from vms.db.session import SessionLocal
+    from vms.storage.backends import LocalStorageBackend
+
+    snap_key = "snapshots/2026/05/28/clip_snapshot.jpg"
+    local = LocalStorageBackend(str(tmp_path))
+    local.write(snap_key, b"fake-clip-snapshot")
+
+    gid = uuid.uuid4()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        create_resp = await client.post(
+            "/api/persons",
+            json={"name": "ClipDeleteTest", "employee_id": "E_CLIP_99"},
+            headers=_auth_headers(role="admin"),
+        )
+        assert create_resp.status_code == 201
+        person_id = create_resp.json()["person_id"]
+
+    with SessionLocal() as sess:
+        cam = Camera(name="test-cam-clip", rtsp_url="rtsp://localhost/clip", capability_tier="FULL")
+        sess.add(cam)
+        sess.flush()
+        te = TrackingEvent(
+            camera_id=cam.camera_id,
+            local_track_id="lt-clip-99",
+            global_track_id=gid,
+            person_id=person_id,
+            event_ts=now,
+            ingest_ts=now,
+            bbox_x1=0,
+            bbox_y1=0,
+            bbox_x2=10,
+            bbox_y2=10,
+            seq_id=1,
+        )
+        sess.add(te)
+        clip = PersonClipEmbedding(
+            global_track_id=gid,
+            camera_id=cam.camera_id,
+            event_ts=now,
+            embedding=[0.0] * 512,
+            snapshot_path=snap_key,
+        )
+        sess.add(clip)
+        sess.commit()
+        clip_id = clip.clip_emb_id
+
+    with patch("vms.api.routes.persons.get_storage", return_value=local):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.request(
+                "DELETE",
+                f"/api/persons/{person_id}",
+                json={
+                    "confirmation_name": "ClipDeleteTest",
+                    "reason": "Testing CLIP embedding deletion",
+                },
+                headers=_auth_headers(role="admin"),
+            )
+    assert resp.status_code == 204
+    assert not local.exists(snap_key)
+
+    with SessionLocal() as sess:
+        deleted = sess.get(PersonClipEmbedding, clip_id)
+    assert deleted is None
+
+
+@pytest.mark.asyncio
+async def test_purge_calls_storage_delete_for_thumbnail(db_session: Session) -> None:
+    from unittest.mock import MagicMock, patch
+
+    mock_storage = MagicMock()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        create_resp = await client.post(
+            "/api/persons",
+            json={"name": "StorageThumbTest", "employee_id": "E_ST_01"},
+            headers=_auth_headers(role="admin"),
+        )
+        assert create_resp.status_code == 201
+        person_id = create_resp.json()["person_id"]
+
+    from vms.db.session import SessionLocal
+
+    with SessionLocal() as sess:
+        p = sess.get(Person, person_id)
+        assert p is not None
+        p.thumbnail_path = "thumbnails/2026/05/28/face.jpg"
+        sess.commit()
+
+    with patch("vms.api.routes.persons.get_storage", return_value=mock_storage):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.request(
+                "DELETE",
+                f"/api/persons/{person_id}",
+                json={"confirmation_name": "StorageThumbTest", "reason": "storage test"},
+                headers=_auth_headers(role="admin"),
+            )
+    assert resp.status_code == 204
+    mock_storage.delete.assert_called_with("thumbnails/2026/05/28/face.jpg")
+
+
+@pytest.mark.asyncio
+async def test_purge_calls_storage_delete_for_clip_snapshots(db_session: Session) -> None:
+    from unittest.mock import MagicMock, patch
+
+    mock_storage = MagicMock()
+    gid = uuid.uuid4()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    snap_key = "snapshots/2026/05/28/clip.jpg"
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        create_resp = await client.post(
+            "/api/persons",
+            json={"name": "StorageClipTest", "employee_id": "E_SC_01"},
+            headers=_auth_headers(role="admin"),
+        )
+        assert create_resp.status_code == 201
+        person_id = create_resp.json()["person_id"]
+
+    from vms.db.session import SessionLocal
+
+    with SessionLocal() as sess:
+        cam = Camera(name="sc-cam", rtsp_url="rtsp://localhost/sc", capability_tier="FULL")
+        sess.add(cam)
+        sess.flush()
+        te = TrackingEvent(
+            camera_id=cam.camera_id,
+            local_track_id="lt-sc-01",
+            global_track_id=gid,
+            person_id=person_id,
+            event_ts=now,
+            ingest_ts=now,
+            bbox_x1=0,
+            bbox_y1=0,
+            bbox_x2=10,
+            bbox_y2=10,
+            seq_id=1,
+        )
+        sess.add(te)
+        clip = PersonClipEmbedding(
+            global_track_id=gid,
+            camera_id=cam.camera_id,
+            event_ts=now,
+            embedding=[0.0] * 512,
+            snapshot_path=snap_key,
+        )
+        sess.add(clip)
+        sess.commit()
+
+    with patch("vms.api.routes.persons.get_storage", return_value=mock_storage):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.request(
+                "DELETE",
+                f"/api/persons/{person_id}",
+                json={"confirmation_name": "StorageClipTest", "reason": "storage test"},
+                headers=_auth_headers(role="admin"),
+            )
+    assert resp.status_code == 204
+    mock_storage.delete.assert_called_with(snap_key)
+
+
+@pytest.mark.asyncio
+async def test_purge_with_no_thumbnail_does_not_call_storage_delete(
+    db_session: Session,
+) -> None:
+    from unittest.mock import MagicMock, patch
+
+    mock_storage = MagicMock()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        create_resp = await client.post(
+            "/api/persons",
+            json={"name": "NoThumbTest", "employee_id": "E_NT_01"},
+            headers=_auth_headers(role="admin"),
+        )
+        assert create_resp.status_code == 201
+        person_id = create_resp.json()["person_id"]
+
+    with patch("vms.api.routes.persons.get_storage", return_value=mock_storage):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.request(
+                "DELETE",
+                f"/api/persons/{person_id}",
+                json={"confirmation_name": "NoThumbTest", "reason": "no thumbnail test"},
+                headers=_auth_headers(role="admin"),
+            )
+    assert resp.status_code == 204
+    mock_storage.delete.assert_not_called()
 
 
 @pytest.mark.asyncio

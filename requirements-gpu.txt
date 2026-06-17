@@ -1,0 +1,62 @@
+# GPU requirements for VMS pipeline (RTX 2000 / RTX A2000 / RTX 2000 Ada)
+#
+# Prerequisites — install in this exact order:
+#
+#   1. Install CUDA 11.8 Toolkit (required by onnxruntime-gpu==1.18.0):
+#      https://developer.nvidia.com/cuda-11-8-0-download-archive
+#      Install type: Local  |  Add to PATH  |  Install cuDNN separately (step 2)
+#
+#   2. Install cuDNN 8.9.x for CUDA 11.8:
+#      https://developer.nvidia.com/rdp/cudnn-archive
+#      Copy cudnn bin/include/lib into C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\
+#
+#   3. Verify CUDA:
+#      nvcc --version                     # should print 11.8
+#      nvidia-smi                         # should show RTX 2000 + CUDA 11.8
+#
+#   4. Create a fresh venv (or use existing):
+#      python -m venv venv
+#      venv\Scripts\activate
+#
+#   5. Install base requirements (no onnxruntime yet):
+#      pip install -r requirements.txt --ignore-requires-python
+#
+#   6. Swap onnxruntime for onnxruntime-gpu:
+#      pip uninstall onnxruntime -y
+#      pip install onnxruntime-gpu==1.18.0
+#
+#   7. Upgrade torch to CUDA-enabled build:
+#      pip install torch==2.1.0+cu118 torchvision==0.16.0+cu118 --index-url https://download.pytorch.org/whl/cu118
+#
+#   8. Verify GPU is detected:
+#      python -c "import torch; print('CUDA:', torch.cuda.is_available(), torch.cuda.get_device_name(0))"
+#      python -c "import onnxruntime as ort; print(ort.get_available_providers())"
+#      # Expected output includes 'CUDAExecutionProvider'
+#
+#   9. Run the pipeline test (auto-detects CUDA):
+#      venv\Scripts\python.exe scripts\multi_cam_pipeline_test.py --cameras 105 110 141
+#      # Or force GPU explicitly:
+#      venv\Scripts\python.exe scripts\multi_cam_pipeline_test.py --cameras 141 --device cuda
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# Expected performance vs CPU (i9 11th Gen + RTX A2000 6GB):
+#
+#   Model              CPU (i9)      GPU (RTX A2000)   Speedup
+#   yolov8x-pose       200-400ms     10-15ms           ~25x
+#   SCRFD-10G          30-50ms       3-5ms             ~10x
+#   AdaFace IR101      40-60ms/face  2-3ms/face        ~20x
+#   TransReID ViT-B    60-80ms/crop  5-8ms/crop        ~10x
+#   Full pipeline      1200-2200ms   30-50ms           ~40x
+#
+#   Single camera: ~25-30fps  (vs 0.5fps on CPU)
+#   4 cameras:     ~6-8fps each with --yolo-every 1 (no skipping needed)
+#   52 cameras:    needs multi-GPU or batching (Phase 6 GPU acceleration spec)
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# faiss-cpu stays as-is. GPU FAISS is deferred to Phase 6 (GPU acceleration spec).
+# TensorRT / FP16 quantisation is deferred to Phase 6 (2026-06-13-vms-gpu-acceleration.md).
+# ─────────────────────────────────────────────────────────────────────────────
+
+onnxruntime-gpu==1.18.0
+torch==2.1.0+cu118
+torchvision==0.16.0+cu118

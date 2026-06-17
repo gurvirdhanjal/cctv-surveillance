@@ -56,3 +56,85 @@ def test_reid_stale_ms_default() -> None:
 def test_zone_cache_ttl_s_default() -> None:
     s = Settings(db_url="postgresql://x/y", jwt_secret="s")  # type: ignore[call-arg]
     assert s.zone_cache_ttl_s == 30
+
+
+def test_storage_backend_defaults_to_local() -> None:
+    s = Settings(db_url="postgresql://x/y", jwt_secret="s")  # type: ignore[call-arg]
+    assert s.storage_backend == "local"
+
+
+def test_storage_local_dir_defaults() -> None:
+    s = Settings(db_url="postgresql://x/y", jwt_secret="s")  # type: ignore[call-arg]
+    assert s.storage_local_dir == "thumbnails"
+
+
+def test_minio_settings_default_empty() -> None:
+    s = Settings(db_url="postgresql://x/y", jwt_secret="s")  # type: ignore[call-arg]
+    assert s.minio_endpoint == ""
+    assert s.minio_access_key == ""
+    assert s.minio_secret_key == ""
+    assert s.minio_bucket == "vms-media"
+
+
+def test_anomaly_defaults() -> None:
+    s = Settings(db_url="postgresql://x/y", jwt_secret="s")  # type: ignore[call-arg]
+    # violence_model points to models/movinet_a2 alongside other model files
+    assert s.violence_model == "models/movinet_a2"
+    assert s.violence_threshold == 0.65
+    assert s.violence_gate_min_persons == 2
+    assert s.alert_fsm_default_dedup_window_ms == 60_000
+    assert s.alert_fsm_default_cooldown_ms == 60_000
+    assert s.alert_fsm_default_sustain_ms == 500
+    assert s.head_count_emit_interval_s == 1.0
+    assert s.head_count_track_ttl_s == 30
+    assert s.maintenance_cache_ttl_s == 30
+    assert s.anomaly_max_consecutive_errors == 5
+    assert s.alerts_stream_maxlen == 10_000
+
+
+def test_settings_gallery_defaults() -> None:
+    s = Settings(db_url="postgresql://x", jwt_secret="x")  # type: ignore[call-arg]
+    assert s.reid_gallery_size == 8
+    assert s.reid_confirm_after_sightings == 3
+    assert s.reid_confirmed_sim == 0.60
+    assert s.reid_confirmed_stale_ms == 600_000
+    assert s.reid_camera_topology_json == "{}"
+
+
+def test_settings_ppe_defaults() -> None:
+    s = Settings(db_url="postgresql://x", jwt_secret="x")  # type: ignore[call-arg]
+    assert s.ppe_model == ""
+    assert s.ppe_helmet_threshold == 0.5
+    assert s.ppe_vest_threshold == 0.5
+    assert s.ppe_gate_min_persons == 1
+    assert s.ppe_conf_threshold == 0.25
+    assert s.ppe_nms_iou_threshold == 0.45
+    assert s.ppe_gloves_threshold == 0.5
+    assert s.ppe_mask_threshold == 0.5
+    assert s.ppe_class_map_json == '{"helmet":10,"vest":16,"gloves":9,"mask":5}'
+
+
+def test_phase2d_config_defaults() -> None:
+    s = Settings(db_url="postgresql://x", jwt_secret="x")  # type: ignore[call-arg]
+    assert s.botsort_config == "botsort_custom.yaml"
+    assert s.yolov8x_pose_model == "models/yolov8x-pose.pt"
+    assert s.osnet_ain_model == ""  # OSNet model deleted; default empty so factory skips it
+    assert s.face_kpt_min_conf == 0.5
+    assert s.ble_mqtt_broker == ""
+    assert s.ble_mqtt_topic == "vms/ble/events"
+    assert s.ble_stream_maxlen == 10_000
+    assert s.ble_zone_reader_map_json == "{}"
+
+
+def test_settings_reid_quality_defaults() -> None:
+    from vms.config import Settings
+
+    s = Settings(db_url="postgresql://x", jwt_secret="x")
+    assert s.reid_quality_window_s == 2.0
+    assert s.reid_quality_norm_floor == 0.0
+    assert s.reid_enroll_dedup_sim == 0.95
+
+
+def test_yolo_person_conf_default() -> None:
+    s = Settings(db_url="postgresql://x", jwt_secret="x")  # type: ignore[call-arg]
+    assert s.yolo_person_conf == 0.50

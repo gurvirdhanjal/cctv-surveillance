@@ -22,6 +22,14 @@ class ReIdService:
     def __init__(self, index: FaissIndex) -> None:
         self._index = index
 
+    def apply_add(self, embedding_id: int, person_id: int, vec: np.ndarray[Any, Any]) -> None:
+        """Incrementally add one embedding to the FAISS index."""
+        self._index.add(embedding_id, person_id, vec)
+
+    def apply_remove(self, embedding_ids: list[int]) -> None:
+        """Remove embeddings from the FAISS index by their DB IDs."""
+        self._index.remove(embedding_ids)
+
     def identify(self, embedding: np.ndarray[Any, Any]) -> int | None:
         """Return person_id if the embedding matches a known person, else None."""
         settings = get_settings()

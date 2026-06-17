@@ -101,3 +101,160 @@ def test_detection_frame_round_trips_tracklet_no_embedding() -> None:
     fields = frame.to_redis_fields()
     restored = DetectionFrame.from_redis_fields(fields)
     assert restored.tracklets[0].embedding == ()
+
+
+def test_tracklet_body_embedding_defaults_empty() -> None:
+    t = Tracklet(local_track_id=1, camera_id=1, bbox=(0, 0, 100, 200), confidence=0.9)
+    assert t.body_embedding == ()
+
+
+def test_tracklet_body_embedding_stored() -> None:
+    t = Tracklet(
+        local_track_id=1,
+        camera_id=1,
+        bbox=(0, 0, 100, 200),
+        confidence=0.9,
+        body_embedding=(0.3, 0.4, 0.5),
+    )
+    assert t.body_embedding == (0.3, 0.4, 0.5)
+
+
+def test_detection_frame_body_embedding_redis_roundtrip() -> None:
+    t = Tracklet(
+        local_track_id=2,
+        camera_id=3,
+        bbox=(10, 20, 50, 80),
+        confidence=0.8,
+        embedding=(1.0, 2.0),
+        body_embedding=(3.0, 4.0),
+    )
+    frame = DetectionFrame(
+        camera_id=3, seq_id=1, timestamp_ms=1000, tracklets=(t,), face_embeddings=()
+    )
+    restored = DetectionFrame.from_redis_fields(frame.to_redis_fields())
+    assert restored.tracklets[0].body_embedding == (3.0, 4.0)
+
+
+def test_detection_frame_body_embedding_absent_roundtrips_empty() -> None:
+    t = Tracklet(local_track_id=1, camera_id=1, bbox=(0, 0, 10, 10), confidence=0.9)
+    frame = DetectionFrame(
+        camera_id=1, seq_id=0, timestamp_ms=0, tracklets=(t,), face_embeddings=()
+    )
+    restored = DetectionFrame.from_redis_fields(frame.to_redis_fields())
+    assert restored.tracklets[0].body_embedding == ()
+
+
+def test_tracklet_ppe_fields_default_none() -> None:
+    t = Tracklet(local_track_id=1, camera_id=1, bbox=(0, 0, 100, 200), confidence=0.9)
+    assert t.ppe_helmet_conf is None
+    assert t.ppe_vest_conf is None
+    assert t.ppe_gloves_conf is None
+    assert t.ppe_mask_conf is None
+
+
+def test_tracklet_ppe_fields_serialize_roundtrip() -> None:
+    t = Tracklet(
+        local_track_id=3,
+        camera_id=1,
+        bbox=(10, 20, 60, 120),
+        confidence=0.85,
+        ppe_helmet_conf=0.92,
+        ppe_vest_conf=0.11,
+        ppe_gloves_conf=0.75,
+        ppe_mask_conf=0.0,
+    )
+    frame = DetectionFrame(
+        camera_id=1, seq_id=0, timestamp_ms=0, tracklets=(t,), face_embeddings=()
+    )
+    restored = DetectionFrame.from_redis_fields(frame.to_redis_fields())
+    r = restored.tracklets[0]
+    assert abs(r.ppe_helmet_conf - 0.92) < 1e-6
+    assert abs(r.ppe_vest_conf - 0.11) < 1e-6
+    assert abs(r.ppe_gloves_conf - 0.75) < 1e-6
+    assert r.ppe_mask_conf == 0.0
+
+
+def test_tracklet_ppe_fields_absent_in_old_frame_returns_none() -> None:
+    """Frames produced before PPE was added must deserialize with ppe fields as None."""
+    t = Tracklet(local_track_id=1, camera_id=1, bbox=(0, 0, 50, 100), confidence=0.8)
+    fields = DetectionFrame(
+        camera_id=1, seq_id=0, timestamp_ms=0, tracklets=(t,), face_embeddings=()
+    ).to_redis_fields()
+
+    import json
+
+    raw = json.loads(fields["tracklets"])
+    for tl in raw:
+        for key in ("ppe_helmet_conf", "ppe_vest_conf", "ppe_gloves_conf", "ppe_mask_conf"):
+            tl.pop(key, None)
+    fields["tracklets"] = json.dumps(raw)
+
+    restored = DetectionFrame.from_redis_fields(fields)
+    r = restored.tracklets[0]
+    assert r.ppe_helmet_conf is None
+    assert r.ppe_vest_conf is None
+    assert r.ppe_gloves_conf is None
+    assert r.ppe_mask_conf is None
+
+
+def test_tracklet_keypoints_defaults_empty() -> None:
+    t = Tracklet(local_track_id=1, camera_id=1, bbox=(0, 0, 100, 200), confidence=0.9)
+    assert t.keypoints == ()
+    assert t.face_visible is False
+
+
+def test_tracklet_keypoints_redis_roundtrip() -> None:
+    kpts = tuple((float(i), float(i * 2), 0.9) for i in range(17))
+    t = Tracklet(
+        local_track_id=1,
+        camera_id=1,
+        bbox=(0, 0, 100, 200),
+        confidence=0.9,
+        keypoints=kpts,
+        face_visible=True,
+    )
+    frame = DetectionFrame(
+        camera_id=1, seq_id=0, timestamp_ms=0, tracklets=(t,), face_embeddings=()
+    )
+    restored = DetectionFrame.from_redis_fields(frame.to_redis_fields())
+    assert len(restored.tracklets[0].keypoints) == 17
+    assert restored.tracklets[0].face_visible is True
+    assert restored.tracklets[0].keypoints[0] == (0.0, 0.0, 0.9)
+
+
+def test_face_with_embedding_quality_norm_default() -> None:
+    f = FaceWithEmbedding(bbox=(0, 0, 100, 100), confidence=0.9, embedding=(0.1,) * 512)
+    assert f.face_quality_norm == 1.0
+
+
+def test_tracklet_body_quality_norm_default() -> None:
+    t = Tracklet(local_track_id=1, camera_id=1, bbox=(0, 0, 50, 100), confidence=0.8)
+    assert t.body_quality_norm == 1.0
+
+
+def test_detection_frame_round_trip_quality_norms() -> None:
+    """Quality norms survive Redis serialization round-trip."""
+    t = Tracklet(
+        local_track_id=1,
+        camera_id=2,
+        bbox=(0, 0, 50, 100),
+        confidence=0.8,
+        body_quality_norm=0.73,
+    )
+    f = FaceWithEmbedding(
+        bbox=(10, 10, 50, 50),
+        confidence=0.9,
+        embedding=(0.1,) * 512,
+        face_quality_norm=0.55,
+    )
+    frame = DetectionFrame(
+        camera_id=2,
+        seq_id=1,
+        timestamp_ms=1000,
+        tracklets=(t,),
+        face_embeddings=(f,),
+    )
+    fields = frame.to_redis_fields()
+    restored = DetectionFrame.from_redis_fields(fields)
+    assert abs(restored.tracklets[0].body_quality_norm - 0.73) < 1e-4
+    assert abs(restored.face_embeddings[0].face_quality_norm - 0.55) < 1e-4

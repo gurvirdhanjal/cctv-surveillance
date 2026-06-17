@@ -42,6 +42,12 @@ class SHMSlot:
     def open(cls, name: str, width: int, height: int) -> SHMSlot:
         """Attach to an existing SHM segment written by an IngestionWorker."""
         shm = SharedMemory(name=name, create=False)
+        expected = HEADER_SIZE + width * height * 3
+        if shm.size != expected:
+            shm.close()
+            raise ValueError(
+                f"SHM size mismatch for '{name}': expected {expected} bytes, got {shm.size}"
+            )
         return cls(name, width, height, shm)
 
     def write(
@@ -49,18 +55,20 @@ class SHMSlot:
     ) -> int:
         """Write BGR frame and header. Returns the timestamp_ms recorded."""
         ts_ms = time.time_ns() // 1_000_000
-        self._shm.buf[:HEADER_SIZE] = struct.pack(HEADER_FMT, seq_id, ts_ms)
+        buf: memoryview = self._shm.buf
+        buf[:HEADER_SIZE] = struct.pack(HEADER_FMT, seq_id, ts_ms)
         raw = frame.tobytes()
-        self._shm.buf[HEADER_SIZE : HEADER_SIZE + len(raw)] = raw
+        buf[HEADER_SIZE : HEADER_SIZE + len(raw)] = raw
         return ts_ms
 
     def read(self) -> tuple[np.ndarray[tuple[int, int, int], np.dtype[np.uint8]], int, int] | None:
         """Read frame. Returns (frame_bgr, seq_id, timestamp_ms) or None if stale."""
-        seq_id, timestamp_ms = struct.unpack(HEADER_FMT, bytes(self._shm.buf[:HEADER_SIZE]))
+        buf: memoryview = self._shm.buf
+        seq_id, timestamp_ms = struct.unpack(HEADER_FMT, bytes(buf[:HEADER_SIZE]))
         now_ms = time.time_ns() // 1_000_000
         if now_ms - timestamp_ms > get_settings().stale_threshold_ms:
             return None
-        raw = bytes(self._shm.buf[HEADER_SIZE : HEADER_SIZE + self._frame_bytes])
+        raw = bytes(buf[HEADER_SIZE : HEADER_SIZE + self._frame_bytes])
         frame = np.frombuffer(raw, dtype=np.uint8).reshape(self.height, self.width, 3).copy()
         return frame, seq_id, timestamp_ms
 

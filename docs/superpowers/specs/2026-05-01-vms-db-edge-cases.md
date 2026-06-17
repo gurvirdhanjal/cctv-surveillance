@@ -602,6 +602,25 @@ ALTER TABLE alerts ADD CONSTRAINT fk_alerts_ack_user
 ALTER TABLE audit_log ADD CONSTRAINT fk_audit_actor
     FOREIGN KEY (actor_user_id) REFERENCES users(user_id) ON DELETE SET NULL;
 -- maintenance_windows.created_by intentionally NO ACTION (must not delete user with windows)
+
+-- SYSTEM_CRITICAL alert_type + nullable camera_id (added 2026-06-13, migration: system_critical_alert_type)
+-- Adds PPE_VIOLATION (previously spec'd but missing from constraint) and SYSTEM_CRITICAL.
+-- SYSTEM_CRITICAL is emitted by the scheduler process for ops/infrastructure failure alerts.
+-- It must never appear in the Guard view (security operator screen).
+ALTER TABLE alerts DROP CONSTRAINT chk_alert_type;
+ALTER TABLE alerts ADD CONSTRAINT chk_alert_type
+    CHECK (alert_type IN (
+        'UNKNOWN_PERSON','PERSON_LOST','CROWD_DENSITY',
+        'INTRUSION','VIOLENCE','LOITERING','PPE_VIOLATION',
+        'SYSTEM_CRITICAL'
+    ));
+
+-- camera_id is nullable for SYSTEM_CRITICAL alerts only.
+-- All other alert_type values require a non-null camera_id —
+-- enforced by the application layer and the constraint below.
+ALTER TABLE alerts ALTER COLUMN camera_id DROP NOT NULL;
+ALTER TABLE alerts ADD CONSTRAINT chk_alert_camera_id_required
+    CHECK (alert_type = 'SYSTEM_CRITICAL' OR camera_id IS NOT NULL);
 ```
 
 The Phase 1A plan (`2026-05-01-vms-v2-phase1a-db-schema.md`) Task 13 is **updated** to include these constraints in `0001_initial_schema.py`. The plan's task body should be edited to merge these constraints into the relevant table definitions before the first `alembic upgrade head` runs — preserving the "ship the full v2 schema in migration 0001" principle.
