@@ -4,12 +4,13 @@ Connects to an RTSP stream, runs SCRFD + AdaFace per frame, and lets you
 enroll persons directly into the VMS PostgreSQL database.
 
 Usage:
+    # Default: CAM110 Front Gate (reads VMS_CAM_GATE_FRONT_URL from .env)
     venv\\Scripts\\python.exe scripts\\enroll_from_camera.py \\
         --db-url postgresql://vms:vms@localhost:5434/vms_test
 
-    # CAM200 (entry-point frontal, H.264 1920x1080 @ 50fps):
+    # Explicit URL override:
     venv\\Scripts\\python.exe scripts\\enroll_from_camera.py \\
-        --url "rtsp://admin:Admin%40123%23@172.16.2.200:554/Streaming/Channels/101" \\
+        --url "rtsp://admin:sss12345@172.16.2.110:554/Streaming/Channels/101" \\
         --db-url postgresql://vms:vms@localhost:5434/vms_test
 
 Controls:
@@ -64,7 +65,10 @@ import numpy as np
 
 # ── constants ────────────────────────────────────────────────────────────────
 
-_DEFAULT_URL = "rtsp://admin:Admin%40123%23@172.16.2.200:554/Streaming/Channels/101"
+_DEFAULT_URL = os.environ.get(
+    "VMS_CAM_GATE_FRONT_URL",
+    "rtsp://admin:sss12345@172.16.2.110:554/Streaming/Channels/101",
+)
 _DEFAULT_DB = "postgresql://vms:vms@localhost:5434/vms_test"
 _ENROLL_CONF = 0.60       # higher than test mode — enrollment should be high-confidence only
 _ENROLL_BLUR = 20.0       # min Laplacian variance for face crop to be enrollment-worthy
@@ -418,7 +422,7 @@ def _draw_faces(
 
     # Header bar (two lines)
     cv2.rectangle(frame, (0, 0), (w, 46), (20, 20, 20), -1)
-    header = f"CAM200  {codec_info}  |  Enrolled:{enrolled_count}"
+    header = f"VMS Enroll  {codec_info}  |  Enrolled:{enrolled_count}"
     cv2.putText(frame, header, (6, 16), _FONT, 0.45, _WHITE, 1, cv2.LINE_AA)
     perf = f"Inference: {infer_fps:.1f} fps  [{active_provider}]  |  SPACE=capture  L=list  Q=quit"
     cv2.putText(frame, perf, (6, 38), _FONT, 0.45, _YELLOW, 1, cv2.LINE_AA)
