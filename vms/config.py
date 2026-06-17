@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     adaface_model: str = "models/adaface_ir101_webface12m.onnx"
     bytetrack_config: str = "bytetrack_custom.yaml"
     botsort_config: str = "botsort_custom.yaml"
+    # BoT-SORT lost-track retention (ghost tracklet bridge for short same-camera gaps).
+    # Rendered into the tracker config at runtime — keep in sync with botsort_custom.yaml default.
+    tracker_buffer_frames: int = 90
     yolov8x_pose_model: str = "models/yolov8x-pose.pt"
     # TransReID ViT-B/16+ICS msmt17 — body Re-ID (768-dim, 384x128) — current production
     # Export: python scripts/export_transreid_onnx.py
@@ -87,6 +90,10 @@ class Settings(BaseSettings):
     reid_quality_window_s: float = 2.0  # temporal window; keep best crop per window
     reid_quality_norm_floor: float = 0.0  # pre-norm L2 floor; 0.0 = accept all
     reid_enroll_dedup_sim: float = 0.95  # cosine sim ceiling for enrollment dedup
+    # Cross-camera Kalman floor-plane predictor (Phase 3 crosscam-accuracy).
+    # Conservative defaults — spatial gate stays disabled until set per-pair in topology JSON.
+    reid_predictor_history_len: int = 8  # floor positions retained per gid for the fit
+    reid_predictor_max_predict_gap_ms: int = 900_000  # 15 min cap on extrapolation
     # Keypoint-gated face detection (YOLOv8x-pose)
     face_kpt_min_conf: float = 0.5  # nose + eye confidence to trigger SCRFD+AdaFace
     # BLE badge fallback
