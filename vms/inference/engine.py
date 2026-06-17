@@ -16,7 +16,7 @@ import numpy as np
 import redis.asyncio as aioredis
 
 from vms.config import get_settings
-from vms.inference.body_embedder import BodyEmbedder, TransReIDBodyEmbedder, create_body_embedder
+from vms.inference.body_embedder import BodyEmbedder, TransReIDBodyEmbedder
 from vms.inference.detector import (
     SCRFDDetector,
     _InsightFaceBackend,
@@ -81,13 +81,15 @@ def _extract_body_embeddings(
         return tracklets
     settings = get_settings()
     h, w = frame_bgr.shape[:2]
+    min_px = settings.min_body_bbox_px
     result: list[Tracklet] = []
     for t in tracklets:
         x1, y1, x2, y2 = t.bbox
         x1c, y1c = max(0, x1), max(0, y1)
         x2c, y2c = min(w, x2), min(h, y2)
+        crop_w, crop_h = x2c - x1c, y2c - y1c
         crop = frame_bgr[y1c:y2c, x1c:x2c]
-        if crop.size > 0:
+        if crop.size > 0 and crop_w >= min_px and crop_h >= min_px:
             blur = _blur_score(crop)
             if blur >= settings.min_blur:
                 body_emb_tuple, body_quality = body_embedder.embed(crop)

@@ -252,15 +252,14 @@ class TestCameraWorker:
     def test_face_pipeline_called_on_sample_frames(self) -> None:
         """With sample_n=3, face pipeline fires on frames 0, 3, 6."""
         state = ipt.PipelineState(sample_n=3, face_enabled=True)
-        worker, body_det, face_pip = self._make_worker(state=state)
+        _worker, body_det, face_pip = self._make_worker(state=state)
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
 
         fired_on = []
-        last_face: list = []
         for frame_n in range(7):
             body_det.detect.return_value = ([], 25.0)
             if state.face_enabled and frame_n % state.sample_n == 0:
-                last_face, _, _ = face_pip.run(frame)
+                _last_face, _, _ = face_pip.run(frame)
                 fired_on.append(frame_n)
 
         assert fired_on == [0, 3, 6]
@@ -268,7 +267,7 @@ class TestCameraWorker:
 
     def test_face_pipeline_not_called_when_disabled(self) -> None:
         state = ipt.PipelineState(sample_n=1, face_enabled=False)
-        worker, _, face_pip = self._make_worker(state=state)
+        _worker, _, face_pip = self._make_worker(state=state)
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
 
         for frame_n in range(5):

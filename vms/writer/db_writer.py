@@ -71,9 +71,7 @@ def flush_detection_frame(
     # embedding value lets us recover the quality signal without changing the
     # Tracklet DTO (which does not carry face_quality_norm directly).
     face_quality_by_emb: dict[tuple[float, ...], float] = {
-        f.embedding: f.face_quality_norm
-        for f in frame.face_embeddings
-        if f.embedding
+        f.embedding: f.face_quality_norm for f in frame.face_embeddings if f.embedding
     }
 
     rows = []

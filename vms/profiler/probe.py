@@ -52,7 +52,7 @@ class CameraProfiler:
         fourcc_int = int(cap.get(cv2.CAP_PROP_FOURCC))
         codec = self._decode_fourcc(fourcc_int)
 
-        frames: list[np.ndarray] = []  # type: ignore[type-arg]
+        frames: list[np.ndarray] = []
         decoded = 0
         failed = 0
         deadline = time.monotonic() + self._duration if self._duration > 0 else None
@@ -124,7 +124,7 @@ class CameraProfiler:
             return "UNKN"
 
     @staticmethod
-    def _detect_deinterlace_combing(frames: list[np.ndarray]) -> bool:  # type: ignore[type-arg]
+    def _detect_deinterlace_combing(frames: list[np.ndarray]) -> bool:
         """Return True if alternating-row intensity variance suggests deinterlace combing."""
         if not frames:
             return False
@@ -139,7 +139,7 @@ class CameraProfiler:
 
     @staticmethod
     def _detect_shutter_type(
-        frames: list[np.ndarray],  # type: ignore[type-arg]
+        frames: list[np.ndarray],
     ) -> tuple[str, float]:
         """Estimate shutter type from optical-flow skew variance across frames.
 
@@ -156,7 +156,7 @@ class CameraProfiler:
         skew_variances: list[float] = []
 
         h, w = gray_frames[0].shape[:2]
-        flow_buf: np.ndarray = np.zeros((h, w, 2), dtype=np.float32)  # type: ignore[type-arg]
+        flow_buf: np.ndarray = np.zeros((h, w, 2), dtype=np.float32)
         for i in range(len(gray_frames) - 1):
             flow = cv2.calcOpticalFlowFarneback(
                 gray_frames[i],

@@ -36,6 +36,10 @@ class HeadCountSnapshot:
 class HeadCountAggregator:
     _by_zone: dict[int, set[uuid.UUID]] = field(default_factory=lambda: defaultdict(set))
     _last_seen: dict[uuid.UUID, tuple[int, datetime]] = field(default_factory=dict)
+    # EMA state for smooth_snapshot() — not used by snapshot()
+    _ema_total: float = field(default=0.0)
+    _ema_by_zone: dict[int, float] = field(default_factory=dict)
+    _ema_initialized: bool = field(default=False)
 
     def on_tracking_event(self, gid: uuid.UUID, zone_id: int | None, ts: datetime) -> None:
         if zone_id is None:
@@ -67,3 +71,30 @@ class HeadCountAggregator:
 
     def counts_by_zone(self) -> dict[int, int]:
         return {zid: len(s) for zid, s in self._by_zone.items() if s}
+
+    def smooth_snapshot(self, alpha: float = 0.3) -> HeadCountSnapshot:
+        """Return a head-count snapshot with EMA smoothing applied.
+
+        Uses an exponential moving average to dampen RTSP track-flicker.
+        alpha=0.3 damps single-frame spikes while tracking real changes in ~5 frames.
+        On the first call the EMA is seeded from the raw counts (no lag on startup).
+        """
+        raw = self.snapshot()
+        if not self._ema_initialized:
+            self._ema_total = float(raw.plant_total)
+            self._ema_by_zone = {z: float(c) for z, c in raw.by_zone.items()}
+            self._ema_initialized = True
+        else:
+            self._ema_total = alpha * raw.plant_total + (1.0 - alpha) * self._ema_total
+            all_zones = set(raw.by_zone) | set(self._ema_by_zone)
+            self._ema_by_zone = {
+                z: alpha * float(raw.by_zone.get(z, 0))
+                + (1.0 - alpha) * self._ema_by_zone.get(z, 0.0)
+                for z in all_zones
+            }
+        smoothed_by_zone = {z: round(v) for z, v in self._ema_by_zone.items() if round(v) > 0}
+        return HeadCountSnapshot(
+            plant_total=round(self._ema_total),
+            by_zone=smoothed_by_zone,
+            ts=datetime.now(timezone.utc).replace(tzinfo=None),
+        )

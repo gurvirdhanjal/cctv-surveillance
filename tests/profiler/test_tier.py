@@ -1,6 +1,5 @@
 """Tests for CameraProfiler tier assignment logic."""
 
-import pytest
 from vms.api.schemas import ProfileData
 from vms.profiler.tier import assign_tier
 
@@ -50,17 +49,17 @@ def test_assign_tier_low_focus() -> None:
 
 
 def test_assign_tier_mid_720p() -> None:
-    tier, reason = assign_tier(_data(resolution_h=720))
+    tier, _reason = assign_tier(_data(resolution_h=720))
     assert tier == "MID"
 
 
 def test_assign_tier_mid_fps_borderline() -> None:
-    tier, reason = assign_tier(_data(fps_measured=10.0))
+    tier, _reason = assign_tier(_data(fps_measured=10.0))
     assert tier == "MID"
 
 
 def test_assign_tier_mid_focus_borderline() -> None:
-    tier, reason = assign_tier(_data(focus_score=20.0))
+    tier, _reason = assign_tier(_data(focus_score=20.0))
     assert tier == "MID"
 
 
@@ -81,5 +80,5 @@ def test_assign_tier_uses_config_thresholds() -> None:
 
 def test_assign_tier_none_data_returns_full() -> None:
     """When data is missing (None fields), default to FULL (best-effort)."""
-    tier, reason = assign_tier(ProfileData())
+    tier, _reason = assign_tier(ProfileData())
     assert tier == "FULL"

@@ -91,9 +91,9 @@ def test_startup_calls_ensure_future_partitions() -> None:
 @pytest.mark.asyncio
 async def test_integrity_error_returns_422(db_session: Session) -> None:
     """SAIntegrityError raised inside a route is caught and returned as 422."""
+    from fastapi import APIRouter
     from sqlalchemy.exc import IntegrityError as SAIntegrityError
 
-    from fastapi import APIRouter
     from vms.api.deps import get_db
     from vms.api.main import app
 
@@ -113,7 +113,11 @@ async def test_integrity_error_returns_422(db_session: Session) -> None:
             r = await c.post("/api/test-integrity-error")
     finally:
         app.dependency_overrides.pop(get_db, None)
-        app.routes[:] = [route for route in app.routes if getattr(route, "path", None) != "/api/test-integrity-error"]
+        app.routes[:] = [
+            route
+            for route in app.routes
+            if getattr(route, "path", None) != "/api/test-integrity-error"
+        ]
 
     assert r.status_code == 422
     assert "detail" in r.json()

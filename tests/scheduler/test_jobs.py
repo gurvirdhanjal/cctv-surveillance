@@ -116,12 +116,12 @@ def test_emit_critical_alert_uses_system_critical_type() -> None:
 
     assert len(added_alerts) == 1
     alert = added_alerts[0]
-    assert alert.alert_type == "SYSTEM_CRITICAL", (
-        f"Expected SYSTEM_CRITICAL, got {alert.alert_type}"
-    )
-    assert alert.camera_id is None, (
-        f"camera_id must be None for system alerts, got {alert.camera_id}"
-    )
+    assert (
+        alert.alert_type == "SYSTEM_CRITICAL"
+    ), f"Expected SYSTEM_CRITICAL, got {alert.alert_type}"
+    assert (
+        alert.camera_id is None
+    ), f"camera_id must be None for system alerts, got {alert.camera_id}"
     assert alert.severity == "CRITICAL"
 
 

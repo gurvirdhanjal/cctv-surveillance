@@ -59,7 +59,8 @@ def _make_model_with_output(output: np.ndarray, monkeypatch: pytest.MonkeyPatch)
 
 
 def test_ppe_model_unavailable_when_path_missing() -> None:
-    assert PPEModel("").is_available is False
+    # Empty path triggers auto-detect; only unavailable if the auto-path is also absent.
+    # Use an explicit non-existent .onnx path to reliably test the unavailable case.
     assert PPEModel("nonexistent.onnx").is_available is False
 
 
@@ -125,7 +126,7 @@ def test_ppe_model_score_crop_returns_none_on_tiny_crop(
 
 
 def test_ppe_model_score_crop_returns_none_when_unavailable() -> None:
-    model = PPEModel("")
+    model = PPEModel("nonexistent.onnx")
     assert model.score_crop(np.zeros((128, 64, 3), dtype=np.uint8)) is None
 
 

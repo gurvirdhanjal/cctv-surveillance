@@ -41,8 +41,8 @@ class MinIOStorageBackend:
         secret_key: str,
         bucket: str,
     ) -> None:
-        import boto3  # type: ignore[import-not-found]  # lazy: not installed in all envs
-        from botocore.config import Config  # type: ignore[import-not-found]
+        import boto3  # type: ignore[import-untyped]  # lazy: not installed in all envs
+        from botocore.config import Config  # type: ignore[import-untyped]
 
         self._bucket = bucket
         kwargs: dict[str, Any] = {
@@ -57,7 +57,7 @@ class MinIOStorageBackend:
         self._ensure_bucket()
 
     def _ensure_bucket(self) -> None:
-        from botocore.exceptions import ClientError  # type: ignore[import-not-found]
+        from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 
         with contextlib.suppress(ClientError):
             self._client.head_bucket(Bucket=self._bucket)

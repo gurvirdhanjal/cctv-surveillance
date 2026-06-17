@@ -56,8 +56,17 @@ class PPEModel:
         self._target: dict[str, int] = dict(_TARGET)
 
         if not model_path:
-            logger.info("VMS_PPE_MODEL not set — PPE detection disabled.")
-            return
+            _auto = "models/sh17_ppe_yolov8l.onnx"
+            if os.path.isfile(_auto):
+                model_path = _auto
+                self._path = model_path
+                logger.info("VMS_PPE_MODEL not set — auto-detected %s", _auto)
+            else:
+                logger.info(
+                    "VMS_PPE_MODEL not set — PPE detection disabled. "
+                    "Set VMS_PPE_MODEL=models/sh17_ppe_yolov8l.onnx to enable."
+                )
+                return
 
         if not os.path.isfile(model_path):
             logger.warning("ppe_model path %r is not a file — PPE detection disabled.", model_path)

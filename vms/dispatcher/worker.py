@@ -111,7 +111,9 @@ class AlertDispatcher:
         try:
             raw = json.loads(fields.get("payload", "{}"))
             # camera_id is None for SYSTEM_CRITICAL alerts
-            camera_id: int | None = int(raw["camera_id"]) if raw.get("camera_id") is not None else None
+            camera_id: int | None = (
+                int(raw["camera_id"]) if raw.get("camera_id") is not None else None
+            )
             zone_id: int | None = int(raw["zone_id"]) if raw.get("zone_id") is not None else None
 
             cam = db.get(Camera, camera_id) if camera_id is not None else None

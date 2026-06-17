@@ -130,8 +130,8 @@ def _draw_overlay(
     return out
 
 
-def _collect(camera: int, sess: "ort.InferenceSession") -> tuple[np.ndarray, list[int]]:  # type: ignore[name-defined]
-    """Open webcam and interactively collect labeled embeddings.
+def _collect(camera: int | str, sess: "ort.InferenceSession") -> tuple[np.ndarray, list[int]]:  # type: ignore[name-defined]
+    """Open webcam or RTSP stream and interactively collect labeled embeddings.
 
     Returns:
         embeddings: (N, 768) float32 array
@@ -139,7 +139,7 @@ def _collect(camera: int, sess: "ort.InferenceSession") -> tuple[np.ndarray, lis
     """
     cap = cv2.VideoCapture(camera)
     if not cap.isOpened():
-        sys.exit(f"Cannot open camera index {camera}")
+        sys.exit(f"Cannot open video source: {camera}")
 
     embeddings: list[np.ndarray] = []  # type: ignore[type-arg]
     labels: list[int] = []
@@ -287,6 +287,8 @@ def _save(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--camera", type=int, default=_DEFAULT_CAMERA, help="cv2.VideoCapture index (default 0)")
+    parser.add_argument("--rtsp-url", default=None, metavar="URL",
+        help="RTSP stream URL to use instead of webcam (e.g. rtsp://admin:...@172.16.2.105:554/...)")
     parser.add_argument("--model", default=_DEFAULT_MODEL, help="TransReID ONNX path")
     parser.add_argument(
         "--from-saved",
@@ -303,8 +305,12 @@ def main() -> None:
         _analyze(embeddings, labels)
         return
 
+    source: int | str = args.rtsp_url if args.rtsp_url else args.camera
+    if args.rtsp_url:
+        os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
+
     sess = _load_model(args.model)
-    embeddings, labels = _collect(args.camera, sess)
+    embeddings, labels = _collect(source, sess)
 
     if len(labels) == 0:
         print("No captures recorded.")

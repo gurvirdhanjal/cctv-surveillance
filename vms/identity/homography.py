@@ -17,7 +17,7 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
-def load_homography(homography_json: str | None) -> np.ndarray | None:  # type: ignore[type-arg]
+def load_homography(homography_json: str | None) -> np.ndarray | None:
     """Parse a camera's homography_matrix JSON into a (3, 3) float64 ndarray.
 
     Returns None if the input is None or malformed JSON.

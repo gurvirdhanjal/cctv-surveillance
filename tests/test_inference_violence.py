@@ -1,4 +1,4 @@
-"""Tests for the MoViNet A2 Stream violence wrapper."""
+"""Tests for the R(2+1)D-18 violence detection wrapper."""
 
 from __future__ import annotations
 
@@ -15,9 +15,9 @@ def test_empty_path_model_is_unavailable() -> None:
     assert not model.is_available
 
 
-def test_missing_dir_model_is_unavailable(tmp_path: Path) -> None:
-    """Non-existent directory disables violence detection gracefully."""
-    model = ViolenceModel(str(tmp_path / "no_such_dir"))
+def test_pt_file_not_found_model_is_unavailable(tmp_path: Path) -> None:
+    """A .pt path that does not exist disables violence detection."""
+    model = ViolenceModel(str(tmp_path / "no_such.pt"))
     assert not model.is_available
 
 
@@ -28,12 +28,7 @@ def test_score_frame_returns_none_when_unavailable() -> None:
     assert model.score_frame(camera_id=1, frame_bgr=frame) is None
 
 
-def test_saved_model_dir_detection(tmp_path: Path) -> None:
-    """_is_saved_model_dir recognises a directory with saved_model.pb."""
-    from vms.inference.violence import _is_saved_model_dir
-
-    assert not _is_saved_model_dir(str(tmp_path / "nonexistent"))
-    assert not _is_saved_model_dir(str(tmp_path))  # empty dir
-
-    (tmp_path / "saved_model.pb").touch()
-    assert _is_saved_model_dir(str(tmp_path))
+def test_evict_camera_is_noop_when_unavailable() -> None:
+    """evict_camera() does not raise when model is disabled."""
+    model = ViolenceModel("")
+    model.evict_camera(camera_id=99)  # must not raise

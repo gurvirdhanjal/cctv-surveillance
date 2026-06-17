@@ -142,7 +142,7 @@ def test_extract_body_embeddings_populates_tracklets() -> None:
 
     frame = np.zeros((480, 640, 3), dtype=np.uint8)
     tracklets = (
-        Tracklet(local_track_id=1, camera_id=1, bbox=(10, 20, 60, 120), confidence=0.9),
+        Tracklet(local_track_id=1, camera_id=1, bbox=(10, 20, 80, 160), confidence=0.9),
         Tracklet(local_track_id=2, camera_id=1, bbox=(200, 100, 280, 300), confidence=0.8),
     )
     with patch("vms.inference.engine._blur_score", return_value=100.0):

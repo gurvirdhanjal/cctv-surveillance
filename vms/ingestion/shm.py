@@ -55,7 +55,7 @@ class SHMSlot:
     ) -> int:
         """Write BGR frame and header. Returns the timestamp_ms recorded."""
         ts_ms = time.time_ns() // 1_000_000
-        buf: memoryview = self._shm.buf
+        buf: memoryview = self._shm.buf  # type: ignore[assignment]
         buf[:HEADER_SIZE] = struct.pack(HEADER_FMT, seq_id, ts_ms)
         raw = frame.tobytes()
         buf[HEADER_SIZE : HEADER_SIZE + len(raw)] = raw
@@ -63,7 +63,7 @@ class SHMSlot:
 
     def read(self) -> tuple[np.ndarray[tuple[int, int, int], np.dtype[np.uint8]], int, int] | None:
         """Read frame. Returns (frame_bgr, seq_id, timestamp_ms) or None if stale."""
-        buf: memoryview = self._shm.buf
+        buf: memoryview = self._shm.buf  # type: ignore[assignment]
         seq_id, timestamp_ms = struct.unpack(HEADER_FMT, bytes(buf[:HEADER_SIZE]))
         now_ms = time.time_ns() // 1_000_000
         if now_ms - timestamp_ms > get_settings().stale_threshold_ms:

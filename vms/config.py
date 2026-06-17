@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     reid_margin: float = 0.08
     min_blur: float = 25.0
     min_face_px: int = 40
+    # Skip body embedding / PPE for person crops narrower or shorter than this (px).
+    # Crops this small carry no useful identity signal and waste GPU time.
+    min_body_bbox_px: int = 64
 
     # identity
     reid_stale_ms: int = 300_000
@@ -77,7 +80,9 @@ class Settings(BaseSettings):
     # cross_cam > confirmed intentional: unconfirmed tracks (sparse gallery) are highest-risk merge.
     # Re-calibrate on real CAM105/CAM110 footage before tightening. Mandatory /advisor before change.
     reid_body_confirmed_sim: float = 0.65  # body gallery, confirmed tracks (8-slot gallery)
-    reid_body_cross_cam_sim: float = 0.70  # body gallery, unconfirmed tracks (tighter — sparse gallery)
+    reid_body_cross_cam_sim: float = (
+        0.70  # body gallery, unconfirmed tracks (tighter — sparse gallery)
+    )
     # ReID quality hardening (Phase 3) — all defaults conservative (no-op until calibrated)
     reid_quality_window_s: float = 2.0  # temporal window; keep best crop per window
     reid_quality_norm_floor: float = 0.0  # pre-norm L2 floor; 0.0 = accept all
@@ -102,13 +107,18 @@ class Settings(BaseSettings):
     rtsp_failure_threshold: int = 5
     rtsp_backoff_delays_ms: tuple[int, ...] = (1000, 2000, 4000, 8000, 16000, 32000)
 
-    # violence detection — MoViNet A2 Stream (TF SavedModel)
-    # Points to models/movinet_a2/ alongside scrfd/adaface/yolo.
-    # Run once to install: python scripts/download_movinet_a2.py
-    # Model is gitignored (large binary) — works after download with no extra config.
+    # violence detection — R(2+1)D-18 (torchvision, no TensorFlow required)
+    # Points to a .pt state-dict file OR any other value triggers auto-download (~130 MB).
+    # Legacy MoViNet SavedModel directory paths are detected and auto-upgraded.
+    # Set empty to disable. Pre-cache: python -c "from torchvision.models.video import
+    #   R2Plus1D_18_Weights,r2plus1d_18; import torch;
+    #   torch.save(r2plus1d_18(weights=R2Plus1D_18_Weights.KINETICS400_V1).state_dict(),
+    #   'models/r2plus1d_18_violence.pt')"
     violence_model: str = "models/movinet_a2"
     violence_threshold: float = 0.65  # sigmoid score threshold [0, 1]
     violence_gate_min_persons: int = 2  # only run when >= N persons detected
+    violence_clip_frames: int = 16  # frames per clip (buffer depth)
+    violence_clip_stride: int = 8  # run inference every N frames (lower = more CPU)
 
     # alert FSM
     alert_fsm_default_dedup_window_ms: int = 60_000
@@ -118,6 +128,9 @@ class Settings(BaseSettings):
     # head count
     head_count_emit_interval_s: float = 1.0
     head_count_track_ttl_s: int = 30
+    # EMA smoothing for the API snapshot (0 = raw counts, 1 = no update).
+    # 0.3 damps RTSP flicker while tracking real changes in ~5 frames.
+    head_count_ema_alpha: float = 0.3
 
     # maintenance
     maintenance_cache_ttl_s: int = 30

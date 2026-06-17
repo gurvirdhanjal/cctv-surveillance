@@ -5,9 +5,9 @@ Supports both SCRFD variants:
   9-output (KPS):    above + [kps_s8, kps_s16, kps_s32]
 
 Input:  (1, 3, 640, 640) float32, normalised (pixel - 127.5) / 128.0, BGR→RGB, CHW
-cls shapes:  (N, 1)   N = (640/stride)² × 2 anchors
+cls shapes:  (N, 1)   N = (640/stride)^2 x 2 anchors
 bbox shapes: (N, 4)   ltrb distances in stride units from anchor centre
-kps shapes:  (N, 10)  5 keypoints × 2 (Δx, Δy) from anchor centre
+kps shapes:  (N, 10)  5 keypoints x 2 (dx, dy) from anchor centre
 
 Default model: scrfd_10g_bnkps.onnx (SCRFD_10G_KPS, WiderFace Hard 82.8%).
 Keypoints are 5-point facial landmarks used by AdaFace affine alignment.
@@ -163,7 +163,7 @@ class SCRFDDetector:
     def _preprocess(
         self, img: np.ndarray[Any, np.dtype[Any]]
     ) -> tuple[np.ndarray[Any, np.dtype[Any]], float]:
-        """Letterbox-resize to _INPUT_SIZE × _INPUT_SIZE, preserving aspect ratio.
+        """Letterbox-resize to _INPUT_SIZE x _INPUT_SIZE, preserving aspect ratio.
 
         Returns (blob, det_scale) where det_scale converts model-space coords back to
         original-frame coords via division: original_coord = model_coord / det_scale.
@@ -205,9 +205,7 @@ class SCRFDDetector:
             # anchor centres: shape (side*side*anchors, 2), columns are [x, y]
             # np.mgrid[:side, :side] gives [row_indices, col_indices]; [::-1] swaps to [col, row] = [x, y]
             centers: np.ndarray[Any, np.dtype[Any]] = (
-                np.stack(np.mgrid[:side, :side][::-1], axis=-1)
-                .reshape(-1, 2)
-                .astype(np.float32)
+                np.stack(np.mgrid[:side, :side][::-1], axis=-1).reshape(-1, 2).astype(np.float32)  # type: ignore[call-overload]
             )
             centers = np.repeat(centers, _ANCHORS_PER_CELL, axis=0) * stride
 

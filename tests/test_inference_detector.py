@@ -83,7 +83,7 @@ def _make_mock_session_kps() -> MagicMock:
     """9-output KPS session with one detection at stride-8 cell (col=40, row=40, anchor=0).
 
     Nose keypoint (index 2) placed at stride-unit offset (Δx=2.0, Δy=1.0) from anchor
-    centre (320, 320).  In 640×640 input coords: nose = (336, 328).
+    centre (320, 320).  In 640x640 input coords: nose = (336, 328).
     """
     sess = MagicMock()
     sess.get_inputs.return_value = [MagicMock(name="input.1")]
@@ -133,7 +133,7 @@ def test_scrfd_detector_kps_model_returns_five_keypoints() -> None:
 
 
 def test_scrfd_detector_kps_nose_coords_correct_at_unit_scale() -> None:
-    """Nose landmark (index 2) must land at (336, 328) for a 640×640 input frame."""
+    """Nose landmark (index 2) must land at (336, 328) for a 640x640 input frame."""
     sess = _make_mock_session_kps()
     detector = SCRFDDetector(session=sess)
     frame = np.zeros((640, 640, 3), dtype=np.uint8)  # scale_x = scale_y = 1.0
@@ -144,9 +144,9 @@ def test_scrfd_detector_kps_nose_coords_correct_at_unit_scale() -> None:
 
 
 def test_scrfd_detector_kps_scales_to_original_frame() -> None:
-    """Keypoint coordinates must be scaled back via letterbox det_scale (720×1280 frame).
+    """Keypoint coordinates must be scaled back via letterbox det_scale (720x1280 frame).
 
-    Letterbox for 720×1280: scale = min(640/720, 640/1280) = 0.5.
+    Letterbox for 720x1280: scale = min(640/720, 640/1280) = 0.5.
     Model-space nose (336, 328) → original coords: 336/0.5=672, 328/0.5=656.
     """
     sess = _make_mock_session_kps()

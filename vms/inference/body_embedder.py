@@ -168,7 +168,7 @@ def create_body_embedder(
     transreid_path: str = "",
     osnet_path: str = "",
     device: str = "cpu",
-) -> "BodyEmbedder | TransReIDBodyEmbedder | None":
+) -> BodyEmbedder | TransReIDBodyEmbedder | None:
     """Return the best available body embedder based on configured model paths.
 
     Priority: TransReID ONNX > OSNet torchreid > None.

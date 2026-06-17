@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from vms.api.deps import get_current_user, get_db
+from vms.config import get_settings
 from vms.db.models import Alert, Camera
 from vms.identity.head_count import HeadCountAggregator
 
@@ -30,7 +31,7 @@ def snapshot(
 ) -> dict[str, Any]:
     now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z"
     head: dict[str, Any] = (
-        _agg.snapshot().to_dict()
+        _agg.smooth_snapshot(alpha=get_settings().head_count_ema_alpha).to_dict()
         if _agg is not None
         else {"plant_total": 0, "by_zone": {}, "ts": now, "schema_version": "1"}
     )

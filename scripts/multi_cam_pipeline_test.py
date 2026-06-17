@@ -1,8 +1,8 @@
 """Multi-camera live pipeline test — visual validation on CPU or GPU.
 
-Reads 2-4 Hikvision RTSP cameras from .env, runs the full inference stack
-(face detection + embedding, body tracking + ReID), and renders a tiled HUD
-with per-camera stats and a global head count.
+Reads 2-5 Hikvision RTSP cameras from .env, runs the full inference stack
+(face detection + embedding, body tracking + ReID), and renders an adaptive
+grid HUD with per-camera stats and a global head count.
 
 No DB writes. No Redis. No identity enrolment. Observation only.
 
@@ -15,6 +15,7 @@ Camera env vars (set in .env):
     VMS_CAM_GATE_BACK_URL    camera_id=105
     VMS_CAM_GATE_FRONT_URL   camera_id=110
     VMS_CAM_GATE_4_URL       camera_id=141
+    VMS_CAM_INDOOR_2_URL     camera_id=144
     VMS_CAM_ANPR_URL         camera_id=200
 
 Model toggle env vars (set empty to disable):
@@ -27,11 +28,15 @@ Model toggle env vars (set empty to disable):
 Keyboard controls:
     F        toggle face pipeline (SCRFD + AdaFace)
     B        toggle body Re-ID (TransReID / OSNet)
+    V        toggle violence detection (R(2+1)D-18)
+    P        toggle PPE compliance (YOLOv8l SH17)
     +/-      increase/decrease face sample rate (every N frames)
     C        cycle SCRFD face confidence: 0.40 -> 0.55 -> 0.70
     Y        cycle YOLO person confidence: 0.40 -> 0.50 -> 0.60 -> 0.70
     T        cycle YOLO frame-skip: every 1 -> 2 -> 3 -> 5 frames
     S        save snapshot of current frame
+    1-9      fullscreen camera N (letterboxed; press same key or G to return to grid)
+    G        return to grid view
     Q        quit
 
 CPU tips — add to .env or export before running:
@@ -44,6 +49,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import math
 import os
 import queue
 import sys
@@ -59,6 +65,13 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
+# Prepend PyTorch's bundled CUDA DLLs so onnxruntime-gpu can find cublasLt64_12.dll
+# without requiring a system CUDA installation.
+_torch_lib = _PROJECT_ROOT / "venv" / "Lib" / "site-packages" / "torch" / "lib"
+if _torch_lib.is_dir():
+    import os as _os
+    _os.environ["PATH"] = str(_torch_lib) + _os.pathsep + _os.environ.get("PATH", "")
+
 try:
     from dotenv import load_dotenv  # type: ignore[import-untyped]
     load_dotenv(_PROJECT_ROOT / ".env")
@@ -67,8 +80,8 @@ except ImportError:
 
 os.environ.setdefault("VMS_DB_URL", "postgresql://localhost/vms_unused")
 os.environ.setdefault("VMS_JWT_SECRET", "smoke-test-dummy-secret")
-os.environ.setdefault("VMS_SCRFD_CONF", "0.50")
-os.environ.setdefault("VMS_MIN_FACE_PX", "28")
+os.environ.setdefault("VMS_SCRFD_CONF", "0.30")   # test default: lower than prod (0.50) per /advisor 2026-06-17
+os.environ.setdefault("VMS_MIN_FACE_PX", "20")  # 20px catches workers at distance
 # Lower blur gate for live validation — gate cameras capture moving workers.
 # Production default (25.0) rejects slightly-blurred faces from motion; 8.0 keeps them.
 os.environ.setdefault("VMS_MIN_BLUR", "8.0")
@@ -81,12 +94,17 @@ _FACE_SAMPLE_DEFAULT = 3
 _BODY_REID_SAMPLE_DEFAULT = 5   # body ReID every N frames (TransReID ~60ms on CPU)
 _YOLO_SAMPLE_DEFAULT = 3        # YOLO inference every N frames; last boxes reused in between
 _RECONNECT_AFTER = 8            # consecutive read fails before reconnect attempt
+_MAX_DELIVER_FPS = 30           # reader caps delivery to this rate regardless of GOP bursts
 _PANEL_H = 540
 _STATS_H = 60
 _SNAPSHOTS_DIR = Path(__file__).resolve().parent / "snapshots"
-_CONF_CYCLE: tuple[float, ...] = (0.40, 0.55, 0.70)
+_CONF_CYCLE: tuple[float, ...] = (0.30, 0.40, 0.55, 0.70)
 _YOLO_CONF_CYCLE: tuple[float, ...] = (0.40, 0.50, 0.60, 0.70)
 _YOLO_SAMPLE_CYCLE: tuple[int, ...] = (1, 2, 3, 5)
+# Grid display target window size (pixels). Override with --width / --height.
+_GRID_W = 1280
+_GRID_H = 620
+_FOOTER_H = 28
 
 logging.basicConfig(
     level=logging.INFO,
@@ -103,7 +121,9 @@ from vms.inference.body_embedder import create_body_embedder
 from vms.inference.detector import SCRFDDetector
 from vms.inference.embedder import AdaFaceEmbedder
 from vms.inference.messages import FaceWithEmbedding, Tracklet
+from vms.inference.ppe import PPEModel
 from vms.inference.tracker import PerCameraTracker
+from vms.inference.violence import ViolenceModel
 
 # ---------------------------------------------------------------------------
 # Shared mutable state (toggled by keypress in main thread)
@@ -114,11 +134,14 @@ from vms.inference.tracker import PerCameraTracker
 class PipelineState:
     face_enabled: bool = True
     body_reid_enabled: bool = True
+    violence_enabled: bool = True
+    ppe_enabled: bool = True
     face_sample_n: int = _FACE_SAMPLE_DEFAULT
     reid_sample_n: int = _BODY_REID_SAMPLE_DEFAULT
     yolo_sample_n: int = _YOLO_SAMPLE_DEFAULT  # run YOLO every N frames; reuse boxes between
     conf: float = 0.55            # SCRFD face detection confidence
     yolo_conf: float = 0.55       # YOLO person class confidence (overrides yolo_person_conf)
+    focus_idx: int | None = None  # None = grid view; 0-based index = fullscreen that camera
 
 
 # ---------------------------------------------------------------------------
@@ -137,7 +160,9 @@ class FrameResult:
     fps: float
     latency_ms: float
     frame_n: int
-    face_fps: float = 0.0  # rolling face-embedding rate (embedded frames with ≥1 face)
+    face_fps: float = 0.0
+    violence_score: float | None = None
+    ppe_results: list[dict[str, float] | None] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -166,6 +191,8 @@ class CameraWorker:
         tracker: PerCameraTracker,
         body_embedder: Any,
         state: PipelineState,
+        violence_model: Any = None,
+        ppe_model: Any = None,
     ) -> None:
         self._id = camera_id
         self._label = label
@@ -175,6 +202,8 @@ class CameraWorker:
         self._tracker = tracker
         self._body_embedder = body_embedder
         self._state = state
+        self._violence_model = violence_model
+        self._ppe_model = ppe_model
         self._q: queue.Queue[FrameResult] = queue.Queue(maxsize=2)
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
@@ -184,6 +213,7 @@ class CameraWorker:
         # Reader drains the RTSP buffer continuously so inference never blocks on cap.read().
         self._frame_lock = threading.Lock()
         self._latest_raw_frame: np.ndarray | None = None  # type: ignore[type-arg]
+        self._frame_seq: int = 0  # incremented by reader; inference skips unchanged frames
 
     def start(self) -> None:
         self._reader_thread = threading.Thread(
@@ -210,7 +240,18 @@ class CameraWorker:
         return result
 
     def _open(self) -> cv2.VideoCapture | None:
-        for url in [self._url, self._url.replace("/101", "/102")]:
+        # Build candidate URLs: main stream path, legacy single-channel path, substream
+        candidates = [self._url]
+        if "/Streaming/Channels/101" in self._url:
+            candidates.append(self._url.replace("/Streaming/Channels/101", "/Streaming/Channels/1"))
+            candidates.append(self._url.replace("/Streaming/Channels/101", "/Streaming/Channels/102"))
+        elif "/101" in self._url:
+            candidates.append(self._url.replace("/101", "/102"))
+
+        for url in candidates:
+            import re as _re
+            safe = _re.sub(r"(rtsp://[^:]+:)[^@]+(@)", r"\1***\2", url)
+            logger.info("%s: trying %s", self._label, safe)
             cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
             cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             if cap.isOpened():
@@ -220,7 +261,14 @@ class CameraWorker:
                 logger.info("%s: connected %dx%d @ %.1f fps", self._label, w, h, fps)
                 return cap
             cap.release()
-        logger.error("%s: cannot connect — check network/credentials", self._label)
+        import re as _re
+        safe_base = _re.sub(r"(rtsp://[^:]+:)[^@]+(@)", r"\1***\2", self._url)
+        logger.error(
+            "%s: cannot connect (%s) — 401 usually means wrong credentials. "
+            "Hikvision username is 'admin' (lowercase) by default. "
+            "Verify in VLC: Media > Open Network Stream.",
+            self._label, safe_base,
+        )
         return None
 
     def _read_frames(self) -> None:
@@ -229,11 +277,14 @@ class CameraWorker:
         Continuously calls cap.read() and stores only the latest frame.
         The inference thread reads from _latest_raw_frame without blocking on I/O.
         This prevents H.265 keyframe-interval stalls (2+ seconds) from blocking inference.
+        Delivery rate is capped at _MAX_DELIVER_FPS to prevent GOP-burst frame floods.
         """
         cap = self._open()
         if cap is None:
             return
         consecutive_fails = 0
+        _min_interval = 1.0 / _MAX_DELIVER_FPS
+        _last_deliver = 0.0
         while not self._stop.is_set():
             ret, frame = cap.read()
             if not ret:
@@ -258,8 +309,12 @@ class CameraWorker:
                     time.sleep(0.05)
                 continue
             consecutive_fails = 0
-            with self._frame_lock:
-                self._latest_raw_frame = frame
+            now = time.monotonic()
+            if now - _last_deliver >= _min_interval:
+                with self._frame_lock:
+                    self._latest_raw_frame = frame
+                    self._frame_seq += 1
+                _last_deliver = now
         cap.release()
         logger.info("%s: reader stopped", self._label)
 
@@ -269,16 +324,21 @@ class CameraWorker:
         frame_n = 0
         t_prev = time.monotonic()
         t_last_face_emb = time.monotonic()
+        last_frame_seq = -1
 
         while not self._stop.is_set():
             with self._frame_lock:
                 frame = self._latest_raw_frame
+                frame_seq = self._frame_seq
 
-            if frame is None:
-                time.sleep(0.02)  # wait for reader thread to get first frame
+            if frame is None or frame_seq == last_frame_seq:
+                time.sleep(0.005)  # wait for a new frame from the reader thread
                 continue
+            last_frame_seq = frame_seq
 
             t0 = time.monotonic()
+            fps_deque.append(1.0 / max(t0 - t_prev, 1e-6))
+            t_prev = t0   # measure delivery interval, not post-inference time
             frame_n += 1
 
             try:
@@ -332,13 +392,38 @@ class CameraWorker:
                             enriched.append(t)
                     tracklets = tuple(enriched)
 
+                # Violence scoring — streaming model, runs every frame when ≥2 persons
+                violence_score: float | None = None
+                if (
+                    self._state.violence_enabled
+                    and self._violence_model is not None
+                    and self._violence_model.is_available
+                    and len(tracklets) >= 2
+                ):
+                    violence_score = self._violence_model.score_frame(self._id, frame)
+
+                # PPE detection — per-person crop, same cadence as body ReID
+                ppe_results: list[dict[str, float] | None] = []
+                if (
+                    self._state.ppe_enabled
+                    and self._ppe_model is not None
+                    and self._ppe_model.is_available
+                    and frame_n % self._state.reid_sample_n == 0
+                ):
+                    h_f, w_f = frame.shape[:2]
+                    for t in tracklets:
+                        x1, y1, x2, y2 = t.bbox
+                        crop = frame[max(0, y1):min(h_f, y2), max(0, x1):min(w_f, x2)]
+                        if crop.size > 0 and crop.shape[0] >= 32 and crop.shape[1] >= 32:
+                            ppe_results.append(self._ppe_model.score_crop(crop))
+                        else:
+                            ppe_results.append(None)
+
             except Exception:
                 logger.exception("%s: inference error frame %d", self._label, frame_n)
                 continue
 
             t1 = time.monotonic()
-            fps_deque.append(1.0 / max(t1 - t_prev, 1e-6))
-            t_prev = t1
             latency_ms = (t1 - t0) * 1000
 
             # Track face embedding rate (faces with a real embedding, not just SCRFD detections)
@@ -360,6 +445,8 @@ class CameraWorker:
                 latency_ms=latency_ms,
                 frame_n=frame_n,
                 face_fps=face_fps,
+                violence_score=violence_score,
+                ppe_results=ppe_results,
             )
             try:
                 self._q.put_nowait(result)
@@ -376,6 +463,46 @@ class CameraWorker:
 # ---------------------------------------------------------------------------
 # Rendering
 # ---------------------------------------------------------------------------
+
+
+def _grid_dims(n: int) -> tuple[int, int]:
+    """Return (cols, rows) for an adaptive grid of n panels."""
+    cols = math.ceil(math.sqrt(n))
+    rows = math.ceil(n / cols)
+    return cols, rows
+
+
+def _letterbox_cell(img: np.ndarray, cell_w: int, cell_h: int) -> np.ndarray:  # type: ignore[type-arg]
+    """Fit img into (cell_w × cell_h) preserving aspect ratio; fill unused space with black."""
+    h, w = img.shape[:2]
+    scale = min(cell_w / w, cell_h / h)
+    nw, nh = int(w * scale), int(h * scale)
+    resized = cv2.resize(img, (nw, nh), interpolation=cv2.INTER_AREA)
+    canvas = np.zeros((cell_h, cell_w, 3), dtype=np.uint8)
+    y_off = (cell_h - nh) // 2
+    x_off = (cell_w - nw) // 2
+    canvas[y_off:y_off + nh, x_off:x_off + nw] = resized
+    return canvas
+
+
+def _compose_grid(panels: list[np.ndarray], n_cols: int, n_rows: int, cell_w: int, cell_h: int) -> np.ndarray:  # type: ignore[type-arg]
+    """Resize each panel to (cell_w, cell_h) and arrange into a filled grid image.
+    Panels are pre-rendered at 16:9 aspect ratio so cell dimensions match — no letterbox bars."""
+    cells: list[np.ndarray] = []  # type: ignore[type-arg]
+    for p in panels:
+        ph, pw = p.shape[:2]
+        if pw != cell_w or ph != cell_h:
+            p = cv2.resize(p, (cell_w, cell_h), interpolation=cv2.INTER_AREA)
+        cells.append(p)
+    # Pad with black cells to fill the grid rectangle
+    blank = np.zeros((cell_h, cell_w, 3), dtype=np.uint8)
+    while len(cells) < n_cols * n_rows:
+        cells.append(blank)
+    rows_list = []
+    for r in range(n_rows):
+        row_cells = cells[r * n_cols: r * n_cols + n_cols]
+        rows_list.append(np.hstack(row_cells))
+    return np.vstack(rows_list)
 
 
 def _render_panel(result: FrameResult, target_h: int, show_reid_dim: bool) -> np.ndarray:  # type: ignore[type-arg]
@@ -407,18 +534,36 @@ def _render_panel(result: FrameResult, target_h: int, show_reid_dim: bool) -> np
         cv2.putText(panel, f"F{norm_str}", (x1, max(y1 - 4, 10)),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 200, 255), 1)
 
+    # PPE badges — per-tracklet (only when ppe_results has data for this frame)
+    for t, ppe in zip(result.tracklets, result.ppe_results):
+        if ppe is None:
+            continue
+        x1, y1 = int(t.bbox[0] * scale), int(t.bbox[3] * scale)
+        missing = [k[0].upper() for k, v in ppe.items() if v < 0.4]
+        if missing:
+            badge = "NO:" + "".join(missing)
+            cv2.putText(panel, badge, (x1, min(y1 + 14, target_h - 4)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 60, 255), 1)
+
+    # Violence alert — red border + text when score exceeds threshold
+    v_score = result.violence_score
+    if v_score is not None and v_score >= 0.60:
+        cv2.rectangle(panel, (0, 0), (w_scaled, target_h), (0, 0, 220), 4)
+        cv2.putText(panel, f"VIOLENCE {v_score:.2f}", (8, target_h - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
+
     # Stats bar
     person_count = len(result.tracklets)
-    reid_tag = " ReID" if result.body_reid_active else ""
-    face_rate = f" Face~{result.face_fps:.1f}/s" if result.face_fps > 0 else ""
+    face_count = len(result.faces)
+    reid_tag = " B" if result.body_reid_active else ""
+    fps_val = min(int(result.fps), 999)  # cap display at 999 to avoid 5-digit numbers
     hud = (
         f"{result.camera_label}  "
-        f"P:{person_count}  "
-        f"F:{int(result.fps)}fps  "
-        f"{result.latency_ms:.0f}ms{reid_tag}{face_rate}"
+        f"P:{person_count} Fc:{face_count}  "
+        f"{fps_val}fps {result.latency_ms:.0f}ms{reid_tag}"
     )
-    bar = np.zeros((32, w_scaled, 3), dtype=np.uint8)
-    cv2.putText(bar, hud, (8, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (220, 220, 220), 1)
+    bar = np.zeros((28, w_scaled, 3), dtype=np.uint8)
+    cv2.putText(bar, hud, (6, 19), cv2.FONT_HERSHEY_SIMPLEX, 0.52, (220, 220, 220), 1)
     return np.vstack([bar, panel])
 
 
@@ -433,6 +578,7 @@ def _camera_spec(camera_id: int) -> tuple[str, str] | None:
         105: ("Back Gate",  os.environ.get("VMS_CAM_GATE_BACK_URL", "")),
         110: ("Front Gate", os.environ.get("VMS_CAM_GATE_FRONT_URL", "")),
         141: ("Gate 4",     os.environ.get("VMS_CAM_GATE_4_URL", "")),
+        144: ("Indoor 2",   os.environ.get("VMS_CAM_INDOOR_2_URL", "")),
         200: ("ANPR",       os.environ.get("VMS_CAM_ANPR_URL", "")),
     }
     entry = mapping.get(camera_id)
@@ -447,10 +593,11 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
-        "--cameras", nargs="+", type=int, default=[105, 110],
-        help="Camera IDs to activate (default: 105 110). Available: 105 110 141 200",
+        "--cameras", nargs="+", type=int, default=[105, 110, 141, 144, 200],
+        help="Camera IDs to activate (default: all). Available: 105 110 141 144 200",
     )
-    parser.add_argument("--panel-h", type=int, default=_PANEL_H, help="Panel height per camera")
+    parser.add_argument("--width",  type=int, default=_GRID_W, help=f"Display window width  (default {_GRID_W})")
+    parser.add_argument("--height", type=int, default=_GRID_H, help=f"Display window height (default {_GRID_H})")
     parser.add_argument(
         "--yolo-every", type=int, default=_YOLO_SAMPLE_DEFAULT, metavar="N",
         help=f"Run YOLO every N frames (default {_YOLO_SAMPLE_DEFAULT}); reuses last boxes between runs",
@@ -474,6 +621,10 @@ def main() -> None:
         except ImportError:
             _device = "cpu"
     logger.info("Inference device: %s", _device)
+
+    # Display dimensions (may be overridden by --width / --height)
+    grid_w: int = args.width
+    grid_h: int = args.height
 
     # Build camera list
     cameras: list[tuple[int, str, str]] = []  # (id, label, url)
@@ -506,6 +657,21 @@ def main() -> None:
     else:
         logger.info("Body Re-ID: DISABLED (no model path configured)")
 
+    violence_model = ViolenceModel(
+        settings.violence_model,
+        clip_frames=settings.violence_clip_frames,
+        clip_stride=settings.violence_clip_stride,
+    )
+    ppe_model = PPEModel(settings.ppe_model)
+    if violence_model.is_available:
+        logger.info("Violence detection: ENABLED (R(2+1)D-18)")
+    else:
+        logger.info("Violence detection: DISABLED (set VMS_VIOLENCE_MODEL=models/movinet_a2)")
+    if ppe_model.is_available:
+        logger.info("PPE detection: ENABLED (YOLOv8l SH17)")
+    else:
+        logger.info("PPE detection: DISABLED (set VMS_PPE_MODEL=models/sh17_ppe_yolov8l.onnx)")
+
     state = PipelineState(
         conf=settings.scrfd_conf,
         yolo_conf=settings.yolo_person_conf,
@@ -522,57 +688,72 @@ def main() -> None:
     workers: list[CameraWorker] = []
     for cid, label, url in cameras:
         tracker = PerCameraTracker.from_path(cid, _tracker_model)
-        w = CameraWorker(cid, label, url, detector, embedder, tracker, body_embedder, state)
+        w = CameraWorker(cid, label, url, detector, embedder, tracker, body_embedder, state,
+                         violence_model, ppe_model)
         w.start()
         workers.append(w)
 
     logger.info(
-        "Controls: F=face  B=body_reid  +/-=face_rate  C=confidence  S=snapshot  Q=quit"
+        "Controls: F=face  B=body_reid  V=violence  P=ppe  +/-=face_rate  C=confidence  "
+        "Y=yolo_conf  T=yolo_skip  S=snapshot  1-N=fullscreen  G=grid  Q=quit"
     )
 
     show_reid_dim = body_embedder is not None
     frame_counter = 0
+    # Per-slot result cache: keeps last-good FrameResult per camera so the grid never
+    # collapses (changes dimensions) when a camera temporarily returns None.
+    cached_results: list[FrameResult | None] = [None] * len(workers)
+    display: np.ndarray | None = None  # type: ignore[type-arg]
+    live_results: list[FrameResult] = []
 
     try:
         while True:
-            panels: list[np.ndarray] = []  # type: ignore[type-arg]
             current_results: list[FrameResult | None] = []
-            for w in workers:
+            for i, w in enumerate(workers):
                 r = w.latest()
                 current_results.append(r)
                 if r is not None:
-                    panels.append(_render_panel(r, args.panel_h, show_reid_dim))
+                    cached_results[i] = r
 
-            if panels:
-                # Equalise heights before hstack
-                target_h = max(p.shape[0] for p in panels)
-                padded = []
-                for p in panels:
-                    if p.shape[0] < target_h:
-                        pad = np.zeros((target_h - p.shape[0], p.shape[1], 3), dtype=np.uint8)
-                        p = np.vstack([p, pad])
-                    padded.append(p)
+            live_results = [r for r in cached_results if r is not None]
 
-                grid = np.hstack(padded)
-
-                # Global head count — use cached results, never call w.latest() twice
+            if live_results:
+                n = len(live_results)
                 total_persons = sum(len(r.tracklets) for r in current_results if r is not None)
-                face_tag = f"Face:{'ON' if state.face_enabled else 'OFF'} N={state.face_sample_n}"
-                reid_tag = f"ReID:{'ON' if state.body_reid_enabled else 'OFF'}"
-                fconf_tag = f"FConf:{state.conf:.2f}"
-                yolo_tag = f"YConf:{state.yolo_conf:.2f} Ev:{state.yolo_sample_n}"
+                face_tag = f"F:{'ON' if state.face_enabled else 'OFF'}"
+                reid_tag = f"B:{'ON' if state.body_reid_enabled else 'OFF'}"
+                vio_tag = f"V:{'ON' if state.violence_enabled else 'OFF'}"
+                ppe_tag = f"P:{'ON' if state.ppe_enabled else 'OFF'}"
+                conf_tag = f"FC:{state.conf:.2f} YC:{state.yolo_conf:.2f}"
+                focus_tag = f" [CAM{state.focus_idx + 1}|G=grid]" if state.focus_idx is not None else ""
                 footer_text = (
-                    f"  HEAD COUNT: {total_persons}   {face_tag}   {reid_tag}"
-                    f"   {fconf_tag}   {yolo_tag}"
+                    f"  HEAD:{total_persons}  {face_tag} {reid_tag} {vio_tag} {ppe_tag}"
+                    f"  {conf_tag}  Ev:{state.yolo_sample_n}{focus_tag}"
                 )
-                footer = np.zeros((36, grid.shape[1], 3), dtype=np.uint8)
+
+                if state.focus_idx is not None and state.focus_idx < n:
+                    # Fullscreen: render at max content height that fits the window
+                    fs_content_h = grid_h - _FOOTER_H - 28
+                    panel = _render_panel(live_results[state.focus_idx], fs_content_h, show_reid_dim)
+                    grid = _letterbox_cell(panel, grid_w, grid_h - _FOOTER_H)
+                else:
+                    # Adaptive grid: 16:9 cell height, capped so we never overflow the window
+                    n_cols, n_rows = _grid_dims(n)
+                    cell_w = grid_w // n_cols
+                    max_content_h = (grid_h - _FOOTER_H) // n_rows - 28
+                    content_h = min(cell_w * 9 // 16, max_content_h)
+                    cell_h = content_h + 28
+                    panels = [_render_panel(r, content_h, show_reid_dim) for r in live_results]
+                    grid = _compose_grid(panels, n_cols, n_rows, cell_w, cell_h)
+
+                footer = np.zeros((_FOOTER_H, grid.shape[1], 3), dtype=np.uint8)
                 cv2.putText(footer, footer_text, (10, 25),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 200), 2)
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.60, (0, 255, 200), 2)
 
                 display = np.vstack([grid, footer])
                 cv2.imshow("VMS Pipeline Test", display)
 
-            key = cv2.waitKey(1) & 0xFF
+            key = cv2.waitKey(33) & 0xFF
             if args.dry_run:
                 frame_counter += 1
                 if frame_counter >= 10:
@@ -587,6 +768,12 @@ def main() -> None:
             elif key == ord("b"):
                 state.body_reid_enabled = not state.body_reid_enabled
                 logger.info("Body ReID: %s", "ON" if state.body_reid_enabled else "OFF")
+            elif key == ord("v"):
+                state.violence_enabled = not state.violence_enabled
+                logger.info("Violence detection: %s", "ON" if state.violence_enabled else "OFF")
+            elif key == ord("p"):
+                state.ppe_enabled = not state.ppe_enabled
+                logger.info("PPE detection: %s", "ON" if state.ppe_enabled else "OFF")
             elif key == ord("+") or key == ord("="):
                 state.face_sample_n = max(1, state.face_sample_n - 1)
                 logger.info("Face sample every %d frames", state.face_sample_n)
@@ -608,10 +795,19 @@ def main() -> None:
             elif key == ord("s"):
                 _SNAPSHOTS_DIR.mkdir(parents=True, exist_ok=True)
                 ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-                if panels:
+                if live_results and display is not None:
                     path = _SNAPSHOTS_DIR / f"snapshot_{ts}.jpg"
                     cv2.imwrite(str(path), display)
                     logger.info("Snapshot saved: %s", path)
+            elif ord("1") <= key <= ord("9"):
+                idx = key - ord("1")
+                if live_results and idx < len(live_results):
+                    state.focus_idx = None if state.focus_idx == idx else idx
+                    mode = "grid" if state.focus_idx is None else f"camera {idx + 1} fullscreen"
+                    logger.info("Display: %s", mode)
+            elif key == ord("g") or key == ord("0"):
+                state.focus_idx = None
+                logger.info("Display: grid")
 
     finally:
         for w in workers:
