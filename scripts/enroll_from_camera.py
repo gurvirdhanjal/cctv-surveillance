@@ -154,7 +154,7 @@ class _CameraWorker:
         from vms.config import get_settings
         s = get_settings()
         logger.info("Loading SCRFD from %s", s.scrfd_model)
-        self._detector = SCRFDDetector(s.scrfd_model, conf_threshold=self._conf)
+        self._detector = SCRFDDetector(s.scrfd_model, conf_thres=self._conf)
         logger.info("Loading AdaFace from %s", s.adaface_model)
         self._embedder = AdaFaceEmbedder(s.adaface_model, s.min_blur, s.min_face_px)
         logger.info("Models ready")
