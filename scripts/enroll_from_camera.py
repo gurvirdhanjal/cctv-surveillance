@@ -128,6 +128,8 @@ class _CameraWorker:
         self._frame_seq = 0
         self._result_q: queue.Queue[tuple[np.ndarray, list[Any]]] = queue.Queue(maxsize=2)
         self.codec_info = "connecting…"
+        self.infer_fps: float = 0.0
+        self.active_provider: str = "unknown"
         self._detector: Any = None
         self._embedder: Any = None
 
@@ -157,9 +159,13 @@ class _CameraWorker:
         providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
         logger.info("Loading SCRFD from %s", s.scrfd_model)
         scrfd_sess = ort.InferenceSession(s.scrfd_model, providers=providers)
+        active = scrfd_sess.get_providers()
+        self.active_provider = "CUDA" if "CUDAExecutionProvider" in active else "CPU"
+        logger.info("SCRFD running on: %s  (providers: %s)", self.active_provider, active)
         self._detector = SCRFDDetector(scrfd_sess, conf_thres=self._conf, min_face_px=self._min_px)
         logger.info("Loading AdaFace from %s", s.adaface_model)
         ada_sess = ort.InferenceSession(s.adaface_model, providers=providers)
+        logger.info("AdaFace running on: %s", ada_sess.get_providers())
         self._embedder = AdaFaceEmbedder(ada_sess, min_face_px=self._min_px, min_blur=self._blur)
         logger.info("Models ready")
 
@@ -171,6 +177,8 @@ class _CameraWorker:
                 logger.info("Connecting to camera…")
                 cap = cv2.VideoCapture(self._url, cv2.CAP_FFMPEG)
                 if cap.isOpened():
+                    # Minimise internal FFMPEG buffer so we always get the latest frame.
+                    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
                     fourcc = int(cap.get(cv2.CAP_PROP_FOURCC))
                     codec = "".join(chr((fourcc >> (i * 8)) & 0xFF) for i in range(4)).strip()
                     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -187,8 +195,11 @@ class _CameraWorker:
             ok, frame = cap.read()
             if not ok:
                 fail += 1
-                if fail >= 15:
-                    logger.warning("15 consecutive read failures — reconnecting")
+                # H.264 decode errors (cabac/qscale) can cause a short burst of bad
+                # reads without the stream actually dying — use a higher threshold so
+                # we don't trigger an unnecessary 3s reconnect gap on packet loss.
+                if fail >= 50:
+                    logger.warning("%d consecutive read failures — reconnecting", fail)
                     cap.release()
                     cap = None
                     fail = 0
@@ -202,7 +213,16 @@ class _CameraWorker:
     def _infer_loop(self) -> None:
         from vms.inference.messages import FaceWithEmbedding
         last_seq = -1
+        _fps_t0 = time.monotonic()
+        _fps_count = 0
+        # Cap inference at 10fps for enrollment — no need to process all 50fps.
+        _min_interval = 0.1
+        _last_infer = 0.0
         while not self._stop.is_set():
+            now = time.monotonic()
+            if now - _last_infer < _min_interval:
+                time.sleep(0.01)
+                continue
             with self._frame_lock:
                 frame = self._latest_frame
                 seq = self._frame_seq
@@ -210,6 +230,7 @@ class _CameraWorker:
                 time.sleep(0.005)
                 continue
             last_seq = seq
+            _last_infer = time.monotonic()
 
             faces: list[FaceWithEmbedding] = []
             try:
@@ -223,6 +244,14 @@ class _CameraWorker:
             except Exception:
                 logger.exception("Inference error")
                 continue
+
+            # Rolling FPS counter (updated every 2s)
+            _fps_count += 1
+            elapsed = time.monotonic() - _fps_t0
+            if elapsed >= 2.0:
+                self.infer_fps = _fps_count / elapsed
+                _fps_count = 0
+                _fps_t0 = time.monotonic()
 
             try:
                 self._result_q.put_nowait((frame.copy(), faces))
@@ -345,10 +374,10 @@ def _draw_faces(
     best_quality: float,
     enrolled_count: int,
     codec_info: str,
+    infer_fps: float,
+    active_provider: str,
     status_msg: str,
 ) -> None:
-    from vms.inference.messages import FaceWithEmbedding
-
     h, w = frame.shape[:2]
 
     for face in faces:
@@ -360,11 +389,12 @@ def _draw_faces(
         cv2.putText(frame, label, (x1, max(y1 - 5, 12)), _FONT, 0.45, _BLACK, 3, cv2.LINE_AA)
         cv2.putText(frame, label, (x1, max(y1 - 5, 12)), _FONT, 0.45, color, 1, cv2.LINE_AA)
 
-    # Header bar
-    bar_h = 26
-    cv2.rectangle(frame, (0, 0), (w, bar_h), (20, 20, 20), -1)
-    header = f"CAM200  {codec_info}  |  Enrolled:{enrolled_count}  |  SPACE=capture  L=list  Q=quit"
-    cv2.putText(frame, header, (6, 18), _FONT, 0.45, _WHITE, 1, cv2.LINE_AA)
+    # Header bar (two lines)
+    cv2.rectangle(frame, (0, 0), (w, 46), (20, 20, 20), -1)
+    header = f"CAM200  {codec_info}  |  Enrolled:{enrolled_count}"
+    cv2.putText(frame, header, (6, 16), _FONT, 0.45, _WHITE, 1, cv2.LINE_AA)
+    perf = f"Inference: {infer_fps:.1f} fps  [{active_provider}]  |  SPACE=capture  L=list  Q=quit"
+    cv2.putText(frame, perf, (6, 38), _FONT, 0.45, _YELLOW, 1, cv2.LINE_AA)
 
     # Status line
     if status_msg:
@@ -374,7 +404,7 @@ def _draw_faces(
     # Best candidate indicator
     if best_quality > 0:
         q_label = f"CANDIDATE Fq:{best_quality:.1f}  (SPACE to enroll)"
-        cv2.putText(frame, q_label, (6, bar_h + 18), _FONT, 0.45, _GREEN, 1, cv2.LINE_AA)
+        cv2.putText(frame, q_label, (6, 64), _FONT, 0.45, _GREEN, 1, cv2.LINE_AA)
 
 
 # ── main ──────────────────────────────────────────────────────────────────────
@@ -466,6 +496,8 @@ def main() -> None:
                 buf.peek_quality(),
                 enrolled_count,
                 worker.codec_info,
+                worker.infer_fps,
+                worker.active_provider,
                 status_msg if now < status_until else "",
             )
             cv2.imshow("VMS Enrollment", display)
