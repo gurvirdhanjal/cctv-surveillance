@@ -119,7 +119,7 @@ import cv2
 import numpy as np
 
 from vms.config import get_settings
-from vms.inference.body_embedder import create_body_embedder
+from vms.inference.body_embedder import create_body_embedder, extract_torso_crop
 from vms.inference.detector import SCRFDDetector
 from vms.inference.embedder import AdaFaceEmbedder
 from vms.inference.messages import FaceWithEmbedding, Tracklet
@@ -144,6 +144,35 @@ class PipelineState:
     conf: float = 0.55  # SCRFD face detection confidence
     yolo_conf: float = 0.55  # YOLO person class confidence (overrides yolo_person_conf)
     focus_idx: int | None = None  # None = grid view; 0-based index = fullscreen that camera
+
+
+# ---------------------------------------------------------------------------
+# Per-camera calibration statistics accumulator
+# ---------------------------------------------------------------------------
+
+
+class CameraStats:
+    """Rolling calibration counters for accuracy hardening and threshold tuning.
+
+    Designed for concurrent read/write: all mutations must hold self.lock.
+    Reads in _print_calibration_stats snapshot-copy under the lock then release.
+    """
+
+    def __init__(self, camera_id: int, label: str) -> None:
+        self.camera_id = camera_id
+        self.label = label
+        self.lock = threading.Lock()
+        # cumulative totals (since start; never reset)
+        self.total_frames: int = 0
+        self.total_faces_detected: int = 0   # SCRFD detections that passed conf filter
+        self.total_faces_embedded: int = 0   # embed() returned non-None result
+        self.total_faces_rejected: int = 0   # embed() returned None (blur / size gate)
+        self.total_body_attempts: int = 0    # tracklets that met the size gate
+        self.total_kp_available: int = 0     # of those, tracklets with 17 COCO keypoints
+        # rolling windows (last 200 samples) for live quality distribution
+        self.body_quality_norms: deque[float] = deque(maxlen=200)
+        self.face_quality_norms: deque[float] = deque(maxlen=200)
+        self.person_counts: deque[int] = deque(maxlen=60)
 
 
 # ---------------------------------------------------------------------------
@@ -196,6 +225,7 @@ class CameraWorker:
         state: PipelineState,
         violence_model: Any = None,
         ppe_model: Any = None,
+        stats: "CameraStats | None" = None,
     ) -> None:
         self._id = camera_id
         self._label = label
@@ -217,6 +247,7 @@ class CameraWorker:
         self._frame_lock = threading.Lock()
         self._latest_raw_frame: np.ndarray | None = None  # type: ignore[type-arg]
         self._frame_seq: int = 0  # incremented by reader; inference skips unchanged frames
+        self._stats: CameraStats = stats if stats is not None else CameraStats(camera_id, label)
 
     def start(self) -> None:
         self._reader_thread = threading.Thread(
@@ -349,6 +380,15 @@ class CameraWorker:
             t_prev = t0  # measure delivery interval, not post-inference time
             frame_n += 1
 
+            # Per-frame calibration counters — updated inside try, committed to stats after
+            _face_detected = 0
+            _face_embedded = 0
+            _face_rejected = 0
+            _face_q_batch: list[float] = []
+            _body_attempts = 0
+            _kp_available = 0
+            _body_q_batch: list[float] = []
+
             try:
                 # Body tracking — every yolo_sample_n frames; reuse last boxes in between.
                 # BoT-SORT with persist=True handles gaps gracefully.
@@ -363,10 +403,19 @@ class CameraWorker:
                     for f in raw_faces:
                         if f.confidence < self._state.conf:
                             continue
+                        _face_detected += 1
                         emb = self._embedder.embed(f, frame)
-                        faces.append(emb if emb is not None else f)
+                        if emb is not None:
+                            _face_embedded += 1
+                            if emb.face_quality_norm != 1.0:
+                                _face_q_batch.append(emb.face_quality_norm)
+                            faces.append(emb)
+                        else:
+                            _face_rejected += 1
+                            faces.append(f)  # still render box without embedding
 
                 # Body Re-ID — every N frames when enabled
+                # Uses extract_torso_crop (pose-normalized) to match production engine.py.
                 reid_active = False
                 if (
                     self._state.body_reid_enabled
@@ -374,6 +423,7 @@ class CameraWorker:
                     and frame_n % self._state.reid_sample_n == 0
                 ):
                     reid_active = True
+                    _reid_settings = get_settings()
                     h_f, w_f = frame.shape[:2]
                     enriched: list[Tracklet] = []
                     for t in tracklets:
@@ -382,7 +432,19 @@ class CameraWorker:
                         x2c, y2c = min(w_f, x2), min(h_f, y2)
                         crop = frame[y1c:y2c, x1c:x2c]
                         if crop.size > 0 and crop.shape[0] >= 16 and crop.shape[1] >= 8:
-                            emb_tuple, quality = self._body_embedder.embed(crop)
+                            _body_attempts += 1
+                            if len(t.keypoints) == 17:
+                                _kp_available += 1
+                            torso = extract_torso_crop(
+                                frame,
+                                t.bbox,
+                                t.keypoints,
+                                _reid_settings.torso_kp_conf_threshold,
+                                _reid_settings.torso_crop_pad_fraction,
+                            )
+                            emb_tuple, quality = self._body_embedder.embed(torso)
+                            if emb_tuple:
+                                _body_q_batch.append(quality)
                             enriched.append(
                                 Tracklet(
                                     local_track_id=t.local_track_id,
@@ -392,6 +454,8 @@ class CameraWorker:
                                     embedding=t.embedding,
                                     body_embedding=emb_tuple,
                                     body_quality_norm=quality,
+                                    keypoints=t.keypoints,
+                                    face_visible=t.face_visible,
                                 )
                             )
                         else:
@@ -431,6 +495,18 @@ class CameraWorker:
 
             t1 = time.monotonic()
             latency_ms = (t1 - t0) * 1000
+
+            # Commit per-frame counts to the shared calibration stats object
+            with self._stats.lock:
+                self._stats.total_frames += 1
+                self._stats.total_faces_detected += _face_detected
+                self._stats.total_faces_embedded += _face_embedded
+                self._stats.total_faces_rejected += _face_rejected
+                self._stats.total_body_attempts += _body_attempts
+                self._stats.total_kp_available += _kp_available
+                self._stats.body_quality_norms.extend(_body_q_batch)
+                self._stats.face_quality_norms.extend(_face_q_batch)
+                self._stats.person_counts.append(len(tracklets))
 
             # Track face embedding rate (faces with a real embedding, not just SCRFD detections)
             embedded_faces = [f for f in faces if f.embedding]
@@ -581,16 +657,117 @@ def _render_panel(result: FrameResult, target_h: int, show_reid_dim: bool) -> np
     # Stats bar
     person_count = len(result.tracklets)
     face_count = len(result.faces)
+    face_embedded = sum(1 for f in result.faces if f.embedding)
     reid_tag = " B" if result.body_reid_active else ""
     fps_val = min(int(result.fps), 999)  # cap display at 999 to avoid 5-digit numbers
+    # Fe:embedded/detected — shows quality-gate effectiveness at a glance
+    embed_tag = f"Fe:{face_embedded}/{face_count}" if face_count > 0 else "Fe:-"
     hud = (
         f"{result.camera_label}  "
-        f"P:{person_count} Fc:{face_count}  "
+        f"P:{person_count} {embed_tag}  "
         f"{fps_val}fps {result.latency_ms:.0f}ms{reid_tag}"
     )
     bar = np.zeros((28, w_scaled, 3), dtype=np.uint8)
     cv2.putText(bar, hud, (6, 19), cv2.FONT_HERSHEY_SIMPLEX, 0.52, (220, 220, 220), 1)
     return np.vstack([bar, panel])
+
+
+# ---------------------------------------------------------------------------
+# Calibration stats printer
+# ---------------------------------------------------------------------------
+
+
+def _print_calibration_stats(
+    all_stats: list[CameraStats],
+    state: PipelineState,
+    settings: Any,
+) -> None:
+    """Print per-camera accuracy/quality stats to stdout for threshold calibration."""
+    ts = datetime.now().strftime("%H:%M:%S")
+    sep = "-" * 80
+    print(f"\n{sep}")
+    print(f"  VMS Calibration Stats @ {ts}")
+    print(sep)
+    for s in all_stats:
+        with s.lock:
+            f_det = s.total_faces_detected
+            f_emb = s.total_faces_embedded
+            f_rej = s.total_faces_rejected
+            b_att = s.total_body_attempts
+            kp_av = s.total_kp_available
+            bq = list(s.body_quality_norms)
+            fq = list(s.face_quality_norms)
+            pc = list(s.person_counts)
+            frms = s.total_frames
+
+        emb_pct = f_emb * 100 / f_det if f_det > 0 else 0.0
+        kp_pct = kp_av * 100 / b_att if b_att > 0 else 0.0
+        p_avg = sum(pc) / len(pc) if pc else 0.0
+        p_peak = max(pc) if pc else 0
+
+        bq_str = (
+            f"avg={sum(bq)/len(bq):.3f}  min={min(bq):.3f}  max={max(bq):.3f}  n={len(bq)}"
+            if bq
+            else "no data yet"
+        )
+        fq_str = (
+            f"avg={sum(fq)/len(fq):.3f}  min={min(fq):.3f}  max={max(fq):.3f}  n={len(fq)}"
+            if fq
+            else "no data yet"
+        )
+
+        print(f"  CAM{s.camera_id}  {s.label}  ({frms} frames processed)")
+        print(f"    Persons  : avg={p_avg:.1f}  peak={p_peak}  (rolling {len(pc)} frames)")
+        print(
+            f"    Faces    : detected={f_det}  embedded={f_emb} ({emb_pct:.1f}%)"
+            f"  quality-rejected={f_rej}"
+        )
+        print(
+            f"    Body     : crops={b_att}  pose-kpts={kp_pct:.1f}%"
+            f"  (kpts available={kp_av})"
+        )
+        print(f"    Body  Bq : {bq_str}")
+        print(f"    Face  Fq : {fq_str}")
+
+    print(sep)
+    print("  Active thresholds:")
+    print(f"    scrfd_conf              = {state.conf:.2f}")
+    print(f"    min_blur                = {settings.min_blur:.1f}")
+    print(f"    reid_quality_norm_floor = {settings.reid_quality_norm_floor:.2f}")
+    print(f"    torso_kp_conf_threshold = {settings.torso_kp_conf_threshold:.2f}")
+    print(f"    torso_crop_pad_fraction = {settings.torso_crop_pad_fraction:.2f}")
+    print(f"    reid_body_confirmed_sim = {settings.reid_body_confirmed_sim:.2f}")
+    print(f"    reid_body_cross_cam_sim = {settings.reid_body_cross_cam_sim:.2f}")
+    print(f"    reid_enroll_dedup_sim   = {settings.reid_enroll_dedup_sim:.2f}")
+
+    # Tuning hints derived from observed distributions
+    hints: list[str] = []
+    for s in all_stats:
+        with s.lock:
+            bq = list(s.body_quality_norms)
+            f_det = s.total_faces_detected
+            f_rej = s.total_faces_rejected
+        if bq and min(bq) < 0.40:
+            hints.append(
+                f"CAM{s.camera_id}: body_q min={min(bq):.3f} -- very low-norm crops in gallery;"
+                f" consider raising reid_quality_norm_floor above {min(bq):.2f}"
+            )
+        if f_det > 20 and f_rej / f_det > 0.35:
+            hints.append(
+                f"CAM{s.camera_id}: {f_rej/f_det*100:.0f}% face embed rejection --"
+                f" consider lowering min_blur (currently {settings.min_blur:.1f})"
+            )
+        if f_det > 20 and f_rej / f_det < 0.03:
+            hints.append(
+                f"CAM{s.camera_id}: only {f_rej/f_det*100:.1f}% face quality rejection --"
+                f" min_blur={settings.min_blur:.1f} may be too permissive for production"
+            )
+    if hints:
+        print(sep)
+        print("  Tuning hints:")
+        for h in hints:
+            print(f"    [!] {h}")
+    print(sep)
 
 
 # ---------------------------------------------------------------------------
@@ -645,6 +822,14 @@ def main() -> None:
         help="Inference device (default: cuda if available, else cpu)",
     )
     parser.add_argument("--dry-run", action="store_true", help="Process 10 frames and exit")
+    parser.add_argument(
+        "--stats-interval",
+        type=float,
+        default=5.0,
+        metavar="N",
+        dest="stats_interval",
+        help="Print calibration stats to console every N seconds (default 5.0; 0 = disable)",
+    )
     args = parser.parse_args()
 
     settings = get_settings()
@@ -721,8 +906,11 @@ def main() -> None:
 
     # Start workers
     workers: list[CameraWorker] = []
+    all_stats: list[CameraStats] = []
     for cid, label, url in cameras:
         tracker = PerCameraTracker.from_path(cid, _tracker_model)
+        cam_stats = CameraStats(cid, label)
+        all_stats.append(cam_stats)
         w = CameraWorker(
             cid,
             label,
@@ -734,6 +922,7 @@ def main() -> None:
             state,
             violence_model,
             ppe_model,
+            stats=cam_stats,
         )
         w.start()
         workers.append(w)
@@ -745,6 +934,7 @@ def main() -> None:
 
     show_reid_dim = body_embedder is not None
     frame_counter = 0
+    _last_stats_print = time.monotonic()
     # Per-slot result cache: keeps last-good FrameResult per camera so the grid never
     # collapses (changes dimensions) when a camera temporarily returns None.
     cached_results: list[FrameResult | None] = [None] * len(workers)
@@ -773,9 +963,14 @@ def main() -> None:
                 focus_tag = (
                     f" [CAM{state.focus_idx + 1}|G=grid]" if state.focus_idx is not None else ""
                 )
+                # Cumulative face embed rate across all cameras (shown in footer for live feedback)
+                _tot_det = sum(s.total_faces_detected for s in all_stats)
+                _tot_emb = sum(s.total_faces_embedded for s in all_stats)
+                _emb_rate = f"{_tot_emb*100//_tot_det}%" if _tot_det > 0 else "--%"
                 footer_text = (
                     f"  HEAD:{total_persons}  {face_tag} {reid_tag} {vio_tag} {ppe_tag}"
-                    f"  {conf_tag}  Ev:{state.yolo_sample_n}{focus_tag}"
+                    f"  {conf_tag}  Ev:{state.yolo_sample_n}"
+                    f"  EmB:{_tot_emb}/{_tot_det}({_emb_rate}){focus_tag}"
                 )
 
                 if state.focus_idx is not None and state.focus_idx < n:
@@ -802,6 +997,11 @@ def main() -> None:
 
                 display = np.vstack([grid, footer])
                 cv2.imshow("VMS Pipeline Test", display)
+
+            # Periodic calibration stats to console (stats_interval=0 disables)
+            if args.stats_interval > 0 and time.monotonic() - _last_stats_print >= args.stats_interval:
+                _print_calibration_stats(all_stats, state, settings)
+                _last_stats_print = time.monotonic()
 
             key = cv2.waitKey(33) & 0xFF
             if args.dry_run:
