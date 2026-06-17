@@ -467,9 +467,13 @@ def main() -> None:
 
     last_frame: np.ndarray | None = None
     last_faces: list[Any] = []
-    paused_for_prompt = False
 
     print("  Window open — walk up to the camera, then press SPACE to enroll.\n")
+
+    # Display frame is updated only when a new inference result arrives (~10fps).
+    # We keep a pre-drawn 1280x720 version to avoid re-rendering on every waitKey tick.
+    display_cache: np.ndarray | None = None
+    _DISP_W, _DISP_H = 1280, 720
 
     while True:
         result = worker.latest_result()
@@ -486,12 +490,11 @@ def main() -> None:
                         frame_crop=crop.copy() if crop.size > 0 else np.zeros((1, 1, 3), np.uint8),
                         timestamp=time.monotonic(),
                     ))
-
-        if last_frame is not None:
-            display = last_frame.copy()
+            # Build display: draw overlays on full-res then downscale once.
+            draw_frame = last_frame.copy()
             now = time.monotonic()
             _draw_faces(
-                display,
+                draw_frame,
                 last_faces,
                 buf.peek_quality(),
                 enrolled_count,
@@ -500,7 +503,8 @@ def main() -> None:
                 worker.active_provider,
                 status_msg if now < status_until else "",
             )
-            cv2.imshow("VMS Enrollment", display)
+            display_cache = cv2.resize(draw_frame, (_DISP_W, _DISP_H), interpolation=cv2.INTER_LINEAR)
+            cv2.imshow("VMS Enrollment", display_cache)
 
         key = cv2.waitKey(1) & 0xFF
         if key in (ord("q"), ord("Q"), 27):  # Q or ESC
