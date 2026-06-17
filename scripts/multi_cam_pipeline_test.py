@@ -758,10 +758,13 @@ def _print_calibration_stats(
                 f"CAM{s.camera_id}: {f_rej/f_det*100:.0f}% face embed rejection --"
                 f" consider lowering min_blur (currently {settings.min_blur:.1f})"
             )
-        if f_det > 20 and f_rej / f_det < 0.03:
+        # Only warn about near-zero blur rejection when scrfd_conf is low (<=0.35).
+        # At higher conf the detector itself pre-filters soft detections — 0% rejection is correct.
+        if f_det > 20 and f_rej / f_det < 0.03 and state.conf <= 0.35:
             hints.append(
-                f"CAM{s.camera_id}: only {f_rej/f_det*100:.1f}% face quality rejection --"
-                f" min_blur={settings.min_blur:.1f} may be too permissive for production"
+                f"CAM{s.camera_id}: only {f_rej/f_det*100:.1f}% face quality rejection at"
+                f" scrfd_conf={state.conf:.2f} -- min_blur={settings.min_blur:.1f} may be too"
+                f" permissive; consider raising to 15-25 for production"
             )
     if hints:
         print(sep)
