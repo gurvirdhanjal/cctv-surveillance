@@ -31,6 +31,8 @@ Keyboard controls:
     C        cycle SCRFD face confidence: 0.40 -> 0.55 -> 0.70
     Y        cycle YOLO person confidence: 0.40 -> 0.50 -> 0.60 -> 0.70
     T        cycle YOLO frame-skip: every 1 -> 2 -> 3 -> 5 frames
+    1-5      go fullscreen on camera 1-5
+    0 / G    return to grid view
     S        save snapshot of current frame
     Q        quit
 
