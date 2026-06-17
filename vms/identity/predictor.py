@@ -21,8 +21,8 @@ import numpy as np
 # Constant-velocity process/measurement noise. Conservative: trusts measurements, allows
 # moderate acceleration drift over multi-second gaps. Not exposed as config — internal to the
 # fit; the operator-facing knob is spatial_gate_m in the topology JSON.
-_PROCESS_VAR = 1.0   # m^2/s^4 acceleration noise
-_MEAS_VAR = 0.25     # m^2 floor-projection measurement noise (~0.5 m std)
+_PROCESS_VAR = 1.0  # m^2/s^4 acceleration noise
+_MEAS_VAR = 0.25  # m^2 floor-projection measurement noise (~0.5 m std)
 
 
 @dataclass
@@ -62,9 +62,7 @@ class CrossCameraPredictor:
         cov = np.eye(4, dtype=np.float64) * 10.0
         prev_ts = t0
 
-        H = np.array(
-            [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0]], dtype=np.float64
-        )
+        H = np.array([[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0]], dtype=np.float64)
         R = np.eye(2, dtype=np.float64) * _MEAS_VAR
 
         for px, py, ts in list(track.obs)[1:]:
@@ -98,9 +96,7 @@ class CrossCameraPredictor:
         dt2 = dt * dt
         dt3 = dt2 * dt
         dt4 = dt2 * dt2
-        q1d = np.array(
-            [[dt4 / 4.0, dt3 / 2.0], [dt3 / 2.0, dt2]], dtype=np.float64
-        ) * _PROCESS_VAR
+        q1d = np.array([[dt4 / 4.0, dt3 / 2.0], [dt3 / 2.0, dt2]], dtype=np.float64) * _PROCESS_VAR
         q = np.zeros((4, 4), dtype=np.float64)
         q[np.ix_([0, 2], [0, 2])] = q1d
         q[np.ix_([1, 3], [1, 3])] = q1d

@@ -68,11 +68,7 @@ class CameraTopology:
             return True
         if not (window.min_ms <= elapsed_ms <= window.max_ms):
             return False
-        if (
-            window.spatial_gate_m is not None
-            and floor_xy is not None
-            and predicted_xy is not None
-        ):
+        if window.spatial_gate_m is not None and floor_xy is not None and predicted_xy is not None:
             dx = floor_xy[0] - predicted_xy[0]
             dy = floor_xy[1] - predicted_xy[1]
             if (dx * dx + dy * dy) ** 0.5 > window.spatial_gate_m:

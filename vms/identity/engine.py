@@ -405,7 +405,9 @@ class IdentityEngine:
             elapsed_ms = now_ms - entry.last_seen_ms
             predicted_xy = self._predictor.predict_position(entry.global_track_id, now_ms)
             if not topology.transit_ok(
-                camera_id, cam, elapsed_ms,
+                camera_id,
+                cam,
+                elapsed_ms,
                 floor_xy=floor_xy,
                 predicted_xy=predicted_xy,
             ):

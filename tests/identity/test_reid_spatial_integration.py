@@ -17,9 +17,7 @@ def test_long_gap_merge_rejected_when_arrival_position_implausible() -> None:
     assert predicted is not None
     # Candidate detected 30 m away from the predicted arrival -> reject.
     assert (
-        topo.transit_ok(
-            1, 4, elapsed_ms=121_000, floor_xy=(30.0, 30.0), predicted_xy=predicted
-        )
+        topo.transit_ok(1, 4, elapsed_ms=121_000, floor_xy=(30.0, 30.0), predicted_xy=predicted)
         is False
     )
 
@@ -39,17 +37,17 @@ def test_long_gap_merge_allowed_when_arrival_position_plausible() -> None:
 def test_identity_engine_feeds_predictor_and_gates_implausible_merge() -> None:
     """IdentityEngine feeds floor observations to predictor; rejects spatially implausible merge."""
     import json
-    import numpy as np
     from unittest.mock import MagicMock
+
+    import numpy as np
+
     from vms.identity.engine import IdentityEngine
     from vms.identity.reid import ReIdService
 
     reid_svc = MagicMock(spec=ReIdService)
     reid_svc.identify.return_value = None
 
-    topo_json = json.dumps({
-        "1-2": {"min_ms": 0, "max_ms": 900_000, "spatial_gate_m": 2.0}
-    })
+    topo_json = json.dumps({"1-2": {"min_ms": 0, "max_ms": 900_000, "spatial_gate_m": 2.0}})
 
     engine = IdentityEngine(reid_svc, topology_json=topo_json)
 

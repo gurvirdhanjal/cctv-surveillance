@@ -18,8 +18,11 @@ def test_spatial_gate_passes_within_threshold() -> None:
     topo = CameraTopology(_TOPO)
     assert (
         topo.transit_ok(
-            1, 4, elapsed_ms=120_000,
-            floor_xy=(10.0, 10.0), predicted_xy=(11.0, 12.0),  # ~2.24 m < 3.0
+            1,
+            4,
+            elapsed_ms=120_000,
+            floor_xy=(10.0, 10.0),
+            predicted_xy=(11.0, 12.0),  # ~2.24 m < 3.0
         )
         is True
     )
@@ -29,8 +32,11 @@ def test_spatial_gate_rejects_beyond_threshold() -> None:
     topo = CameraTopology(_TOPO)
     assert (
         topo.transit_ok(
-            1, 4, elapsed_ms=120_000,
-            floor_xy=(10.0, 10.0), predicted_xy=(20.0, 20.0),  # ~14 m > 3.0
+            1,
+            4,
+            elapsed_ms=120_000,
+            floor_xy=(10.0, 10.0),
+            predicted_xy=(20.0, 20.0),  # ~14 m > 3.0
         )
         is False
     )
@@ -40,8 +46,7 @@ def test_spatial_gate_skipped_when_no_prediction() -> None:
     # Predictor returned None -> spatial check is a no-op (fail-open on missing prediction).
     topo = CameraTopology(_TOPO)
     assert (
-        topo.transit_ok(1, 4, elapsed_ms=120_000, floor_xy=(10.0, 10.0), predicted_xy=None)
-        is True
+        topo.transit_ok(1, 4, elapsed_ms=120_000, floor_xy=(10.0, 10.0), predicted_xy=None) is True
     )
 
 
