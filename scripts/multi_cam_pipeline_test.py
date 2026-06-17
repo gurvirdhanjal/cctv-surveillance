@@ -381,6 +381,28 @@ class CameraWorker:
 # ---------------------------------------------------------------------------
 
 
+def _make_grid(panels: list[np.ndarray]) -> np.ndarray:  # type: ignore[type-arg]
+    """Arrange panels in a 2-column grid; pad last row with black if odd count."""
+    if not panels:
+        return np.zeros((540, 960, 3), dtype=np.uint8)
+    if len(panels) == 1:
+        return panels[0]
+    max_h = max(p.shape[0] for p in panels)
+    max_w = max(p.shape[1] for p in panels)
+    cells: list[np.ndarray] = []  # type: ignore[type-arg]
+    for p in panels:
+        cell = np.zeros((max_h, max_w, 3), dtype=np.uint8)
+        cell[: p.shape[0], : p.shape[1]] = p
+        cells.append(cell)
+    rows = []
+    for i in range(0, len(cells), 2):
+        pair = cells[i : i + 2]
+        if len(pair) == 1:
+            pair.append(np.zeros_like(cells[0]))
+        rows.append(np.hstack(pair))
+    return np.vstack(rows)
+
+
 def _render_panel(result: FrameResult, target_h: int, show_reid_dim: bool) -> np.ndarray:  # type: ignore[type-arg]
     frame = result.frame.copy()
     h_orig, w_orig = frame.shape[:2]
