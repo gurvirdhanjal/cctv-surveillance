@@ -19,8 +19,7 @@ Camera env vars (set in .env):
     VMS_CAM_ANPR_URL         camera_id=200
 
 Model toggle env vars (set empty to disable):
-    VMS_TRANSREID_BODY_MODEL   body Re-ID (ONNX, preferred on CPU)
-    VMS_OSNET_AIN_MODEL        body Re-ID (torchreid, heavier)
+    VMS_TRANSREID_BODY_MODEL   body Re-ID (TransReID ONNX, 768-dim)
     VMS_YOLOV8X_POSE_MODEL     pose keypoints (disable for CPU)
     VMS_VIOLENCE_MODEL         violence detection (disable for CPU)
     VMS_PPE_MODEL              PPE compliance (off by default)
@@ -41,8 +40,7 @@ Keyboard controls:
 
 CPU tips — add to .env or export before running:
     VMS_YOLOV8X_POSE_MODEL=        # disables pose (~150ms/frame)
-    VMS_VIOLENCE_MODEL=            # disables MoViNet TF (~300ms/frame)
-    VMS_OSNET_AIN_MODEL=           # prefer TransReID ONNX over OSNet
+    VMS_VIOLENCE_MODEL=            # disables R(2+1)D-18 (~300ms/frame)
 """
 
 from __future__ import annotations
