@@ -50,6 +50,8 @@ class PerCameraTracker:
     def __init__(self, camera_id: int, model: Any) -> None:
         self.camera_id = camera_id
         self._model = model
+        self._frame_counter: int = 0
+        self._last_tracklets: list[Tracklet] = []
 
     @classmethod
     def from_path(cls, camera_id: int, model_path: str) -> PerCameraTracker:
@@ -58,8 +60,20 @@ class PerCameraTracker:
         return cls(camera_id=camera_id, model=YOLO(model_path))
 
     def update(self, frame_bgr: np.ndarray[Any, Any], conf: float | None = None) -> list[Tracklet]:
-        """Run pose detection + BoT-SORT tracking on one frame. Returns confirmed tracklets."""
+        """Run pose detection + BoT-SORT tracking on one frame. Returns confirmed tracklets.
+
+        When detector_interval_frames > 1: YOLO runs on every Nth frame; on skip frames the
+        last YOLO result is returned unchanged (BoT-SORT coasting). The cascade stages
+        (SCRFD, AdaFace) in InferenceEngine are exempt — they keep keypoint-gated sampling.
+        """
         settings = get_settings()
+        interval = settings.detector_interval_frames
+        should_run = interval <= 1 or (self._frame_counter % interval) == 0
+        self._frame_counter += 1
+
+        if not should_run:
+            return self._last_tracklets
+
         results = self._model.track(
             frame_bgr,
             conf=conf if conf is not None else settings.yolo_person_conf,
@@ -68,10 +82,12 @@ class PerCameraTracker:
             verbose=False,
         )
         if not results:
+            self._last_tracklets = []
             return []
         r = results[0]
         boxes = r.boxes
         if boxes.id is None:
+            self._last_tracklets = []
             return []
 
         has_kpts = getattr(r, "keypoints", None) is not None
@@ -103,4 +119,5 @@ class PerCameraTracker:
                     face_visible=fv,
                 )
             )
+        self._last_tracklets = tracklets
         return tracklets

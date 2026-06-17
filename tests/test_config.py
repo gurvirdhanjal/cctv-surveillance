@@ -48,6 +48,16 @@ def test_missing_required_raises() -> None:
         Settings()  # type: ignore[call-arg]
 
 
+def test_phase6a_config_defaults() -> None:
+    s = Settings()
+    assert s.gpu_tensorrt_enabled is False
+    assert s.gpu_tensorrt_fp16 is True
+    assert s.gpu_tensorrt_engine_cache_dir == "models/trt_engines"
+    assert s.gpu_tensorrt_workspace_mb == 4096
+    assert s.gpu_onnx_export_dir == "models/onnx_exported"
+    assert s.detector_interval_frames == 1
+
+
 def test_reid_stale_ms_default() -> None:
     s = Settings(db_url="postgresql://x/y", jwt_secret="s")  # type: ignore[call-arg]
     assert s.reid_stale_ms == 300_000

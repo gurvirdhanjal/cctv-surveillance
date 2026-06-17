@@ -117,8 +117,14 @@ class SCRFDDetector:
             try:
                 import onnxruntime as ort  # type: ignore[import-untyped]  # lazy
 
-                providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+                from vms.inference.ort_providers import build_ort_providers
+
+                providers = build_ort_providers()
                 sess: Any = ort.InferenceSession(model_path, providers=providers)
+                if settings.gpu_tensorrt_enabled:
+                    dummy = np.zeros((1, 3, _INPUT_SIZE, _INPUT_SIZE), dtype=np.float32)
+                    sess.run(None, {sess.get_inputs()[0].name: dummy})
+                    logger.info("SCRFDDetector TRT warm-up complete")
                 logger.info("SCRFDDetector loaded from %s", model_path)
                 return cls(session=sess, conf_thres=conf, min_face_px=min_px)
             except Exception as exc:
@@ -130,7 +136,9 @@ class SCRFDDetector:
             try:
                 import onnxruntime as ort  # type: ignore
 
-                providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+                from vms.inference.ort_providers import build_ort_providers
+
+                providers = build_ort_providers()
                 sess = ort.InferenceSession(yolo_face_path, providers=providers)
                 logger.info(
                     "SCRFDDetector: %s not found; using legacy yolov8s-face-lindevs.onnx",

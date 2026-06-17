@@ -190,6 +190,17 @@ class Settings(BaseSettings):
     # audit export
     audit_export_max_rows: int = Field(default=100_000, ge=1)
 
+    # phase 6a — gpu acceleration (§5 of 2026-06-13-vms-gpu-acceleration.md)
+    # master switch; False = current CUDA/CPU path (no change to existing deployments)
+    gpu_tensorrt_enabled: bool = False
+    gpu_tensorrt_fp16: bool = True  # arch-gated at runtime; RTX 2000 Ada supports FP16
+    gpu_tensorrt_engine_cache_dir: str = "models/trt_engines"
+    gpu_tensorrt_workspace_mb: int = 4096
+    gpu_onnx_export_dir: str = "models/onnx_exported"
+    # 1 = detect every frame (current behaviour). N>1 = YOLO runs every N frames,
+    # BoT-SORT coasts between runs. Cascade stages (SCRFD, AdaFace) are exempt.
+    detector_interval_frames: int = 1
+
     # storage backend
     storage_backend: str = "local"  # "local" | "minio"
     storage_local_dir: str = "thumbnails"  # base dir for LocalStorageBackend

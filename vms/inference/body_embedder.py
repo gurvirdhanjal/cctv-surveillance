@@ -51,10 +51,17 @@ class TransReIDBodyEmbedder:
         try:
             import onnxruntime as ort  # type: ignore[import-untyped]
 
-            providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+            from vms.config import get_settings
+            from vms.inference.ort_providers import build_ort_providers
+
+            providers = build_ort_providers()
             self._sess = ort.InferenceSession(model_path, providers=providers)
             self._input_name = self._sess.get_inputs()[0].name
             self._available = True
+            if get_settings().gpu_tensorrt_enabled:
+                dummy = np.zeros((1, 3, _TRANSREID_H, _TRANSREID_W), dtype=np.float32)
+                self._sess.run(None, {self._input_name: dummy})
+                logger.info("TransReIDBodyEmbedder TRT warm-up complete")
             logger.info("TransReIDBodyEmbedder: loaded %s", model_path)
         except ImportError:
             logger.warning(

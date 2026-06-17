@@ -146,8 +146,14 @@ class AdaFaceEmbedder:
             try:
                 import onnxruntime as ort  # type: ignore[import-untyped]  # lazy
 
-                providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+                from vms.inference.ort_providers import build_ort_providers
+
+                providers = build_ort_providers()
                 sess: Any = ort.InferenceSession(model_path, providers=providers)
+                if settings.gpu_tensorrt_enabled:
+                    dummy = np.zeros((1, 3, _EMBED_INPUT_SIZE, _EMBED_INPUT_SIZE), dtype=np.float32)
+                    sess.run(None, {sess.get_inputs()[0].name: dummy})
+                    logger.info("AdaFaceEmbedder TRT warm-up complete")
                 logger.info("AdaFaceEmbedder loaded from %s", model_path)
                 return cls(session=sess, min_face_px=min_px)
             except Exception as exc:
