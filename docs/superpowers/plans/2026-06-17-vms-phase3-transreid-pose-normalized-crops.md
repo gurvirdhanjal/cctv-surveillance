@@ -4,7 +4,7 @@
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status: NOT STARTED**
+**Status: COMPLETE**
 
 **Goal:** Improve cross-camera body Re-ID stability by feeding `TransReIDBodyEmbedder` a
 pose-normalized torso crop (shoulders→hips rectangle) instead of the raw person bounding box.
@@ -80,7 +80,7 @@ OSNet `BodyEmbedder` path and corrects stale OSNet-era comments.
 - `CLAUDE.md`
 
 **Steps:**
-- [ ] In `vms/inference/body_embedder.py`, fix the `TransReIDBodyEmbedder` docstring NOTE
+- [x] In `vms/inference/body_embedder.py`, fix the `TransReIDBodyEmbedder` docstring NOTE
       (currently around line 101):
       ```
       NOTE: reid_body_confirmed_sim (currently 0.51, calibrated for OSNet) must be
@@ -91,10 +91,10 @@ OSNet `BodyEmbedder` path and corrects stale OSNet-era comments.
       `reid_body_cross_cam_sim=0.70` are calibrated for TransReID (2026-06-16); any further change is
       a mandatory `/advisor` trigger (CLAUDE.md §0.5). Do not restate the old OSNet 0.51 value as
       current.
-- [ ] In `vms/identity/engine.py` (matching-priority docstring, around line 95), change
+- [x] In `vms/identity/engine.py` (matching-priority docstring, around line 95), change
       `1. Body Re-ID (OSNet) — angle-invariant, works from top-down CCTV views.` to
       `1. Body Re-ID (TransReID) — angle-invariant, works from top-down CCTV views.`
-- [ ] In `CLAUDE.md` §3 Known Gaps table, the "Body Re-ID upgrade: TransReID-SSL ViT-B/16+ICS MSMT17"
+- [x] In `CLAUDE.md` §3 Known Gaps table, the "Body Re-ID upgrade: TransReID-SSL ViT-B/16+ICS MSMT17"
       row says "Supervised MSMT17 checkpoint not downloaded." The supervised ONNX
       (`transreid_body_msmt17.onnx`) is deployed and `TransReIDBodyEmbedder` is in production.
       Mark this row **DONE** (strike-through title + "DONE — TransReID ViT-B/16+ICS supervised
@@ -105,9 +105,9 @@ OSNet `BodyEmbedder` path and corrects stale OSNet-era comments.
 **No tests required** (comment/doc-only change). Run the full suite as a regression guard.
 
 **Verify:**
-- [ ] `grep -rn "OSNet" vms/identity/engine.py` returns nothing for the matching-priority line.
-- [ ] `grep -rn "0.51" vms/inference/body_embedder.py` returns nothing.
-- [ ] Quality gate (black, ruff, mypy --strict, pytest full suite) passes — see DoD.
+- [x] `grep -rn "OSNet" vms/identity/engine.py` returns nothing for the matching-priority line.
+- [x] `grep -rn "0.51" vms/inference/body_embedder.py` returns nothing.
+- [x] Quality gate (black, ruff, mypy --strict, pytest full suite) passes — see DoD.
 
 **Commit:** `docs: correct stale OSNet references to TransReID in body Re-ID`
 
@@ -127,10 +127,10 @@ OSNet `BodyEmbedder` path and corrects stale OSNet-era comments.
 
 ### 2a. Config keys (TDD)
 
-- [ ] **RED:** Add to `tests/test_config.py` a test asserting:
+- [x] **RED:** Add to `tests/test_config.py` a test asserting:
       `s.torso_kp_conf_threshold == 0.3` and `s.torso_crop_pad_fraction == 0.20`. Run — confirm it
       fails (AttributeError / missing field) for the expected reason.
-- [ ] **GREEN:** Add to `vms/config.py` (near the other `reid_body_*` / body settings):
+- [x] **GREEN:** Add to `vms/config.py` (near the other `reid_body_*` / body settings):
       ```python
       torso_kp_conf_threshold: float = 0.3
       torso_crop_pad_fraction: float = 0.20
@@ -140,9 +140,9 @@ OSNet `BodyEmbedder` path and corrects stale OSNet-era comments.
 
 ### 2b. `extract_torso_crop` (TDD)
 
-- [ ] **RED:** Add tests to `tests/test_inference_body_embedder.py` (see test list below). Run —
+- [x] **RED:** Add tests to `tests/test_inference_body_embedder.py` (see test list below). Run —
       confirm they fail because `extract_torso_crop` does not exist.
-- [ ] **GREEN:** Implement in `vms/inference/body_embedder.py`:
+- [x] **GREEN:** Implement in `vms/inference/body_embedder.py`:
 
       **Signature:**
       ```python
@@ -180,15 +180,15 @@ OSNet `BodyEmbedder` path and corrects stale OSNet-era comments.
       No comments except a single WHY note if needed (e.g. why 3-of-4 rather than 4-of-4); do not
       annotate the obvious steps.
 
-- [ ] Re-run the `extract_torso_crop` tests — confirm GREEN.
+- [x] Re-run the `extract_torso_crop` tests — confirm GREEN.
 
 ### 2c. Wire into `_extract_body_embeddings` (TDD)
 
-- [ ] **RED:** Add an engine-level test (see test list) asserting that when a tracklet has valid
+- [x] **RED:** Add an engine-level test (see test list) asserting that when a tracklet has valid
       torso keypoints, `_extract_body_embeddings` passes a smaller (torso) crop to the embedder, and
       when keypoints are absent it passes the full-bbox crop. Use a stub embedder that records the
       crop shape it received. Run — confirm it fails (engine still slices raw bbox).
-- [ ] **GREEN:** In `vms/inference/engine.py::_extract_body_embeddings`, after computing the clamped
+- [x] **GREEN:** In `vms/inference/engine.py::_extract_body_embeddings`, after computing the clamped
       bbox crop and passing the existing `min_px` / `min_blur` gates, replace the
       `body_embedder.embed(crop)` input: call
       `extract_torso_crop(frame_bgr, t.bbox, t.keypoints, settings.torso_kp_conf_threshold,
@@ -201,47 +201,47 @@ OSNet `BodyEmbedder` path and corrects stale OSNet-era comments.
         is dropped (see Pre-task note 1).
       - Import `extract_torso_crop` from `vms.inference.body_embedder` (extend the existing import on
         line 19).
-- [ ] Re-run engine test — confirm GREEN.
+- [x] Re-run engine test — confirm GREEN.
 
 **Verify:**
-- [ ] `extract_torso_crop` performs only min/max + arithmetic + one slice (O(1) per detection); no
+- [x] `extract_torso_crop` performs only min/max + arithmetic + one slice (O(1) per detection); no
       loops/IO/model calls — manual review.
-- [ ] `_extract_body_embeddings` rebuilt Tracklet now carries `keypoints` and `face_visible`.
-- [ ] Quality gate passes; coverage on `vms/inference/` ≥ 80%.
+- [x] `_extract_body_embeddings` rebuilt Tracklet now carries `keypoints` and `face_visible`.
+- [x] Quality gate passes; coverage on `vms/inference/` ≥ 80%.
 
 **Commit:** `feat: pose-normalized torso crop for TransReID body Re-ID`
 
 #### Test list for Task 2 (names + what each verifies)
 
 In `tests/test_inference_body_embedder.py`:
-- [ ] `test_extract_torso_crop_all_keypoints_returns_torso_rect` — 4 high-conf torso kpts inside a
+- [x] `test_extract_torso_crop_all_keypoints_returns_torso_rect` — 4 high-conf torso kpts inside a
       bbox produce a crop strictly smaller than the bbox and located at the shoulder→hip span (assert
       the returned slice height/width matches the padded min/max of the 4 points, clamped).
-- [ ] `test_extract_torso_crop_three_of_four_keypoints_still_uses_torso` — exactly 3 of 4 above
+- [x] `test_extract_torso_crop_three_of_four_keypoints_still_uses_torso` — exactly 3 of 4 above
       threshold → torso rect (not fallback).
-- [ ] `test_extract_torso_crop_two_keypoints_falls_back_to_bbox` — only 2 above threshold → returns
+- [x] `test_extract_torso_crop_two_keypoints_falls_back_to_bbox` — only 2 above threshold → returns
       full-bbox crop (assert shape equals clamped bbox crop).
-- [ ] `test_extract_torso_crop_no_keypoints_falls_back_to_bbox` — `keypoints=()` → full-bbox crop.
-- [ ] `test_extract_torso_crop_low_confidence_keypoints_fall_back` — 4 points present but all
+- [x] `test_extract_torso_crop_no_keypoints_falls_back_to_bbox` — `keypoints=()` → full-bbox crop.
+- [x] `test_extract_torso_crop_low_confidence_keypoints_fall_back` — 4 points present but all
       `conf < conf_threshold` → full-bbox crop.
-- [ ] `test_extract_torso_crop_padding_expands_rect` — with `pad_fraction=0.20`, the returned rect is
+- [x] `test_extract_torso_crop_padding_expands_rect` — with `pad_fraction=0.20`, the returned rect is
       wider/taller than the bare shoulder/hip min-max by the expected pad, clamped to frame.
-- [ ] `test_extract_torso_crop_clamps_to_frame_bounds` — torso landmarks near the frame edge so
+- [x] `test_extract_torso_crop_clamps_to_frame_bounds` — torso landmarks near the frame edge so
       padding would exceed the frame → returned slice indices stay within `[0, w] / [0, h]`.
-- [ ] `test_extract_torso_crop_degenerate_rect_falls_back_to_bbox` — collapsed torso rect (points so
+- [x] `test_extract_torso_crop_degenerate_rect_falls_back_to_bbox` — collapsed torso rect (points so
       close that padded rect < `_MIN_H`×`_MIN_W`) → full-bbox crop.
 
 In `tests/test_config.py`:
-- [ ] `test_settings_torso_crop_defaults` — `torso_kp_conf_threshold == 0.3`,
+- [x] `test_settings_torso_crop_defaults` — `torso_kp_conf_threshold == 0.3`,
       `torso_crop_pad_fraction == 0.20`.
 
 In `tests/test_inference_engine.py` (or the existing engine test module):
-- [ ] `test_extract_body_embeddings_uses_torso_crop_when_keypoints_present` — stub embedder records
+- [x] `test_extract_body_embeddings_uses_torso_crop_when_keypoints_present` — stub embedder records
       received crop shape; tracklet with valid torso kpts → embedder receives the torso (smaller)
       crop.
-- [ ] `test_extract_body_embeddings_falls_back_to_bbox_without_keypoints` — tracklet with
+- [x] `test_extract_body_embeddings_falls_back_to_bbox_without_keypoints` — tracklet with
       `keypoints=()` → embedder receives full-bbox crop.
-- [ ] `test_extract_body_embeddings_preserves_keypoints_and_face_visible` — output tracklet retains
+- [x] `test_extract_body_embeddings_preserves_keypoints_and_face_visible` — output tracklet retains
       `keypoints` and `face_visible` from the input.
 
 ---
@@ -258,14 +258,14 @@ In `tests/test_inference_engine.py` (or the existing engine test module):
 - `tests/test_config.py` (remove the `osnet_ain_model == ""` assertion at line 121)
 
 **Steps:**
-- [ ] **RED first (config):** Remove the `osnet_ain_model` assertion from `tests/test_config.py`
+- [x] **RED first (config):** Remove the `osnet_ain_model` assertion from `tests/test_config.py`
       (line 121) and add/keep an assertion that `osnet_ain_model` is no longer an attribute
       (`not hasattr(s, "osnet_ain_model")`). Run — confirm it fails while the field still exists.
-- [ ] Remove `osnet_ain_model: str = ""` from `vms/config.py`. Re-run the config test — GREEN.
-- [ ] Remove `class BodyEmbedder` (lines ~35–84) from `vms/inference/body_embedder.py`.
-- [ ] Update the module docstring (lines 3–11) to describe only `TransReIDBodyEmbedder` (drop the
+- [x] Remove `osnet_ain_model: str = ""` from `vms/config.py`. Re-run the config test — GREEN.
+- [x] Remove `class BodyEmbedder` (lines ~35–84) from `vms/inference/body_embedder.py`.
+- [x] Update the module docstring (lines 3–11) to describe only `TransReIDBodyEmbedder` (drop the
       two-implementation framing and the OSNet block).
-- [ ] Simplify `create_body_embedder` to TransReID-only:
+- [x] Simplify `create_body_embedder` to TransReID-only:
       ```python
       def create_body_embedder(transreid_path: str = "") -> TransReIDBodyEmbedder | None:
           """Return a TransReIDBodyEmbedder when the ONNX path exists, else None."""
@@ -275,24 +275,24 @@ In `tests/test_inference_engine.py` (or the existing engine test module):
       ```
       Remove the `osnet_path` and `device` parameters and the inner `import os` (use the
       module-level `os` import already present at line 16).
-- [ ] In `vms/inference/engine.py`: update the import on line 19 to
+- [x] In `vms/inference/engine.py`: update the import on line 19 to
       `from vms.inference.body_embedder import TransReIDBodyEmbedder, extract_torso_crop`
       (drop `BodyEmbedder`). Update the two type hints (`_extract_body_embeddings` param line 72 and
       `InferenceEngine.__init__` `body_embedder` param line 165) from
       `BodyEmbedder | TransReIDBodyEmbedder | None` to `TransReIDBodyEmbedder | None`.
-- [ ] In `scripts/multi_cam_pipeline_test.py` (line ~648): change the call to
+- [x] In `scripts/multi_cam_pipeline_test.py` (line ~648): change the call to
       `create_body_embedder(transreid_path=settings.transreid_body_model)` — remove the
       `osnet_path=settings.osnet_ain_model` argument.
-- [ ] In `tests/test_inference_body_embedder.py`: delete any tests that instantiate `BodyEmbedder`
+- [x] In `tests/test_inference_body_embedder.py`: delete any tests that instantiate `BodyEmbedder`
       or assert OSNet behaviour, and any `create_body_embedder(..., osnet_path=...)` calls. Keep /
       adjust tests that exercise `create_body_embedder` with the TransReID path and the None case.
 
 **Verify:**
-- [ ] `grep -rn "BodyEmbedder\b" vms/ scripts/ tests/` shows only `TransReIDBodyEmbedder` (no bare
+- [x] `grep -rn "BodyEmbedder\b" vms/ scripts/ tests/` shows only `TransReIDBodyEmbedder` (no bare
       `BodyEmbedder`).
-- [ ] `grep -rn "osnet" vms/ scripts/` (case-insensitive) returns nothing in production/scripts.
-- [ ] `mypy --strict vms/` clean (no dangling `BodyEmbedder` union members).
-- [ ] Full suite passes; coverage on `vms/inference/` ≥ 80%.
+- [x] `grep -rn "osnet" vms/ scripts/` (case-insensitive) returns nothing in production/scripts.
+- [x] `mypy --strict vms/` clean (no dangling `BodyEmbedder` union members).
+- [x] Full suite passes; coverage on `vms/inference/` ≥ 80%.
 
 **Commit:** `refactor: remove dead OSNet BodyEmbedder path`
 
@@ -302,23 +302,23 @@ In `tests/test_inference_engine.py` (or the existing engine test module):
 
 A task is done only when ALL of these hold (CLAUDE.md §11):
 
-- [ ] Task-scoped test(s) pass: `pytest <task test file> -v`.
-- [ ] Full suite green: `pytest`.
-- [ ] Format applied: `black vms/ tests/`.
-- [ ] Lint clean: `ruff check vms/ tests/`.
-- [ ] Type-check clean (strict): `mypy vms/`.
-- [ ] Coverage at/above target: `pytest --cov=vms` with `vms/inference/` ≥ 80%.
-- [ ] No `print()`; logging only (no new logging needed here).
-- [ ] No new bare numeric literals in production code — the two new tunables live in
+- [x] Task-scoped test(s) pass: `pytest <task test file> -v`.
+- [x] Full suite green: `pytest`.
+- [x] Format applied: `black vms/ tests/`.
+- [x] Lint clean: `ruff check vms/ tests/`.
+- [x] Type-check clean (strict): `mypy vms/`.
+- [x] Coverage at/above target: `pytest --cov=vms` with `vms/inference/` ≥ 80%.
+- [x] No `print()`; logging only (no new logging needed here).
+- [x] No new bare numeric literals in production code — the two new tunables live in
       `vms/config.py` (`torso_kp_conf_threshold`, `torso_crop_pad_fraction`); `_MIN_H`/`_MIN_W`
       reuse existing module constants.
-- [ ] `extract_torso_crop` confirmed O(1) per detection (no loops/IO/model calls) — performance-path
+- [x] `extract_torso_crop` confirmed O(1) per detection (no loops/IO/model calls) — performance-path
       rule (CLAUDE.md §0.6 / §12).
-- [ ] Thresholds `reid_body_confirmed_sim` / `reid_body_cross_cam_sim` UNCHANGED.
-- [ ] One conventional commit per task (no AI co-author footer).
-- [ ] This plan's checkboxes marked done; `**Status:**` line updated
+- [x] Thresholds `reid_body_confirmed_sim` / `reid_body_cross_cam_sim` UNCHANGED.
+- [x] One conventional commit per task (no AI co-author footer).
+- [x] This plan's checkboxes marked done; `**Status:**` line updated
       (`NOT STARTED` → `IN PROGRESS` → `COMPLETE`).
-- [ ] CLAUDE.md §3 Known Gaps "Body Re-ID upgrade" row marked DONE (Task 1).
-- [ ] Implementation notes written to
+- [x] CLAUDE.md §3 Known Gaps "Body Re-ID upgrade" row marked DONE (Task 1).
+- [x] Implementation notes written to
       `docs/superpowers/notes/2026-06-17-vms-phase3-transreid-pose-normalized-crops-implementation-notes.md`
       after the final task (use the `phase-wrap-up` skill).

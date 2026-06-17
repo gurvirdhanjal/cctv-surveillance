@@ -175,9 +175,9 @@ a plan checkbox before Phase 4 starts. No implementation without an approved pla
 
 ---
 
-**Active:** Phase 3 Cross-Camera Accuracy — **COMPLETE** (666 tests, commit `71f00d0`). Plan: `docs/superpowers/plans/2026-06-17-vms-phase3-crosscam-accuracy.md`. Delivered: headcount dedup by `person_id`, Kalman spatial gate for long-gap cross-camera merges, config-driven BoT-SORT `track_buffer`.
+**Active:** Phase 3 TransReID Pose-Normalized Crops — **COMPLETE** (678 tests, commit `b341d03`). Plan: `docs/superpowers/plans/2026-06-17-vms-phase3-transreid-pose-normalized-crops.md`. Delivered: `extract_torso_crop()` using COCO shoulder+hip keypoints for pose-invariant body Re-ID input; latent `keypoints`/`face_visible` preservation bug fixed in `_extract_body_embeddings`; dead OSNet `BodyEmbedder` removed.
 
-**Last major milestone:** Phase 3 Alert Dispatcher — COMPLETE (473 tests, commit `b4981d8f`). Plan: `docs/superpowers/plans/2026-06-06-vms-phase3-alert-dispatcher.md`.
+**Last major milestone:** Phase 3 Cross-Camera Accuracy — COMPLETE (666 tests, commit `71f00d0`). Plan: `docs/superpowers/plans/2026-06-17-vms-phase3-crosscam-accuracy.md`.
 
 **Planned (not started):** ReID Quality Hardening — plan written 2026-06-15. Plan: `docs/superpowers/plans/2026-06-15-vms-phase3-reid-quality-hardening.md`. Adds: (A) hybrid crop quality gates + pre-norm embedding norm signal; (B) temporal quality-windowed gallery sub-sampling; (C) enrollment cosine-dedup check. `/advisor` session confirmed approach.
 
@@ -188,7 +188,7 @@ a plan checkbox before Phase 4 starts. No implementation without an approved pla
 **Key technical gotchas (quick reference):**
 - PPE model SH17 class indices: helmet=10, vest=16, gloves=9, mask=5. Activate: `VMS_PPE_MODEL=models/sh17_ppe_yolov8l.onnx`.
 - `assign_and_identify()` returns a 3-tuple `(gid, person_id, resolved_via)` — all three must be persisted; discarding `resolved_via` silently degrades identity audit data.
-- Body Re-ID threshold: `reid_body_confirmed_sim=0.51` (calibrated from simulation — do not adjust without re-running sim).
+- Body Re-ID thresholds: `reid_body_confirmed_sim=0.65`, `reid_body_cross_cam_sim=0.70` (calibrated 2026-06-16 on webcam footage; re-calibrate on real plant-floor cameras before tightening — mandatory `/advisor` before any change).
 - Alert Dispatcher cursor key: `dispatcher:alerts:cursor` in Redis — do not rename without updating worker.py.
 - **SCRFD_10G_KPS** (`models/scrfd_10g_bnkps.onnx`): 9-output model (confirmed). Outputs are **pre-sigmoid** — do NOT apply sigmoid in `_decode`. Uses **letterbox resize** (not stretch) with single `det_scale`. End-to-end verified 2026-06-15.
 - **AdaFace embedder preprocessing**: CVLFace models (IR101/WebFace12M and newer) expect **RGB** input — `_preprocess` converts BGR→RGB. Normalization is `(pixel - 127.5) / 127.5`. 5-point affine alignment active when SCRFD_10G_KPS keypoints are present. If reverting to original AdaFace IR50 (non-CVLFace), remove the `cvtColor` call — that repo used BGR.
