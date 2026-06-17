@@ -16,6 +16,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+# Identified persons dedup by int person_id; unknowns dedup per-track by gid.
+Key = int | uuid.UUID
+
 
 @dataclass(frozen=True)
 class HeadCountSnapshot:
@@ -34,31 +37,39 @@ class HeadCountSnapshot:
 
 @dataclass
 class HeadCountAggregator:
-    _by_zone: dict[int, set[uuid.UUID]] = field(default_factory=lambda: defaultdict(set))
-    _last_seen: dict[uuid.UUID, tuple[int, datetime]] = field(default_factory=dict)
+    _by_zone: dict[int, set[Key]] = field(default_factory=lambda: defaultdict(set))
+    _last_seen: dict[Key, tuple[int, datetime]] = field(default_factory=dict)
     # EMA state for smooth_snapshot() — not used by snapshot()
     _ema_total: float = field(default=0.0)
     _ema_by_zone: dict[int, float] = field(default_factory=dict)
     _ema_initialized: bool = field(default=False)
 
-    def on_tracking_event(self, gid: uuid.UUID, zone_id: int | None, ts: datetime) -> None:
+    def on_tracking_event(
+        self,
+        gid: uuid.UUID,
+        zone_id: int | None,
+        ts: datetime,
+        person_id: int | None = None,
+    ) -> None:
+        # Identified persons dedup globally by person_id; unknowns dedup per-track by gid.
+        key: Key = person_id if person_id is not None else gid
         if zone_id is None:
-            prev = self._last_seen.pop(gid, None)
+            prev = self._last_seen.pop(key, None)
             if prev is not None:
-                self._by_zone[prev[0]].discard(gid)
+                self._by_zone[prev[0]].discard(key)
             return
-        prev = self._last_seen.get(gid)
+        prev = self._last_seen.get(key)
         if prev is not None and prev[0] != zone_id:
-            self._by_zone[prev[0]].discard(gid)
-        self._by_zone[zone_id].add(gid)
-        self._last_seen[gid] = (zone_id, ts)
+            self._by_zone[prev[0]].discard(key)
+        self._by_zone[zone_id].add(key)
+        self._last_seen[key] = (zone_id, ts)
 
     def evict_stale(self, now: datetime, ttl_s: int) -> int:
         cutoff = now - timedelta(seconds=ttl_s)
-        stale = [gid for gid, (_z, ts) in self._last_seen.items() if ts < cutoff]
-        for gid in stale:
-            zid, _ = self._last_seen.pop(gid)
-            self._by_zone[zid].discard(gid)
+        stale = [key for key, (_z, ts) in self._last_seen.items() if ts < cutoff]
+        for key in stale:
+            zid, _ = self._last_seen.pop(key)
+            self._by_zone[zid].discard(key)
         return len(stale)
 
     def snapshot(self) -> HeadCountSnapshot:
