@@ -170,7 +170,9 @@ class AnomalyOrchestrator:
                 tzinfo=None
             )
             for gid, zid in ctx.active_track_zones.items():
-                self._head_count.on_tracking_event(gid, zid, now)
+                self._head_count.on_tracking_event(
+                    gid, zid, now, person_id=self._person_id_for(gid, ctx)
+                )
             self._head_count.evict_stale(now, ttl_s=get_settings().head_count_track_ttl_s)
 
         for alert_type, det in self._detectors.items():
