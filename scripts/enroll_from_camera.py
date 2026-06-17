@@ -149,14 +149,18 @@ class _CameraWorker:
         os.environ["VMS_SCRFD_CONF"] = str(self._conf)
         os.environ["VMS_MIN_BLUR"] = str(self._blur)
         os.environ["VMS_MIN_FACE_PX"] = str(self._min_px)
+        import onnxruntime as ort
         from vms.inference.detector import SCRFDDetector
         from vms.inference.embedder import AdaFaceEmbedder
         from vms.config import get_settings
         s = get_settings()
+        providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
         logger.info("Loading SCRFD from %s", s.scrfd_model)
-        self._detector = SCRFDDetector(s.scrfd_model, conf_thres=self._conf)
+        scrfd_sess = ort.InferenceSession(s.scrfd_model, providers=providers)
+        self._detector = SCRFDDetector(scrfd_sess, conf_thres=self._conf, min_face_px=self._min_px)
         logger.info("Loading AdaFace from %s", s.adaface_model)
-        self._embedder = AdaFaceEmbedder(s.adaface_model, s.min_blur, s.min_face_px)
+        ada_sess = ort.InferenceSession(s.adaface_model, providers=providers)
+        self._embedder = AdaFaceEmbedder(ada_sess, min_face_px=self._min_px, min_blur=self._blur)
         logger.info("Models ready")
 
     def _read_loop(self) -> None:
