@@ -175,9 +175,9 @@ a plan checkbox before Phase 4 starts. No implementation without an approved pla
 
 ---
 
-**Active:** Phase 3 Alert Dispatcher — **COMPLETE** (473 tests, commit `b4981d8f`). Plan: `docs/superpowers/plans/2026-06-06-vms-phase3-alert-dispatcher.md`.
+**Active:** Phase 3 Cross-Camera Accuracy — **COMPLETE** (666 tests, commit `71f00d0`). Plan: `docs/superpowers/plans/2026-06-17-vms-phase3-crosscam-accuracy.md`. Delivered: headcount dedup by `person_id`, Kalman spatial gate for long-gap cross-camera merges, config-driven BoT-SORT `track_buffer`.
 
-**Last major milestone:** All Phase 2 sub-phases complete (2a Identity, 2b Anomaly, 2c Cross-Camera Hardening, 2d Multi-Modal Tracking, PPE Compliance).
+**Last major milestone:** Phase 3 Alert Dispatcher — COMPLETE (473 tests, commit `b4981d8f`). Plan: `docs/superpowers/plans/2026-06-06-vms-phase3-alert-dispatcher.md`.
 
 **Planned (not started):** ReID Quality Hardening — plan written 2026-06-15. Plan: `docs/superpowers/plans/2026-06-15-vms-phase3-reid-quality-hardening.md`. Adds: (A) hybrid crop quality gates + pre-norm embedding norm signal; (B) temporal quality-windowed gallery sub-sampling; (C) enrollment cosine-dedup check. `/advisor` session confirmed approach.
 
