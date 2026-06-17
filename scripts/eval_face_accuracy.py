@@ -32,25 +32,26 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Pass/fail thresholds (conservative - real-world employee photos)
 # ---------------------------------------------------------------------------
-RANK1_MIN = 0.90          # at least 90% of detected-face probes match correctly
-MAX_IMPOSTOR_SIM = 0.72   # no impostor pair must reach the live threshold
-MIN_GENUINE_SIM = 0.62    # genuine pairs (same person) must clear the soft-match floor
-DETECTION_RATE_MIN = 0.80 # at least 80% of probe images must yield a detectable face
+RANK1_MIN = 0.90  # at least 90% of detected-face probes match correctly
+MAX_IMPOSTOR_SIM = 0.72  # no impostor pair must reach the live threshold
+MIN_GENUINE_SIM = 0.62  # genuine pairs (same person) must clear the soft-match floor
+DETECTION_RATE_MIN = 0.80  # at least 80% of probe images must yield a detectable face
 
 
 # ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ProbeResult:
     true_person: str
     image_name: str
-    predicted_person: str | None   # None = face not detected
+    predicted_person: str | None  # None = face not detected
     top_sim: float | None
-    genuine_sim: float | None      # similarity against the correct gallery entry
+    genuine_sim: float | None  # similarity against the correct gallery entry
     correct: bool
-    status: str                    # "ok" | "no_face" | "enrol_failed"
+    status: str  # "ok" | "no_face" | "enrol_failed"
 
 
 @dataclass
@@ -88,9 +89,7 @@ class EvalResult:
 
         self.fail_reasons = []
         if self.rank1_accuracy < RANK1_MIN:
-            self.fail_reasons.append(
-                f"Rank-1 {self.rank1_accuracy:.1%} < {RANK1_MIN:.0%} required"
-            )
+            self.fail_reasons.append(f"Rank-1 {self.rank1_accuracy:.1%} < {RANK1_MIN:.0%} required")
         if self.max_impostor >= MAX_IMPOSTOR_SIM:
             self.fail_reasons.append(
                 f"Impostor pair reached {self.max_impostor:.4f} >= threshold {MAX_IMPOSTOR_SIM}"
@@ -109,6 +108,7 @@ class EvalResult:
 # ---------------------------------------------------------------------------
 # Core helpers
 # ---------------------------------------------------------------------------
+
 
 def _load_bgr(path: Path) -> np.ndarray[Any, np.dtype[Any]] | None:
     img = cv2.imread(str(path))
@@ -153,6 +153,7 @@ def _embed_image(
 # Main eval function (importable)
 # ---------------------------------------------------------------------------
 
+
 def run_eval(
     dataset_dir: str = "employees",
     detector_path: str = "models/scrfd_2.5g.onnx",
@@ -166,6 +167,7 @@ def run_eval(
     two JPEG images: gallery_filename (enrolled) and one or more probe images.
     """
     import os
+
     os.environ.setdefault("VMS_DB_URL", "postgresql://vms:vms@localhost:5434/vms_test")
     os.environ.setdefault("VMS_JWT_SECRET", "eval-only")
     os.environ.setdefault("VMS_REDIS_URL", "redis://localhost:6379/0")
@@ -247,46 +249,49 @@ def run_eval(
 
     if verbose:
         print("[ PROBING ]")
-        print(f"  {'Person':<20s}  {'Image':<10s}  {'Predicted':<20s}  {'Sim':>6s}  {'Genuine':>7s}  Result")
+        print(
+            f"  {'Person':<20s}  {'Image':<10s}  {'Predicted':<20s}  {'Sim':>6s}  {'Genuine':>7s}  Result"
+        )
         print(f"  {'-'*20}  {'-'*10}  {'-'*20}  {'-'*6}  {'-'*7}  ------")
 
     for true_person, img_path in probe_images:
         emb = _embed_image(img_path, detector, embedder)
 
         if emb is None:
-            result.probes.append(ProbeResult(
-                true_person=true_person,
-                image_name=img_path.name,
-                predicted_person=None,
-                top_sim=None,
-                genuine_sim=None,
-                correct=False,
-                status="no_face",
-            ))
+            result.probes.append(
+                ProbeResult(
+                    true_person=true_person,
+                    image_name=img_path.name,
+                    predicted_person=None,
+                    top_sim=None,
+                    genuine_sim=None,
+                    correct=False,
+                    status="no_face",
+                )
+            )
             if verbose:
-                print(f"  {true_person:<20s}  {img_path.name:<10s}  {'-':<20s}  {'-':>6s}  {'-':>7s}  NO FACE")
+                print(
+                    f"  {true_person:<20s}  {img_path.name:<10s}  {'-':<20s}  {'-':>6s}  {'-':>7s}  NO FACE"
+                )
             continue
 
         # Similarities against every gallery entry
-        sims = {
-            name: float(np.dot(emb, gallery_emb))
-            for name, gallery_emb in gallery.items()
-        }
+        sims = {name: float(np.dot(emb, gallery_emb)) for name, gallery_emb in gallery.items()}
         # Collect all impostor sims (different person)
-        result.impostor_sims.extend(
-            sim for name, sim in sims.items() if name != true_person
-        )
+        result.impostor_sims.extend(sim for name, sim in sims.items() if name != true_person)
 
         if not sims:
-            result.probes.append(ProbeResult(
-                true_person=true_person,
-                image_name=img_path.name,
-                predicted_person=None,
-                top_sim=None,
-                genuine_sim=None,
-                correct=False,
-                status="no_face",
-            ))
+            result.probes.append(
+                ProbeResult(
+                    true_person=true_person,
+                    image_name=img_path.name,
+                    predicted_person=None,
+                    top_sim=None,
+                    genuine_sim=None,
+                    correct=False,
+                    status="no_face",
+                )
+            )
             continue
 
         top_match = max(sims, key=sims.__getitem__)
@@ -294,15 +299,17 @@ def run_eval(
         genuine_sim = sims.get(true_person)
         correct = top_match == true_person
 
-        result.probes.append(ProbeResult(
-            true_person=true_person,
-            image_name=img_path.name,
-            predicted_person=top_match,
-            top_sim=top_sim,
-            genuine_sim=genuine_sim,
-            correct=correct,
-            status="ok",
-        ))
+        result.probes.append(
+            ProbeResult(
+                true_person=true_person,
+                image_name=img_path.name,
+                predicted_person=top_match,
+                top_sim=top_sim,
+                genuine_sim=genuine_sim,
+                correct=correct,
+                status="ok",
+            )
+        )
 
         if verbose:
             tick = "OK  " if correct else "FAIL"
@@ -329,24 +336,32 @@ def _print_summary(r: EvalResult) -> None:
     print(f"{'='*60}")
     print(f"  Persons enrolled    : {r.n_enrolled}/{r.n_persons}")
     print(f"  Probes total        : {r.n_probes_total}")
-    print(f"  Faces detected      : {r.n_detected}/{r.n_probes_total}"
-          f"  ({r.detection_rate:.1%})"
-          f"  {'OK' if r.detection_rate >= DETECTION_RATE_MIN else 'FAIL'}")
+    print(
+        f"  Faces detected      : {r.n_detected}/{r.n_probes_total}"
+        f"  ({r.detection_rate:.1%})"
+        f"  {'OK' if r.detection_rate >= DETECTION_RATE_MIN else 'FAIL'}"
+    )
     print()
     print(f"  Genuine pairs       : {len(r.genuine_sims)}")
     if r.genuine_sims:
         print(f"    mean similarity   : {r.mean_genuine:.4f}")
-        print(f"    min  similarity   : {r.min_genuine:.4f}"
-              f"  {'OK' if r.min_genuine >= MIN_GENUINE_SIM else 'FAIL BELOW SOFT FLOOR'}")
+        print(
+            f"    min  similarity   : {r.min_genuine:.4f}"
+            f"  {'OK' if r.min_genuine >= MIN_GENUINE_SIM else 'FAIL BELOW SOFT FLOOR'}"
+        )
     print()
     print(f"  Impostor pairs      : {len(r.impostor_sims)}")
     if r.impostor_sims:
-        print(f"    max  similarity   : {r.max_impostor:.4f}"
-              f"  {'OK' if r.max_impostor < MAX_IMPOSTOR_SIM else 'FAIL EXCEEDS THRESHOLD'}")
+        print(
+            f"    max  similarity   : {r.max_impostor:.4f}"
+            f"  {'OK' if r.max_impostor < MAX_IMPOSTOR_SIM else 'FAIL EXCEEDS THRESHOLD'}"
+        )
     print()
-    print(f"  Rank-1 accuracy     : {r.n_correct}/{r.n_detected}"
-          f"  ({r.rank1_accuracy:.1%})"
-          f"  {'OK' if r.rank1_accuracy >= RANK1_MIN else 'FAIL'}")
+    print(
+        f"  Rank-1 accuracy     : {r.n_correct}/{r.n_detected}"
+        f"  ({r.rank1_accuracy:.1%})"
+        f"  {'OK' if r.rank1_accuracy >= RANK1_MIN else 'FAIL'}"
+    )
     print()
     if r.passed:
         print("  VERDICT: PASS - pipeline is working correctly")
@@ -362,9 +377,11 @@ def _print_summary(r: EvalResult) -> None:
         for p in wrong:
             top_str = f"{p.top_sim:.4f}" if p.top_sim is not None else "n/a"
             gen_str = f"{p.genuine_sim:.4f}" if p.genuine_sim is not None else "n/a"
-            print(f"    {p.true_person}/{p.image_name}"
-                  f" -> predicted '{p.predicted_person}'"
-                  f" (sim={top_str}, genuine={gen_str})")
+            print(
+                f"    {p.true_person}/{p.image_name}"
+                f" -> predicted '{p.predicted_person}'"
+                f" (sim={top_str}, genuine={gen_str})"
+            )
 
     missed = [p for p in r.probes if p.status == "no_face"]
     if missed:
@@ -378,6 +395,7 @@ def _print_summary(r: EvalResult) -> None:
 # ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
+
 
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)

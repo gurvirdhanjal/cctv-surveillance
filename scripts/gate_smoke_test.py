@@ -163,13 +163,18 @@ class CameraWorker:
             cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             if cap.isOpened():
                 if attempt == 1:
-                    logger.warning("%s: main stream failed, using substream fallback", self._camera_label)
+                    logger.warning(
+                        "%s: main stream failed, using substream fallback", self._camera_label
+                    )
                 w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                 h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                 fps = cap.get(cv2.CAP_PROP_FPS)
                 logger.info(
                     "%s: connected  %dx%d @ %.1ffps",
-                    self._camera_label, w, h, fps,
+                    self._camera_label,
+                    w,
+                    h,
+                    fps,
                 )
                 return cap
             cap.release()
@@ -196,7 +201,8 @@ class CameraWorker:
                 if consecutive_failures % 5 == 0:
                     logger.warning(
                         "%s: %d consecutive decode failures",
-                        self._camera_label, consecutive_failures,
+                        self._camera_label,
+                        consecutive_failures,
                     )
                 time.sleep(0.05)
                 continue
@@ -217,9 +223,7 @@ class CameraWorker:
                 tracklets = self._tracker.update(frame)
                 faces = self._detector.detect(frame)
             except Exception:
-                logger.exception(
-                    "%s: inference error on frame %d", self._camera_label, frame_n
-                )
+                logger.exception("%s: inference error on frame %d", self._camera_label, frame_n)
                 continue
             latency_ms = (time.perf_counter() - t0) * 1000
 
@@ -227,7 +231,8 @@ class CameraWorker:
                 self._first_detected = True
                 logger.info(
                     "First person detected on %s, track T:%d",
-                    self._camera_label, tracklets[0].local_track_id,
+                    self._camera_label,
+                    tracklets[0].local_track_id,
                 )
 
             result = FrameResult(
@@ -312,7 +317,9 @@ def _render_panel(result: FrameResult, panel_h: int) -> tuple[np.ndarray, int]:
         py1 = int(t.bbox[1] * sy)
         px2 = int(t.bbox[2] * sx)
         py2 = int(t.bbox[3] * sy)
-        _labeled_box(panel, px1, py1, px2, py2, f"T:{t.local_track_id}", _track_color(t.local_track_id))
+        _labeled_box(
+            panel, px1, py1, px2, py2, f"T:{t.local_track_id}", _track_color(t.local_track_id)
+        )
 
         # Blue inner box if face centre lies inside person bbox
         for fx1, fy1, fx2, fy2 in scaled_face_centres:
@@ -345,10 +352,17 @@ def _render_stats_bar(
             return f"{prefix}  waiting..."
         return f"{prefix}  {r.fps:.1f}fps  inf:{r.latency_ms:.0f}ms  frame:{r.frame_n}"
 
-    cv2.putText(bar, _text(front, "CAM105"), (8, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (180, 180, 180), 1)
     cv2.putText(
-        bar, _text(back, "CAM110"), (total_w // 2 + 8, 22),
-        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (180, 180, 180), 1,
+        bar, _text(front, "CAM105"), (8, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (180, 180, 180), 1
+    )
+    cv2.putText(
+        bar,
+        _text(back, "CAM110"),
+        (total_w // 2 + 8, 22),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.5,
+        (180, 180, 180),
+        1,
     )
     return bar
 
@@ -459,8 +473,13 @@ def main() -> None:
             else:
                 front_panel = np.zeros((panel_h, placeholder_w, 3), dtype=np.uint8)
                 cv2.putText(
-                    front_panel, "Front Gate: waiting...", (20, panel_h // 2),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (70, 70, 70), 1,
+                    front_panel,
+                    "Front Gate: waiting...",
+                    (20, panel_h // 2),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (70, 70, 70),
+                    1,
                 )
                 front_count = 0
 
@@ -469,8 +488,13 @@ def main() -> None:
             else:
                 back_panel = np.zeros((panel_h, placeholder_w, 3), dtype=np.uint8)
                 cv2.putText(
-                    back_panel, "Back Gate: waiting...", (20, panel_h // 2),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (70, 70, 70), 1,
+                    back_panel,
+                    "Back Gate: waiting...",
+                    (20, panel_h // 2),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (70, 70, 70),
+                    1,
                 )
                 back_count = 0
 

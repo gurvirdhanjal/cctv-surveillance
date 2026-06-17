@@ -64,7 +64,7 @@ def download_via_kagglehub() -> str:
             # Installed but broken (e.g. kagglehub 1.0.x kagglesdk conflict)
             print(
                 f"ERROR: {pkg} is installed but failed to import: {exc}\n"
-                f"Fix: pip install \"{pkg}<1.0\"  (1.0.x has a known dependency bug)",
+                f'Fix: pip install "{pkg}<1.0"  (1.0.x has a known dependency bug)',
                 file=sys.stderr,
             )
             sys.exit(1)

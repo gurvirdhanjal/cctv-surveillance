@@ -37,8 +37,8 @@ def main() -> None:
     print("Loading OSNet x1.0 pretrained on Market-1501...")
     model = torchreid.models.build_model(
         name="osnet_x1_0",
-        num_classes=751,   # Market-1501 has 751 training identities
-        pretrained=True,   # downloads ~21MB .pth from torchreid CDN
+        num_classes=751,  # Market-1501 has 751 training identities
+        pretrained=True,  # downloads ~21MB .pth from torchreid CDN
     )
     model.eval()
 
@@ -63,6 +63,7 @@ def main() -> None:
     # Quick sanity check
     import onnxruntime as ort  # type: ignore[import-untyped]
     import numpy as np
+
     sess = ort.InferenceSession(str(OUT_PATH), providers=["CPUExecutionProvider"])
     inp = np.zeros((1, 3, 256, 128), dtype=np.float32)
     out = sess.run(None, {"input": inp})[0]

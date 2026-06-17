@@ -85,7 +85,6 @@ import numpy as np
 from vms.config import get_settings
 from vms.inference.messages import FaceWithEmbedding, Tracklet
 
-
 # ---------------------------------------------------------------------------
 # Core dataclasses
 # ---------------------------------------------------------------------------
@@ -139,7 +138,9 @@ class IdentityStore:
     No DB required. Embeddings are extracted once at startup and held in memory.
     """
 
-    def __init__(self, persons: dict[str, list[np.ndarray]], min_sim: float = ADAFACE_MIN_SIM) -> None:
+    def __init__(
+        self, persons: dict[str, list[np.ndarray]], min_sim: float = ADAFACE_MIN_SIM
+    ) -> None:
         # persons: name → list of L2-normalised 512-d embedding arrays
         self._persons = persons
         self.min_sim = min_sim

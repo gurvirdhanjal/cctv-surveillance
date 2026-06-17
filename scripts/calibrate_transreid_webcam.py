@@ -125,7 +125,9 @@ def _draw_overlay(
         cv2.putText(out, line, (10, 25 + i * 28), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 255), 2)
 
     if capturing:
-        cv2.putText(out, "CAPTURED", (w // 2 - 70, h // 2), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 200, 0), 3)
+        cv2.putText(
+            out, "CAPTURED", (w // 2 - 70, h // 2), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 200, 0), 3
+        )
 
     return out
 
@@ -229,13 +231,17 @@ def _analyze(embeddings: np.ndarray, labels: list[int]) -> None:  # type: ignore
     print(f"Diff-person pairs:  {len(diff_sims)}\n")
 
     print("Same-person cosine similarity:")
-    print(f"  min={same.min():.3f}  p5={np.percentile(same,5):.3f}  "
-          f"median={np.median(same):.3f}  p95={np.percentile(same,95):.3f}  max={same.max():.3f}")
+    print(
+        f"  min={same.min():.3f}  p5={np.percentile(same,5):.3f}  "
+        f"median={np.median(same):.3f}  p95={np.percentile(same,95):.3f}  max={same.max():.3f}"
+    )
 
     if diff_sims:
         print("\nDiff-person cosine similarity:")
-        print(f"  min={diff.min():.3f}  p50={np.median(diff):.3f}  "
-              f"p95={np.percentile(diff,95):.3f}  p99={np.percentile(diff,99):.3f}  max={diff.max():.3f}")
+        print(
+            f"  min={diff.min():.3f}  p50={np.median(diff):.3f}  "
+            f"p95={np.percentile(diff,95):.3f}  p99={np.percentile(diff,99):.3f}  max={diff.max():.3f}"
+        )
 
     # Conservative threshold: same_p5 rounded down slightly, must be above diff_p99
     same_p5 = float(np.percentile(same, 5))
@@ -285,10 +291,18 @@ def _save(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--camera", type=int, default=_DEFAULT_CAMERA, help="cv2.VideoCapture index (default 0)")
-    parser.add_argument("--rtsp-url", default=None, metavar="URL",
-        help="RTSP stream URL to use instead of webcam (e.g. rtsp://admin:...@172.16.2.105:554/...)")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--camera", type=int, default=_DEFAULT_CAMERA, help="cv2.VideoCapture index (default 0)"
+    )
+    parser.add_argument(
+        "--rtsp-url",
+        default=None,
+        metavar="URL",
+        help="RTSP stream URL to use instead of webcam (e.g. rtsp://admin:...@172.16.2.105:554/...)",
+    )
     parser.add_argument("--model", default=_DEFAULT_MODEL, help="TransReID ONNX path")
     parser.add_argument(
         "--from-saved",

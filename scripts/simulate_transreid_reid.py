@@ -68,6 +68,7 @@ _MSMT17_RE = re.compile(r"^(\d{4})_\d+_\d+_c(\d)s", re.IGNORECASE)
 # Dataset parsing
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class _ImgMeta:
     path: Path
@@ -102,6 +103,7 @@ def parse_folder(folder: Path) -> list[_ImgMeta]:
 # TransReID ONNX preprocessing
 # ---------------------------------------------------------------------------
 
+
 def _preprocess_batch(crops_bgr: list[np.ndarray]) -> np.ndarray:  # type: ignore[type-arg]
     """Return (B, 3, H, W) float32 ImageNet-normalised batch from BGR crop list."""
     batch = []
@@ -109,13 +111,14 @@ def _preprocess_batch(crops_bgr: list[np.ndarray]) -> np.ndarray:  # type: ignor
         resized = cv2.resize(bgr, (_INPUT_W, _INPUT_H), interpolation=cv2.INTER_LANCZOS4)
         rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
         rgb = (rgb - _IMAGENET_MEAN) / _IMAGENET_STD
-        batch.append(np.transpose(rgb, (2, 0, 1)))   # (3, H, W)
-    return np.stack(batch, axis=0)                    # (B, 3, H, W)
+        batch.append(np.transpose(rgb, (2, 0, 1)))  # (3, H, W)
+    return np.stack(batch, axis=0)  # (B, 3, H, W)
 
 
 # ---------------------------------------------------------------------------
 # Embedding extraction
 # ---------------------------------------------------------------------------
+
 
 def load_session(model_path: str) -> Any:
     try:
@@ -157,8 +160,8 @@ def embed_batch(
                 bgr = np.zeros((_INPUT_H, _INPUT_W, 3), dtype=np.uint8)
             crops.append(bgr)
 
-        blob = _preprocess_batch(crops)                 # (B, 3, H, W)
-        out = sess.run(None, {input_name: blob})[0]     # (B, 768) L2-normalised
+        blob = _preprocess_batch(crops)  # (B, 3, H, W)
+        out = sess.run(None, {input_name: blob})[0]  # (B, 768) L2-normalised
         all_vecs.append(out.astype(np.float32))
 
         done = min(start + batch_size, n)
@@ -172,7 +175,7 @@ def embed_batch(
         )
 
     print()
-    embs = np.concatenate(all_vecs, axis=0)   # (N, 768)
+    embs = np.concatenate(all_vecs, axis=0)  # (N, 768)
 
     # Verify ONNX output is already L2-normalised (sanity guard)
     sample_norms = np.linalg.norm(embs[:10], axis=1)
@@ -188,10 +191,11 @@ def embed_batch(
 # Standard Re-ID evaluation (CMC + mAP) — identical protocol to OSNet script
 # ---------------------------------------------------------------------------
 
+
 def evaluate(
     query_imgs: list[_ImgMeta],
     gallery_imgs: list[_ImgMeta],
-    query_embs: np.ndarray,    # (Nq, 768)
+    query_embs: np.ndarray,  # (Nq, 768)
     gallery_embs: np.ndarray,  # (Ng, 768)
     top_k: tuple[int, ...] = (1, 5, 10),
 ) -> dict[str, float]:
@@ -208,7 +212,7 @@ def evaluate(
     for qi, qmeta in enumerate(query_imgs):
         sims = sim_matrix[qi]
         junk = (gallery_pids == qmeta.person_id) & (gallery_cids == qmeta.camera_id)
-        pos  = (gallery_pids == qmeta.person_id) & (gallery_cids != qmeta.camera_id)
+        pos = (gallery_pids == qmeta.person_id) & (gallery_cids != qmeta.camera_id)
 
         if pos.sum() == 0:
             continue
@@ -241,6 +245,7 @@ def evaluate(
 # Threshold analysis — same logic as OSNet script
 # ---------------------------------------------------------------------------
 
+
 def threshold_analysis(
     query_imgs: list[_ImgMeta],
     gallery_imgs: list[_ImgMeta],
@@ -259,9 +264,7 @@ def threshold_analysis(
         qmeta = query_imgs[qi]
         sims = query_embs[qi] @ gallery_embs.T
 
-        pos_idx = np.where(
-            (gallery_pids == qmeta.person_id) & (gallery_cids != qmeta.camera_id)
-        )[0]
+        pos_idx = np.where((gallery_pids == qmeta.person_id) & (gallery_cids != qmeta.camera_id))[0]
         for idx in pos_idx[:10]:
             same_sims.append(float(sims[idx]))
 
@@ -275,23 +278,29 @@ def threshold_analysis(
     def pct(arr: np.ndarray, q: float) -> float:
         return float(np.percentile(arr, q))
 
-    threshold_conservative = pct(s, 5)    # 95% recall
-    threshold_loose = pct(s, 1)           # ~99% recall
-    threshold_fp1 = pct(d, 99)            # 1% FP rate
+    threshold_conservative = pct(s, 5)  # 95% recall
+    threshold_loose = pct(s, 1)  # ~99% recall
+    threshold_fp1 = pct(d, 99)  # 1% FP rate
     recommended = max(threshold_conservative, threshold_fp1) - 0.02
 
     return {
         "same_person": {
             "n": len(s),
             "min": float(s.min()),
-            "p1": pct(s, 1), "p5": pct(s, 5), "p25": pct(s, 25),
-            "median": pct(s, 50), "p75": pct(s, 75), "p95": pct(s, 95),
+            "p1": pct(s, 1),
+            "p5": pct(s, 5),
+            "p25": pct(s, 25),
+            "median": pct(s, 50),
+            "p75": pct(s, 75),
+            "p95": pct(s, 95),
             "max": float(s.max()),
         },
         "diff_person": {
             "n": len(d),
             "min": float(d.min()),
-            "median": pct(d, 50), "p95": pct(d, 95), "p99": pct(d, 99),
+            "median": pct(d, 50),
+            "p95": pct(d, 95),
+            "p99": pct(d, 99),
             "max": float(d.max()),
         },
         "threshold_conservative": threshold_conservative,
@@ -316,7 +325,7 @@ def camera_pair_accuracy(
     for qi, qmeta in enumerate(query_imgs):
         sims = sim_matrix[qi]
         junk = (gallery_pids == qmeta.person_id) & (gallery_cids == qmeta.camera_id)
-        pos  = (gallery_pids == qmeta.person_id) & (gallery_cids != qmeta.camera_id)
+        pos = (gallery_pids == qmeta.person_id) & (gallery_cids != qmeta.camera_id)
         if pos.sum() == 0:
             continue
         order = np.argsort(-sims)
@@ -333,6 +342,7 @@ def camera_pair_accuracy(
 # ---------------------------------------------------------------------------
 # Report
 # ---------------------------------------------------------------------------
+
 
 def print_report(
     metrics: dict[str, float],
@@ -362,11 +372,15 @@ def print_report(
     s = thresh["same_person"]
     d = thresh["diff_person"]
     print(f"  Same person (cross-cam)   n={s['n']}")
-    print(f"    p1={s['p1']:.3f}  p5={s['p5']:.3f}  p25={s['p25']:.3f}"
-          f"  median={s['median']:.3f}  p75={s['p75']:.3f}  p95={s['p95']:.3f}")
+    print(
+        f"    p1={s['p1']:.3f}  p5={s['p5']:.3f}  p25={s['p25']:.3f}"
+        f"  median={s['median']:.3f}  p75={s['p75']:.3f}  p95={s['p95']:.3f}"
+    )
     print(f"  Different person          n={d['n']}")
-    print(f"    median={d['median']:.3f}  p95={d['p95']:.3f}  p99={d['p99']:.3f}"
-          f"  max={d['max']:.3f}")
+    print(
+        f"    median={d['median']:.3f}  p95={d['p95']:.3f}  p99={d['p99']:.3f}"
+        f"  max={d['max']:.3f}"
+    )
     print()
 
     print("  --- Per-Camera Rank-1 --------------------------------------")
@@ -383,9 +397,13 @@ def print_report(
     if sep < 0.05:
         print("  WARNING: small gap (<0.05) -- models may need domain adaptation")
     print()
-    print(f"  Conservative (95% recall):  reid_body_confirmed_sim = {thresh['threshold_conservative']:.2f}")
+    print(
+        f"  Conservative (95% recall):  reid_body_confirmed_sim = {thresh['threshold_conservative']:.2f}"
+    )
     print(f"  Recommended  (balanced):    reid_body_confirmed_sim = {thresh['recommended']:.2f}")
-    print(f"  Loose        (~99% recall): reid_body_confirmed_sim = {thresh['threshold_loose']:.2f}")
+    print(
+        f"  Loose        (~99% recall): reid_body_confirmed_sim = {thresh['threshold_loose']:.2f}"
+    )
     print()
     print("  Add 0.05 for reid_body_cross_cam_sim in each case.")
     print()
@@ -408,6 +426,7 @@ def print_report(
 # Verify-only mode: quick ONNX shape/norm check without dataset
 # ---------------------------------------------------------------------------
 
+
 def verify_onnx(model_path: str) -> None:
     sess = load_session(model_path)
     input_name = sess.get_inputs()[0].name
@@ -425,32 +444,42 @@ def verify_onnx(model_path: str) -> None:
 # Main
 # ---------------------------------------------------------------------------
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
-        "--dataset", default=str(REPO_ROOT / "data" / "market1501"),
+        "--dataset",
+        default=str(REPO_ROOT / "data" / "market1501"),
         help="Dataset root containing query/ and bounding_box_test/ (Market-1501 or MSMT17)",
     )
     parser.add_argument(
-        "--model", default=str(REPO_ROOT / "models" / "transreid_body_msmt17.onnx"),
+        "--model",
+        default=str(REPO_ROOT / "models" / "transreid_body_msmt17.onnx"),
         help="TransReID ONNX path (export first: python scripts/export_transreid_onnx.py)",
     )
-    parser.add_argument("--max-query", type=int, default=0,
-                        help="Limit query count (0=all). Use 500 for a quick test.")
+    parser.add_argument(
+        "--max-query",
+        type=int,
+        default=0,
+        help="Limit query count (0=all). Use 500 for a quick test.",
+    )
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument(
-        "--save-embeddings", action="store_true",
+        "--save-embeddings",
+        action="store_true",
         help="Cache 768-dim embeddings to data/transreid_embeddings/ for re-runs",
     )
     parser.add_argument(
-        "--from-cached", metavar="DIR",
+        "--from-cached",
+        metavar="DIR",
         help="Skip embedding computation; load pre-cached .npy files from DIR",
     )
     parser.add_argument(
-        "--verify-only", metavar="ONNX",
+        "--verify-only",
+        metavar="ONNX",
         help="Only verify the ONNX model (shape + norm check); do not run evaluation",
     )
     args = parser.parse_args()
@@ -460,7 +489,7 @@ def main() -> None:
         return
 
     dataset_root = Path(args.dataset)
-    query_dir   = dataset_root / "query"
+    query_dir = dataset_root / "query"
     gallery_dir = dataset_root / "bounding_box_test"
 
     if not query_dir.exists() or not gallery_dir.exists():
@@ -477,7 +506,7 @@ def main() -> None:
 
     print(f"Dataset: {dataset_root}")
     print("Parsing image metadata ...")
-    query_imgs   = parse_folder(query_dir)
+    query_imgs = parse_folder(query_dir)
     gallery_imgs = parse_folder(gallery_dir)
 
     if not query_imgs:
@@ -505,7 +534,7 @@ def main() -> None:
             print(f"  Run with --save-embeddings first to generate them.")
             sys.exit(1)
         print(f"Loading cached embeddings from {from_dir} ...")
-        query_embs   = np.load(str(q_cache_load))
+        query_embs = np.load(str(q_cache_load))
         gallery_embs = np.load(str(g_cache_load))
         print(f"  query_embs: {query_embs.shape}  gallery_embs: {gallery_embs.shape}")
     else:

@@ -164,11 +164,11 @@ class CameraStats:
         self.lock = threading.Lock()
         # cumulative totals (since start; never reset)
         self.total_frames: int = 0
-        self.total_faces_detected: int = 0   # SCRFD detections that passed conf filter
-        self.total_faces_embedded: int = 0   # embed() returned non-None result
-        self.total_faces_rejected: int = 0   # embed() returned None (blur / size gate)
-        self.total_body_attempts: int = 0    # tracklets that met the size gate
-        self.total_kp_available: int = 0     # of those, tracklets with 17 COCO keypoints
+        self.total_faces_detected: int = 0  # SCRFD detections that passed conf filter
+        self.total_faces_embedded: int = 0  # embed() returned non-None result
+        self.total_faces_rejected: int = 0  # embed() returned None (blur / size gate)
+        self.total_body_attempts: int = 0  # tracklets that met the size gate
+        self.total_kp_available: int = 0  # of those, tracklets with 17 COCO keypoints
         # rolling windows (last 200 samples) for live quality distribution
         self.body_quality_norms: deque[float] = deque(maxlen=200)
         self.face_quality_norms: deque[float] = deque(maxlen=200)
@@ -723,8 +723,7 @@ def _print_calibration_stats(
             f"  quality-rejected={f_rej}"
         )
         print(
-            f"    Body     : crops={b_att}  pose-kpts={kp_pct:.1f}%"
-            f"  (kpts available={kp_av})"
+            f"    Body     : crops={b_att}  pose-kpts={kp_pct:.1f}%" f"  (kpts available={kp_av})"
         )
         print(f"    Body  Bq : {bq_str}")
         print(f"    Face  Fq : {fq_str}")
@@ -733,8 +732,12 @@ def _print_calibration_stats(
     print("  Active thresholds:")
     print(f"    scrfd_conf              = {state.conf:.2f}")
     print(f"    min_blur                = {settings.min_blur:.1f}")
-    print(f"    reid_face_quality_floor = {settings.reid_face_quality_floor:.2f}  (AdaFace L2, range ~10-32)")
-    print(f"    reid_body_quality_floor = {settings.reid_body_quality_floor:.2f}  (Laplacian, range ~0-500+)")
+    print(
+        f"    reid_face_quality_floor = {settings.reid_face_quality_floor:.2f}  (AdaFace L2, range ~10-32)"
+    )
+    print(
+        f"    reid_body_quality_floor = {settings.reid_body_quality_floor:.2f}  (Laplacian, range ~0-500+)"
+    )
     print(f"    torso_kp_conf_threshold = {settings.torso_kp_conf_threshold:.2f}")
     print(f"    torso_crop_pad_fraction = {settings.torso_crop_pad_fraction:.2f}")
     print(f"    reid_body_confirmed_sim = {settings.reid_body_confirmed_sim:.2f}")
@@ -1003,7 +1006,10 @@ def main() -> None:
                 cv2.imshow("VMS Pipeline Test", display)
 
             # Periodic calibration stats to console (stats_interval=0 disables)
-            if args.stats_interval > 0 and time.monotonic() - _last_stats_print >= args.stats_interval:
+            if (
+                args.stats_interval > 0
+                and time.monotonic() - _last_stats_print >= args.stats_interval
+            ):
                 _print_calibration_stats(all_stats, state, settings)
                 _last_stats_print = time.monotonic()
 

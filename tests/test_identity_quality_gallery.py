@@ -144,7 +144,13 @@ def test_body_quality_floor_rejects_low_blur() -> None:
 
     body_emb = (0.3,) * 768
     engine._update_galleries(
-        entry, None, body_emb, _StrictBodySettings(), timestamp_ms=0, face_quality=0.0, body_quality=10.0
+        entry,
+        None,
+        body_emb,
+        _StrictBodySettings(),
+        timestamp_ms=0,
+        face_quality=0.0,
+        body_quality=10.0,
     )
 
     assert len(entry.body_gallery) == 0
@@ -160,7 +166,13 @@ def test_body_quality_floor_accepts_sharp_crop() -> None:
 
     body_emb = (0.3,) * 768
     engine._update_galleries(
-        entry, None, body_emb, _StrictBodySettings(), timestamp_ms=0, face_quality=0.0, body_quality=100.0
+        entry,
+        None,
+        body_emb,
+        _StrictBodySettings(),
+        timestamp_ms=0,
+        face_quality=0.0,
+        body_quality=100.0,
     )
 
     assert len(entry.body_gallery) == 1

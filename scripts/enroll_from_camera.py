@@ -44,6 +44,7 @@ if _torch_lib.is_dir():
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv(_PROJECT_ROOT / ".env")
 except ImportError:
     pass
@@ -70,13 +71,14 @@ _DEFAULT_URL = os.environ.get(
     "rtsp://admin:sss12345@172.16.2.110:554/Streaming/Channels/101",
 )
 _DEFAULT_DB = "postgresql://vms:vms@localhost:5434/vms_test"
-_ENROLL_CONF = 0.60       # higher than test mode — enrollment should be high-confidence only
-_ENROLL_BLUR = 20.0       # min Laplacian variance for face crop to be enrollment-worthy
-_ENROLL_MIN_PX = 40       # minimum face dimension in pixels
-_CANDIDATE_WINDOW_S = 3.0 # rolling buffer for best-quality candidate
+_ENROLL_CONF = 0.60  # higher than test mode — enrollment should be high-confidence only
+_ENROLL_BLUR = 20.0  # min Laplacian variance for face crop to be enrollment-worthy
+_ENROLL_MIN_PX = 40  # minimum face dimension in pixels
+_CANDIDATE_WINDOW_S = 3.0  # rolling buffer for best-quality candidate
 
 
 # ── candidate tracking ───────────────────────────────────────────────────────
+
 
 @dataclass
 class _Candidate:
@@ -117,6 +119,7 @@ class _CandidateBuffer:
 
 
 # ── camera reader + inference ────────────────────────────────────────────────
+
 
 class _CameraWorker:
     """Reads RTSP frames and runs SCRFD+AdaFace in a background thread."""
@@ -159,6 +162,7 @@ class _CameraWorker:
         from vms.inference.detector import SCRFDDetector
         from vms.inference.embedder import AdaFaceEmbedder
         from vms.config import get_settings
+
         s = get_settings()
         providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
         logger.info("Loading SCRFD from %s", s.scrfd_model)
@@ -226,6 +230,7 @@ class _CameraWorker:
 
     def _infer_loop(self) -> None:
         from vms.inference.messages import FaceWithEmbedding
+
         last_seq = -1
         _fps_t0 = time.monotonic()
         _fps_count = 0
@@ -276,10 +281,13 @@ class _CameraWorker:
                         if scale != 1.0:
                             x1, y1, x2, y2 = f.bbox
                             scaled_bbox = (
-                                int(x1 / scale), int(y1 / scale),
-                                int(x2 / scale), int(y2 / scale),
+                                int(x1 / scale),
+                                int(y1 / scale),
+                                int(x2 / scale),
+                                int(y2 / scale),
                             )
                             from dataclasses import replace as _dc_replace
+
                             emb = _dc_replace(emb, bbox=scaled_bbox)
                         faces.append(emb)
             except Exception:
@@ -306,8 +314,10 @@ class _CameraWorker:
 
 # ── database helpers ─────────────────────────────────────────────────────────
 
+
 def _db_engine(db_url: str) -> Any:
     from sqlalchemy import create_engine
+
     return create_engine(db_url, pool_pre_ping=True)
 
 
@@ -345,7 +355,9 @@ def _enroll_person(
         db.commit()
         logger.info(
             "Enrolled person_id=%d  employee_id=%s  quality_score=%.3f",
-            person.person_id, employee_id, quality_score,
+            person.person_id,
+            employee_id,
+            quality_score,
         )
         return int(person.person_id)
 
@@ -381,10 +393,13 @@ def _list_enrolled(engine: Any) -> None:
 
 # ── prompt helpers (blocking — run in main thread during pause) ──────────────
 
+
 def _prompt_enrollment(candidate: _Candidate) -> tuple[str, str] | None:
     """Return (name, employee_id) entered by user, or None if cancelled."""
     print("\n── Enrollment ───────────────────────────────────────────────────")
-    print(f"  Face quality norm: {candidate.quality_norm:.1f}  (quality_score: {min(1.0, candidate.quality_norm/35.0):.3f})")
+    print(
+        f"  Face quality norm: {candidate.quality_norm:.1f}  (quality_score: {min(1.0, candidate.quality_norm/35.0):.3f})"
+    )
     print("  Enter details below. Press ENTER with empty name to cancel.\n")
     name = input("  Person name      : ").strip()
     if not name:
@@ -450,9 +465,12 @@ def _draw_faces(
 
 # ── main ──────────────────────────────────────────────────────────────────────
 
+
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Enroll persons from a live RTSP camera or webcam.")
-    p.add_argument("--url", default=None, help="RTSP URL (default: VMS_CAM_GATE_FRONT_URL from .env)")
+    p.add_argument(
+        "--url", default=None, help="RTSP URL (default: VMS_CAM_GATE_FRONT_URL from .env)"
+    )
     p.add_argument(
         "--webcam",
         action="store_true",
@@ -497,6 +515,7 @@ def main() -> None:
         engine = _db_engine(args.db_url)
         # Quick connectivity check
         from sqlalchemy import text
+
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         logger.info("DB connection OK: %s", args.db_url)
@@ -544,12 +563,16 @@ def main() -> None:
                 if face.face_quality_norm > 0 and face.embedding:
                     x1, y1, x2, y2 = face.bbox
                     crop = last_frame[y1:y2, x1:x2]
-                    buf.offer(_Candidate(
-                        embedding=face.embedding,
-                        quality_norm=face.face_quality_norm,
-                        frame_crop=crop.copy() if crop.size > 0 else np.zeros((1, 1, 3), np.uint8),
-                        timestamp=time.monotonic(),
-                    ))
+                    buf.offer(
+                        _Candidate(
+                            embedding=face.embedding,
+                            quality_norm=face.face_quality_norm,
+                            frame_crop=(
+                                crop.copy() if crop.size > 0 else np.zeros((1, 1, 3), np.uint8)
+                            ),
+                            timestamp=time.monotonic(),
+                        )
+                    )
             # Build display: draw overlays on full-res then downscale once.
             draw_frame = last_frame.copy()
             now = time.monotonic()
@@ -563,7 +586,9 @@ def main() -> None:
                 worker.active_provider,
                 status_msg if now < status_until else "",
             )
-            display_cache = cv2.resize(draw_frame, (_DISP_W, _DISP_H), interpolation=cv2.INTER_LINEAR)
+            display_cache = cv2.resize(
+                draw_frame, (_DISP_W, _DISP_H), interpolation=cv2.INTER_LINEAR
+            )
             cv2.imshow("VMS Enrollment", display_cache)
 
         key = cv2.waitKey(1) & 0xFF
@@ -590,7 +615,9 @@ def main() -> None:
             if result_prompt:
                 name, employee_id = result_prompt
                 try:
-                    pid = _enroll_person(engine, name, employee_id, candidate.embedding, candidate.quality_norm)
+                    pid = _enroll_person(
+                        engine, name, employee_id, candidate.embedding, candidate.quality_norm
+                    )
                     enrolled_count = _count_enrolled()
                     status_msg = f"Enrolled: {name} ({employee_id})  person_id={pid}"
                     print(f"  OK: {status_msg}\n")

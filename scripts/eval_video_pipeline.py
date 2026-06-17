@@ -48,8 +48,8 @@ logger = logging.getLogger(__name__)
 # Pass/fail thresholds
 # ---------------------------------------------------------------------------
 
-AUC_MIN = 0.85           # Area Under ROC Curve - random = 0.5, perfect = 1.0
-EER_MAX = 0.15           # Equal Error Rate - lower is better
+AUC_MIN = 0.85  # Area Under ROC Curve - random = 0.5, perfect = 1.0
+EER_MAX = 0.15  # Equal Error Rate - lower is better
 USABLE_PAIRS_MIN = 0.70  # fraction of pairs where both clips yield face embeddings
 
 # ---------------------------------------------------------------------------
@@ -69,7 +69,7 @@ class ClipResult:
 
 @dataclass
 class PairResult:
-    label: int          # 1 = same person, 0 = different
+    label: int  # 1 = same person, 0 = different
     clip1_path: str
     clip2_path: str
     similarity: float | None  # None if either clip has no detected face
@@ -79,7 +79,7 @@ class PairResult:
 
 @dataclass
 class VideoEvalResult:
-    mode: str           # "smoke" or "verification"
+    mode: str  # "smoke" or "verification"
 
     # Smoke fields (set by finalise_smoke)
     n_frames_processed: int = 0
@@ -103,9 +103,7 @@ class VideoEvalResult:
     def finalise_smoke(self, elapsed: float) -> None:
         self.fps = self.n_frames_processed / elapsed if elapsed > 0 else 0.0
         self.detection_rate = (
-            self.n_faces_detected / self.n_frames_processed
-            if self.n_frames_processed > 0
-            else 0.0
+            self.n_faces_detected / self.n_frames_processed if self.n_frames_processed > 0 else 0.0
         )
         self.fail_reasons = []
         if self.n_frames_processed == 0:
@@ -115,7 +113,9 @@ class VideoEvalResult:
     def finalise_verification(self) -> None:
         usable = [p for p in self.pairs if p.similarity is not None]
         self.n_pairs_usable = len(usable)
-        self.usable_pair_rate = self.n_pairs_usable / self.n_pairs_total if self.n_pairs_total else 0.0
+        self.usable_pair_rate = (
+            self.n_pairs_usable / self.n_pairs_total if self.n_pairs_total else 0.0
+        )
 
         labels = [p.label for p in usable]
         scores = [p.similarity for p in usable]  # type: ignore[misc]
@@ -136,19 +136,16 @@ class VideoEvalResult:
                 f" (need {USABLE_PAIRS_MIN:.0%})"
             )
         if self.auc < AUC_MIN:
-            self.fail_reasons.append(
-                f"AUC {self.auc:.4f} < {AUC_MIN} required"
-            )
+            self.fail_reasons.append(f"AUC {self.auc:.4f} < {AUC_MIN} required")
         if self.eer > EER_MAX:
-            self.fail_reasons.append(
-                f"EER {self.eer:.4f} > {EER_MAX} maximum"
-            )
+            self.fail_reasons.append(f"EER {self.eer:.4f} > {EER_MAX} maximum")
         self.passed = len(self.fail_reasons) == 0
 
 
 # ---------------------------------------------------------------------------
 # Core helpers
 # ---------------------------------------------------------------------------
+
 
 def _embed_frame(
     frame: np.ndarray,  # type: ignore[type-arg]
@@ -236,6 +233,7 @@ def _embed_clip(
 # Metrics (pure numpy, no sklearn)
 # ---------------------------------------------------------------------------
 
+
 def _auc(labels: list[int], scores: list[float]) -> float:
     """Area Under the ROC Curve via trapezoid rule."""
     n_pos = sum(labels)
@@ -305,6 +303,7 @@ def _tar_at_far(labels: list[int], scores: list[float], target_far: float = 0.1)
 # Smoke mode
 # ---------------------------------------------------------------------------
 
+
 def run_smoke(
     video_path: str,
     detector_path: str = "models/scrfd_2.5g.onnx",
@@ -315,6 +314,7 @@ def run_smoke(
 ) -> VideoEvalResult:
     """Run the detection+embedding pipeline on one video; report throughput."""
     import os
+
     os.environ.setdefault("VMS_DB_URL", "postgresql://vms:vms@localhost:5434/vms_test")
     os.environ.setdefault("VMS_JWT_SECRET", "eval-only")
     os.environ.setdefault("VMS_REDIS_URL", "redis://localhost:6379/0")
@@ -378,6 +378,7 @@ def run_smoke(
 # Verification mode (VoxCeleb1-style pairs)
 # ---------------------------------------------------------------------------
 
+
 def run_verification(
     pairs_file: str = "data/voxceleb_mini/pairs.csv",
     clips_dir: str = "data/voxceleb_mini/clips",
@@ -393,6 +394,7 @@ def run_verification(
     paths are relative to clips_dir, or absolute.
     """
     import os
+
     os.environ.setdefault("VMS_DB_URL", "postgresql://vms:vms@localhost:5434/vms_test")
     os.environ.setdefault("VMS_JWT_SECRET", "eval-only")
     os.environ.setdefault("VMS_REDIS_URL", "redis://localhost:6379/0")
@@ -405,8 +407,7 @@ def run_verification(
     pairs_path = Path(pairs_file)
     if not pairs_path.exists():
         raise FileNotFoundError(
-            f"Pairs file not found: {pairs_file}\n"
-            f"Run: python scripts/download_voxceleb_mini.py"
+            f"Pairs file not found: {pairs_file}\n" f"Run: python scripts/download_voxceleb_mini.py"
         )
 
     clips_base = Path(clips_dir)
@@ -427,7 +428,9 @@ def run_verification(
         print(f"\n{'='*60}")
         print("  VMS Video Face Verification (VoxCeleb1)")
         print(f"{'='*60}")
-        print(f"  Pairs    : {len(rows)} ({sum(r[0] for r in rows)} same, {sum(1-r[0] for r in rows)} diff)")
+        print(
+            f"  Pairs    : {len(rows)} ({sum(r[0] for r in rows)} same, {sum(1-r[0] for r in rows)} diff)"
+        )
         print(f"  Clips    : {clips_dir}")
         print(f"  Detector : {detector_path}")
         print(f"  Embedder : {embedder_path}")
@@ -458,14 +461,16 @@ def run_verification(
         if c1.mean_embedding is not None and c2.mean_embedding is not None:
             sim = float(np.dot(c1.mean_embedding, c2.mean_embedding))
 
-        result.pairs.append(PairResult(
-            label=label,
-            clip1_path=str(p1),
-            clip2_path=str(p2),
-            similarity=sim,
-            clip1_det_rate=c1.detection_rate,
-            clip2_det_rate=c2.detection_rate,
-        ))
+        result.pairs.append(
+            PairResult(
+                label=label,
+                clip1_path=str(p1),
+                clip2_path=str(p2),
+                similarity=sim,
+                clip1_det_rate=c1.detection_rate,
+                clip2_det_rate=c2.detection_rate,
+            )
+        )
 
     result.finalise_verification()
 
@@ -478,6 +483,7 @@ def run_verification(
 # ---------------------------------------------------------------------------
 # Reporters
 # ---------------------------------------------------------------------------
+
 
 def _print_smoke_summary(r: VideoEvalResult) -> None:
     print(f"\n{'='*60}")
@@ -501,13 +507,19 @@ def _print_verification_summary(r: VideoEvalResult) -> None:
     print("  FACE VERIFICATION SUMMARY  (VoxCeleb1)")
     print(f"{'='*60}")
     print(f"  Pairs total      : {r.n_pairs_total}")
-    print(f"  Pairs usable     : {r.n_pairs_usable} ({r.usable_pair_rate:.1%})"
-          f"  {'OK' if r.usable_pair_rate >= USABLE_PAIRS_MIN else 'FAIL'}")
+    print(
+        f"  Pairs usable     : {r.n_pairs_usable} ({r.usable_pair_rate:.1%})"
+        f"  {'OK' if r.usable_pair_rate >= USABLE_PAIRS_MIN else 'FAIL'}"
+    )
     print()
-    print(f"  AUC              : {r.auc:.4f}"
-          f"  {'OK' if r.auc >= AUC_MIN else 'FAIL'} (need >= {AUC_MIN})")
-    print(f"  EER              : {r.eer:.4f}"
-          f"  {'OK' if r.eer <= EER_MAX else 'FAIL'} (need <= {EER_MAX})")
+    print(
+        f"  AUC              : {r.auc:.4f}"
+        f"  {'OK' if r.auc >= AUC_MIN else 'FAIL'} (need >= {AUC_MIN})"
+    )
+    print(
+        f"  EER              : {r.eer:.4f}"
+        f"  {'OK' if r.eer <= EER_MAX else 'FAIL'} (need <= {EER_MAX})"
+    )
     print(f"  TAR@FAR=0.1      : {r.tar_at_far01:.4f}")
     print()
     if r.passed:
@@ -523,9 +535,7 @@ def _print_verification_summary(r: VideoEvalResult) -> None:
         seen: set[str] = set()
         for p in no_face:
             for path in (p.clip1_path, p.clip2_path):
-                if path not in seen and (
-                    ClipResult.__new__(ClipResult) or True
-                ):
+                if path not in seen and (ClipResult.__new__(ClipResult) or True):
                     # just print unique paths that failed
                     seen.add(path)
                     if p.clip1_det_rate == 0.0 and path == p.clip1_path:
@@ -540,17 +550,27 @@ def _print_verification_summary(r: VideoEvalResult) -> None:
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def _parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     src = p.add_mutually_exclusive_group(required=True)
     src.add_argument("--video", help="Single video for smoke test")
     src.add_argument("--pairs", help="CSV of verification pairs (VoxCeleb1 format)")
-    p.add_argument("--clips-dir", default="data/voxceleb_mini/clips",
-                   help="Base directory for clip paths (verification mode only)")
+    p.add_argument(
+        "--clips-dir",
+        default="data/voxceleb_mini/clips",
+        help="Base directory for clip paths (verification mode only)",
+    )
     p.add_argument("--detector", default="models/scrfd_2.5g.onnx")
     p.add_argument("--embedder", default="models/adaface_ir50.onnx")
-    p.add_argument("--max-frames", type=int, default=0,
-                   help="Max frames to sample per clip (0 = use default per mode)")
+    p.add_argument(
+        "--max-frames",
+        type=int,
+        default=0,
+        help="Max frames to sample per clip (0 = use default per mode)",
+    )
     p.add_argument("--quiet", action="store_true", help="Suppress verbose output")
     return p.parse_args()
 
@@ -562,14 +582,21 @@ if __name__ == "__main__":
     if args.video:
         max_f = args.max_frames or 300
         result = run_smoke(
-            args.video, args.detector, args.embedder,
-            max_frames=max_f, verbose=verbose,
+            args.video,
+            args.detector,
+            args.embedder,
+            max_frames=max_f,
+            verbose=verbose,
         )
     else:
         max_f = args.max_frames or 30
         result = run_verification(
-            args.pairs, args.clips_dir, args.detector, args.embedder,
-            max_frames_per_clip=max_f, verbose=verbose,
+            args.pairs,
+            args.clips_dir,
+            args.detector,
+            args.embedder,
+            max_frames_per_clip=max_f,
+            verbose=verbose,
         )
 
     sys.exit(0 if result.passed else 1)

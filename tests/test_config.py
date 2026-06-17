@@ -52,10 +52,22 @@ def test_phase6a_config_defaults() -> None:
     s = Settings()
     assert s.gpu_tensorrt_enabled is False
     assert s.gpu_tensorrt_fp16 is True
+    assert s.gpu_tensorrt_int8 is False
     assert s.gpu_tensorrt_engine_cache_dir == "models/trt_engines"
     assert s.gpu_tensorrt_workspace_mb == 4096
     assert s.gpu_onnx_export_dir == "models/onnx_exported"
+    assert s.gpu_int8_calibration_dir == ""
+    assert s.gpu_nvdec_enabled is False
+    assert s.gpu_triton_url == ""
     assert s.detector_interval_frames == 1
+    assert s.detector_interval_adaptive is False
+    assert s.detector_interval_max == 4
+    assert s.detector_adapt_window == 5
+    assert s.motion_gate_enabled is False
+    assert s.motion_gate_method == "frame_diff"
+    assert s.motion_gate_min_pixel_diff_pct == 0.5
+    assert s.motion_gate_roi_crop_enabled is False
+    assert s.motion_gate_roi_margin_px == 32
 
 
 def test_reid_stale_ms_default() -> None:

@@ -39,12 +39,13 @@ INPUT_W = 128
 EMBED_DIM = 768  # BNNeck output dimension
 
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
-IMAGENET_STD  = [0.229, 0.224, 0.225]
+IMAGENET_STD = [0.229, 0.224, 0.225]
 
 
 # ---------------------------------------------------------------------------
 # Dataset
 # ---------------------------------------------------------------------------
+
 
 class CropDataset(Dataset):
     """Flat directory of body crop images (one image = one detection crop)."""
@@ -64,25 +65,30 @@ class CropDataset(Dataset):
 
 
 def build_transform() -> transforms.Compose:
-    return transforms.Compose([
-        transforms.Resize((INPUT_H, INPUT_W)),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize(IMAGENET_MEAN, IMAGENET_STD),
-    ])
+    return transforms.Compose(
+        [
+            transforms.Resize((INPUT_H, INPUT_W)),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize(IMAGENET_MEAN, IMAGENET_STD),
+        ]
+    )
 
 
 def build_eval_transform() -> transforms.Compose:
-    return transforms.Compose([
-        transforms.Resize((INPUT_H, INPUT_W)),
-        transforms.ToTensor(),
-        transforms.Normalize(IMAGENET_MEAN, IMAGENET_STD),
-    ])
+    return transforms.Compose(
+        [
+            transforms.Resize((INPUT_H, INPUT_W)),
+            transforms.ToTensor(),
+            transforms.Normalize(IMAGENET_MEAN, IMAGENET_STD),
+        ]
+    )
 
 
 # ---------------------------------------------------------------------------
 # Model: TransReID inference wrapper
 # ---------------------------------------------------------------------------
+
 
 class TransReIDBodyEmbedder(nn.Module):
     """
@@ -128,6 +134,7 @@ class TransReIDBodyEmbedder(nn.Module):
 # Pseudo-label generation (DBSCAN clustering)
 # ---------------------------------------------------------------------------
 
+
 @torch.no_grad()
 def extract_embeddings(model: nn.Module, loader: DataLoader, device: torch.device) -> torch.Tensor:
     model.eval()
@@ -139,7 +146,9 @@ def extract_embeddings(model: nn.Module, loader: DataLoader, device: torch.devic
     return torch.cat(all_feats, dim=0)
 
 
-def cluster_pseudo_labels(embeddings: torch.Tensor, eps: float = 0.6, min_samples: int = 4) -> torch.Tensor:
+def cluster_pseudo_labels(
+    embeddings: torch.Tensor, eps: float = 0.6, min_samples: int = 4
+) -> torch.Tensor:
     """
     DBSCAN clustering on L2-normalized embeddings (cosine distance via eps).
     Returns label tensor; -1 = noise (outlier, excluded from training).
@@ -162,6 +171,7 @@ def cluster_pseudo_labels(embeddings: torch.Tensor, eps: float = 0.6, min_sample
 # ---------------------------------------------------------------------------
 # Training loop skeleton
 # ---------------------------------------------------------------------------
+
 
 def train_one_epoch(
     model: nn.Module,
@@ -210,6 +220,7 @@ def train_one_epoch(
 # Main
 # ---------------------------------------------------------------------------
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Body Re-ID UDA fine-tuning")
     parser.add_argument("--source-ckpt", required=True, type=Path)
@@ -218,8 +229,9 @@ def main() -> None:
     parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--lr", type=float, default=3.5e-5)
-    parser.add_argument("--recluster-every", type=int, default=5,
-                        help="Re-generate pseudo labels every N epochs")
+    parser.add_argument(
+        "--recluster-every", type=int, default=5, help="Re-generate pseudo labels every N epochs"
+    )
     parser.add_argument("--dbscan-eps", type=float, default=0.6)
     parser.add_argument("--dbscan-min-samples", type=int, default=4)
     args = parser.parse_args()
@@ -237,7 +249,9 @@ def main() -> None:
     # Dataset
     dataset = CropDataset(args.target_crops, build_transform())
     eval_dataset = CropDataset(args.target_crops, build_eval_transform())
-    loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=4, pin_memory=True)
+    loader = DataLoader(
+        dataset, batch_size=args.batch_size, shuffle=True, num_workers=4, pin_memory=True
+    )
     eval_loader = DataLoader(eval_dataset, batch_size=256, shuffle=False, num_workers=4)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=5e-4)
@@ -259,7 +273,9 @@ def main() -> None:
     args.output_ckpt.parent.mkdir(parents=True, exist_ok=True)
     torch.save(model.state_dict(), args.output_ckpt)
     logger.info("Saved adapted checkpoint to %s", args.output_ckpt)
-    logger.info("Next step: export to ONNX via scripts/export_transreid_onnx.py, then re-calibrate reid_body_confirmed_sim")
+    logger.info(
+        "Next step: export to ONNX via scripts/export_transreid_onnx.py, then re-calibrate reid_body_confirmed_sim"
+    )
 
 
 if __name__ == "__main__":

@@ -64,6 +64,7 @@ logger = logging.getLogger("simulate_reid")
 # Simple IoU-based face tracker (no YOLO needed — face bbox continuity only)
 # ---------------------------------------------------------------------------
 
+
 def _iou(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> float:
     x1 = max(a[0], b[0])
     y1 = max(a[1], b[1])
@@ -93,9 +94,7 @@ class _FaceTracker:
         self._active: dict[int, tuple[int, int, int, int]] = {}  # tid -> last_bbox
         self._missing: dict[int, int] = {}  # tid -> frames_since_last_seen
 
-    def update(
-        self, faces: list[FaceWithEmbedding]
-    ) -> list[tuple[FaceWithEmbedding, int]]:
+    def update(self, faces: list[FaceWithEmbedding]) -> list[tuple[FaceWithEmbedding, int]]:
         """Return list of (face, local_track_id) for each detected face."""
         bboxes = [f.bbox for f in faces]
         assignment: dict[int, int] = {}  # face_idx -> tid
@@ -125,10 +124,7 @@ class _FaceTracker:
                 self._next_id += 1
 
         # Update active tracks; drop stale ones
-        self._active = {
-            assignment[i]: bboxes[i]
-            for i in range(len(bboxes))
-        }
+        self._active = {assignment[i]: bboxes[i] for i in range(len(bboxes))}
         for tid in list(self._missing.keys()):
             if self._missing[tid] > self.MAX_MISSING:
                 del self._missing[tid]
@@ -140,6 +136,7 @@ class _FaceTracker:
 # ---------------------------------------------------------------------------
 # Diagnostics collection
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class _CameraStats:
@@ -176,6 +173,7 @@ def _cross_cam_sims(
 # ---------------------------------------------------------------------------
 # Core processing loop
 # ---------------------------------------------------------------------------
+
 
 def process_segment(
     frames: list[np.ndarray],  # type: ignore[type-arg]
@@ -234,10 +232,24 @@ def process_segment(
                 x1, y1, x2, y2 = face.bbox
                 color = (0, 255, 0) if camera_id == 1 else (255, 165, 0)
                 cv2.rectangle(vis, (x1, y1), (x2, y2), color, 2)
-                cv2.putText(vis, f"C{camera_id} T{local_track_id}", (x1, y1 - 5),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
-            cv2.putText(vis, f"Camera {camera_id}  Frame {frame_num}", (10, 25),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+                cv2.putText(
+                    vis,
+                    f"C{camera_id} T{local_track_id}",
+                    (x1, y1 - 5),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5,
+                    color,
+                    1,
+                )
+            cv2.putText(
+                vis,
+                f"Camera {camera_id}  Frame {frame_num}",
+                (10, 25),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.7,
+                (255, 255, 255),
+                2,
+            )
             cv2.imshow("Re-ID Simulation", vis)
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
@@ -246,6 +258,7 @@ def process_segment(
 # ---------------------------------------------------------------------------
 # Report
 # ---------------------------------------------------------------------------
+
 
 def print_report(
     stats1: _CameraStats,
@@ -261,32 +274,47 @@ def print_report(
     print("CROSS-CAMERA RE-ID SIMULATION REPORT")
     print("=" * 60)
 
-    print(f"\n{'Camera 1':>10}: {stats1.frames_processed} frames  "
-          f"{stats1.faces_detected} faces  {stats1.embeddings_computed} embeddings  "
-          f"{len(stats1.gids_seen)} unique identities")
-    print(f"{'Camera 2':>10}: {stats2.frames_processed} frames  "
-          f"{stats2.faces_detected} faces  {stats2.embeddings_computed} embeddings  "
-          f"{len(stats2.gids_seen)} unique identities")
+    print(
+        f"\n{'Camera 1':>10}: {stats1.frames_processed} frames  "
+        f"{stats1.faces_detected} faces  {stats1.embeddings_computed} embeddings  "
+        f"{len(stats1.gids_seen)} unique identities"
+    )
+    print(
+        f"{'Camera 2':>10}: {stats2.frames_processed} frames  "
+        f"{stats2.faces_detected} faces  {stats2.embeddings_computed} embeddings  "
+        f"{len(stats2.gids_seen)} unique identities"
+    )
 
-    print(f"\n{'Match rate':>15}: {len(shared)}/{len(total)} identities matched "
-          f"({100*len(shared)/max(1, len(total)):.0f}%)")
+    print(
+        f"\n{'Match rate':>15}: {len(shared)}/{len(total)} identities matched "
+        f"({100*len(shared)/max(1, len(total)):.0f}%)"
+    )
 
     if shared:
         print(f"{'Matched gids':>15}: " + ", ".join(str(g)[:8] for g in shared))
     cam1_only = stats1.gids_seen - stats2.gids_seen
     cam2_only = stats2.gids_seen - stats1.gids_seen
     if cam1_only:
-        print(f"{'Cam1 only':>15}: " + ", ".join(str(g)[:8] for g in cam1_only)
-              + "  (person left before cam2)")
+        print(
+            f"{'Cam1 only':>15}: "
+            + ", ".join(str(g)[:8] for g in cam1_only)
+            + "  (person left before cam2)"
+        )
     if cam2_only:
-        print(f"{'Cam2 only':>15}: " + ", ".join(str(g)[:8] for g in cam2_only)
-              + "  (new person on cam2)")
+        print(
+            f"{'Cam2 only':>15}: "
+            + ", ".join(str(g)[:8] for g in cam2_only)
+            + "  (new person on cam2)"
+        )
 
     print(f"\nThresholds in use:")
-    print(f"  reid_confirmed_sim    = {settings.reid_confirmed_sim:.2f}  "
-          f"(confirmed tracks — lower threshold)")
-    print(f"  reid_cross_cam_sim    = {settings.reid_cross_cam_sim:.2f}  "
-          f"(new/unconfirmed tracks)")
+    print(
+        f"  reid_confirmed_sim    = {settings.reid_confirmed_sim:.2f}  "
+        f"(confirmed tracks — lower threshold)"
+    )
+    print(
+        f"  reid_cross_cam_sim    = {settings.reid_cross_cam_sim:.2f}  " f"(new/unconfirmed tracks)"
+    )
     print(f"  reid_margin           = {settings.reid_margin:.2f}")
     print(f"  reid_confirm_after    = {settings.reid_confirm_after_sightings} sightings")
     print(f"  reid_gallery_size     = {settings.reid_gallery_size}")
@@ -300,46 +328,60 @@ def print_report(
             on_cam2 = gid in stats2.gids_seen
             tag = "MATCHED" if (on_cam1 and on_cam2) else ("CAM1 ONLY" if on_cam1 else "CAM2 ONLY")
             entry_list = [
-                e for (cam, tid), e in engine._registry.items()
-                if e.global_track_id == gid
+                e for (cam, tid), e in engine._registry.items() if e.global_track_id == gid
             ]
             confirmed_any = any(e.confirmed for e in entry_list)
             total_gallery = sum(len(e.gallery) for e in entry_list)
 
-            print(f"\n  gid {str(gid)[:8]}  [{tag}]  confirmed={confirmed_any}  "
-                  f"total_gallery={total_gallery}")
+            print(
+                f"\n  gid {str(gid)[:8]}  [{tag}]  confirmed={confirmed_any}  "
+                f"total_gallery={total_gallery}"
+            )
 
             if on_cam1 and on_cam2:
                 sims = _cross_cam_sims(gid, stats1, stats2)
                 if sims:
-                    print(f"    cross-cam cosine: min={min(sims):.3f}  "
-                          f"avg={sum(sims)/len(sims):.3f}  max={max(sims):.3f}")
-                    threshold = (settings.reid_confirmed_sim if confirmed_any
-                                 else settings.reid_cross_cam_sim)
+                    print(
+                        f"    cross-cam cosine: min={min(sims):.3f}  "
+                        f"avg={sum(sims)/len(sims):.3f}  max={max(sims):.3f}"
+                    )
+                    threshold = (
+                        settings.reid_confirmed_sim
+                        if confirmed_any
+                        else settings.reid_cross_cam_sim
+                    )
                     status = "OK" if max(sims) >= threshold else "BELOW THRESHOLD"
                     print(f"    threshold used: {threshold:.2f}  --> {status}")
                     if max(sims) < threshold:
-                        print(f"    RECOMMENDATION: lower reid_confirmed_sim to "
-                              f"{max(sims) - 0.02:.2f} or adjust VMS_REID_CONFIRMED_SIM")
+                        print(
+                            f"    RECOMMENDATION: lower reid_confirmed_sim to "
+                            f"{max(sims) - 0.02:.2f} or adjust VMS_REID_CONFIRMED_SIM"
+                        )
             else:
                 if not confirmed_any:
                     needed = settings.reid_confirm_after_sightings
                     got = sum(e.sighting_count for e in entry_list)
-                    print(f"    not confirmed: {got}/{needed} sightings — "
-                          f"increase video segment length or lower VMS_REID_CONFIRM_AFTER_SIGHTINGS")
+                    print(
+                        f"    not confirmed: {got}/{needed} sightings — "
+                        f"increase video segment length or lower VMS_REID_CONFIRM_AFTER_SIGHTINGS"
+                    )
 
         print("\n--- Recommendation Summary ---")
         matched_sims = []
         for gid in shared:
             matched_sims.extend(_cross_cam_sims(gid, stats1, stats2))
         if matched_sims:
-            print(f"  Observed cross-cam similarities (matched persons): "
-                  f"min={min(matched_sims):.3f}  avg={sum(matched_sims)/len(matched_sims):.3f}  "
-                  f"max={max(matched_sims):.3f}")
+            print(
+                f"  Observed cross-cam similarities (matched persons): "
+                f"min={min(matched_sims):.3f}  avg={sum(matched_sims)/len(matched_sims):.3f}  "
+                f"max={max(matched_sims):.3f}"
+            )
             safe_threshold = min(matched_sims) - 0.05
             print(f"  Safe reid_confirmed_sim for this video: <= {safe_threshold:.2f}")
-            print(f"  (current setting: {settings.reid_confirmed_sim:.2f}  "
-                  f"{'OK' if settings.reid_confirmed_sim <= safe_threshold else 'TOO HIGH'})")
+            print(
+                f"  (current setting: {settings.reid_confirmed_sim:.2f}  "
+                f"{'OK' if settings.reid_confirmed_sim <= safe_threshold else 'TOO HIGH'})"
+            )
 
     print("\n" + "=" * 60)
 
@@ -348,21 +390,28 @@ def print_report(
 # Entry point
 # ---------------------------------------------------------------------------
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Cross-camera re-ID simulation")
     src = parser.add_mutually_exclusive_group(required=True)
     src.add_argument("--video", help="Path to video file")
     src.add_argument("--webcam", action="store_true", help="Use webcam (device 0)")
-    parser.add_argument("--split", type=float, default=0.5,
-                        help="Fraction of frames to assign to camera 1 (default 0.5)")
-    parser.add_argument("--show", action="store_true",
-                        help="Display video with face overlays")
-    parser.add_argument("--verbose", action="store_true",
-                        help="Print per-frame detection details")
-    parser.add_argument("--diag", action="store_true",
-                        help="Print actual cosine similarities and threshold recommendations")
-    parser.add_argument("--max-frames", type=int, default=0,
-                        help="Limit total frames processed (0 = no limit)")
+    parser.add_argument(
+        "--split",
+        type=float,
+        default=0.5,
+        help="Fraction of frames to assign to camera 1 (default 0.5)",
+    )
+    parser.add_argument("--show", action="store_true", help="Display video with face overlays")
+    parser.add_argument("--verbose", action="store_true", help="Print per-frame detection details")
+    parser.add_argument(
+        "--diag",
+        action="store_true",
+        help="Print actual cosine similarities and threshold recommendations",
+    )
+    parser.add_argument(
+        "--max-frames", type=int, default=0, help="Limit total frames processed (0 = no limit)"
+    )
     args = parser.parse_args()
 
     settings = get_settings()
@@ -402,8 +451,10 @@ def main() -> None:
                 break
         cv2.destroyAllWindows()
     else:
-        print(f"Reading {args.video}  ({total_frames_in_file} frames at {fps:.1f}fps "
-              f"= {total_frames_in_file/fps:.1f}s)")
+        print(
+            f"Reading {args.video}  ({total_frames_in_file} frames at {fps:.1f}fps "
+            f"= {total_frames_in_file/fps:.1f}s)"
+        )
         all_frames = []
         while True:
             ret, frame = cap.read()
@@ -422,9 +473,11 @@ def main() -> None:
     cam1_frames = all_frames[:split_idx]
     cam2_frames = all_frames[split_idx:]
 
-    print(f"Split: camera 1 = frames 0–{split_idx-1} ({split_idx/fps:.1f}s)  |  "
-          f"camera 2 = frames {split_idx}–{len(all_frames)-1} "
-          f"({len(cam2_frames)/fps:.1f}s)")
+    print(
+        f"Split: camera 1 = frames 0–{split_idx-1} ({split_idx/fps:.1f}s)  |  "
+        f"camera 2 = frames {split_idx}–{len(all_frames)-1} "
+        f"({len(cam2_frames)/fps:.1f}s)"
+    )
     print(f"Processing {len(all_frames)} total frames...\n")
 
     stats1 = _CameraStats(camera_id=1)
@@ -436,20 +489,42 @@ def main() -> None:
 
     if args.verbose:
         print("--- Camera 1 ---")
-    process_segment(cam1_frames, 1, detector, embedder, engine, tracker1,
-                    stats1, args.verbose, args.show, frame_offset=0)
+    process_segment(
+        cam1_frames,
+        1,
+        detector,
+        embedder,
+        engine,
+        tracker1,
+        stats1,
+        args.verbose,
+        args.show,
+        frame_offset=0,
+    )
 
     # Evict truly stale entries but keep confirmed ones (they live 10 min)
     engine.evict_stale()
 
     if args.verbose:
         print("--- Camera 2 ---")
-    process_segment(cam2_frames, 2, detector, embedder, engine, tracker2,
-                    stats2, args.verbose, args.show, frame_offset=split_idx)
+    process_segment(
+        cam2_frames,
+        2,
+        detector,
+        embedder,
+        engine,
+        tracker2,
+        stats2,
+        args.verbose,
+        args.show,
+        frame_offset=split_idx,
+    )
 
     elapsed = time.time() - t0
-    print(f"\nProcessed {len(all_frames)} frames in {elapsed:.1f}s "
-          f"({len(all_frames)/elapsed:.0f} fps)")
+    print(
+        f"\nProcessed {len(all_frames)} frames in {elapsed:.1f}s "
+        f"({len(all_frames)/elapsed:.0f} fps)"
+    )
 
     if args.show:
         cv2.destroyAllWindows()

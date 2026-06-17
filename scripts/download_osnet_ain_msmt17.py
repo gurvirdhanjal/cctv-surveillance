@@ -15,9 +15,7 @@ REPO_ROOT = Path(__file__).parent.parent
 OUT_PATH = REPO_ROOT / "models" / "osnet_ain_x1_0_msmt17.pth"
 
 HF_REPO = "kaiyangzhou/osnet"
-HF_FILENAME = (
-    "osnet_ain_x1_0_msmt17_256x128_amsgrad_ep50_lr0.0015_coslr_b64_fb10_softmax_labsmth_flip_jitter.pth"
-)
+HF_FILENAME = "osnet_ain_x1_0_msmt17_256x128_amsgrad_ep50_lr0.0015_coslr_b64_fb10_softmax_labsmth_flip_jitter.pth"
 
 
 def main() -> None:

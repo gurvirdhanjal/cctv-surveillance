@@ -192,16 +192,38 @@ class Settings(BaseSettings):
     # audit export
     audit_export_max_rows: int = Field(default=100_000, ge=1)
 
-    # phase 6a — gpu acceleration (§5 of 2026-06-13-vms-gpu-acceleration.md)
+    # phase 6 — gpu acceleration (§5 of 2026-06-13-vms-gpu-acceleration.md)
     # master switch; False = current CUDA/CPU path (no change to existing deployments)
     gpu_tensorrt_enabled: bool = False
     gpu_tensorrt_fp16: bool = True  # arch-gated at runtime; RTX 2000 Ada supports FP16
+    # INT8 detectors only — NEVER embedders without /advisor sign-off (spec §6.2 hard rule)
+    gpu_tensorrt_int8: bool = False
     gpu_tensorrt_engine_cache_dir: str = "models/trt_engines"
     gpu_tensorrt_workspace_mb: int = 4096
     gpu_onnx_export_dir: str = "models/onnx_exported"
+    # Representative frames dir for INT8 PTQ calibration (§6.2); empty = disabled
+    gpu_int8_calibration_dir: str = ""
+    # NVDEC hardware decode — moves RTSP H.264 decode from CPU to GPU video engine (§6.3)
+    gpu_nvdec_enabled: bool = False
+    # Triton Inference Server URL (§6.4); empty = in-process ORT EP (default)
+    gpu_triton_url: str = ""
     # 1 = detect every frame (current behaviour). N>1 = YOLO runs every N frames,
     # BoT-SORT coasts between runs. Cascade stages (SCRFD, AdaFace) are exempt.
     detector_interval_frames: int = 1
+    # Adaptive detector interval (§6.0.3) — self-adjusts interval per camera based on activity
+    detector_interval_adaptive: bool = False
+    detector_interval_max: int = 4  # ceiling for adaptive interval and per-camera override cap
+    detector_adapt_window: int = (
+        5  # consecutive no-new-detection YOLO frames before raising interval
+    )
+    # Motion gate pre-filter (§6.0.25) — skip YOLO entirely on quiescent frames
+    motion_gate_enabled: bool = False
+    motion_gate_method: str = "frame_diff"  # "frame_diff" | "mog2"
+    motion_gate_min_pixel_diff_pct: float = (
+        0.5  # fraction of pixels that must change before YOLO fires
+    )
+    motion_gate_roi_crop_enabled: bool = False  # crop YOLO input to motion-region bbox + margin
+    motion_gate_roi_margin_px: int = 32  # expand motion ROI by this many pixels before crop
 
     # storage backend
     storage_backend: str = "local"  # "local" | "minio"

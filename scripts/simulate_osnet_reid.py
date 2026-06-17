@@ -77,6 +77,7 @@ def parse_folder(folder: Path) -> list[_ImgMeta]:
 # Embedding computation (batched)
 # ---------------------------------------------------------------------------
 
+
 def build_extractor(model_path: str, device: str) -> Any:
     """Load torchreid FeatureExtractor for OSNet AIN x1.0 msmt17."""
     try:
@@ -136,8 +137,7 @@ def embed_batch(
         elapsed = time.time() - t0
         eta = elapsed / done * (n - done) if done > 0 else 0
         print(
-            f"\r  {desc}: {done}/{n}  ({done/max(elapsed,1e-6):.0f} img/s  "
-            f"ETA {eta:.0f}s)    ",
+            f"\r  {desc}: {done}/{n}  ({done/max(elapsed,1e-6):.0f} img/s  " f"ETA {eta:.0f}s)    ",
             end="",
             flush=True,
         )
@@ -150,11 +150,12 @@ def embed_batch(
 # Standard Re-ID evaluation (CMC + mAP)
 # ---------------------------------------------------------------------------
 
+
 def evaluate(
     query_imgs: list[_ImgMeta],
     gallery_imgs: list[_ImgMeta],
-    query_embs: np.ndarray,   # (Nq, 512)
-    gallery_embs: np.ndarray, # (Ng, 512)
+    query_embs: np.ndarray,  # (Nq, 512)
+    gallery_embs: np.ndarray,  # (Ng, 512)
     top_k: tuple[int, ...] = (1, 5, 10),
 ) -> dict[str, float]:
     """Compute CMC@k and mAP following standard Re-ID evaluation protocol.
@@ -188,7 +189,7 @@ def evaluate(
         # Sort by descending similarity, excluding junk
         order = np.argsort(-sims)
         keep = ~junk[order]
-        ranked_pos = pos[order][keep]   # boolean array: is rank-r a true positive?
+        ranked_pos = pos[order][keep]  # boolean array: is rank-r a true positive?
 
         # CMC
         cum = np.cumsum(ranked_pos)
@@ -217,6 +218,7 @@ def evaluate(
 # Threshold analysis
 # ---------------------------------------------------------------------------
 
+
 def threshold_analysis(
     query_imgs: list[_ImgMeta],
     gallery_imgs: list[_ImgMeta],
@@ -241,9 +243,7 @@ def threshold_analysis(
         sims = query_embs[qi] @ gallery_embs.T
 
         # Same person, different camera
-        pos_idx = np.where(
-            (gallery_pids == qmeta.person_id) & (gallery_cids != qmeta.camera_id)
-        )[0]
+        pos_idx = np.where((gallery_pids == qmeta.person_id) & (gallery_cids != qmeta.camera_id))[0]
         if len(pos_idx) > 0:
             for idx in pos_idx[:10]:
                 same_sims.append(float(sims[idx]))
@@ -260,12 +260,12 @@ def threshold_analysis(
         return float(np.percentile(arr, q))
 
     # Find threshold where 95% of same-person pairs are above (conservative)
-    threshold_conservative = pct(s, 5)   # 5th pct of same-person → 95% recall
+    threshold_conservative = pct(s, 5)  # 5th pct of same-person → 95% recall
     # Find threshold where 99% of same-person pairs are above (very conservative)
-    threshold_loose = pct(s, 1)          # 1st pct
+    threshold_loose = pct(s, 1)  # 1st pct
 
     # Find where false positive rate = 1% (1% of different-person pairs above)
-    threshold_fp1 = pct(d, 99)           # 99th pct of diff-person
+    threshold_fp1 = pct(d, 99)  # 99th pct of diff-person
 
     # Recommended: balance between recall and precision
     # Use the higher of (fp1%) and (5th pct of same) with a margin
@@ -301,6 +301,7 @@ def threshold_analysis(
 # ---------------------------------------------------------------------------
 # Camera-pair accuracy breakdown
 # ---------------------------------------------------------------------------
+
 
 def camera_pair_accuracy(
     query_imgs: list[_ImgMeta],
@@ -341,6 +342,7 @@ def camera_pair_accuracy(
 # Report
 # ---------------------------------------------------------------------------
 
+
 def print_report(
     metrics: dict[str, float],
     thresh: dict[str, Any],
@@ -369,11 +371,15 @@ def print_report(
     s = thresh["same_person"]
     d = thresh["diff_person"]
     print(f"  Same person (cross-cam)  n={s['n']}")
-    print(f"    p1={s['p1']:.3f}  p5={s['p5']:.3f}  p25={s['p25']:.3f}"
-          f"  median={s['median']:.3f}  p75={s['p75']:.3f}  p95={s['p95']:.3f}")
+    print(
+        f"    p1={s['p1']:.3f}  p5={s['p5']:.3f}  p25={s['p25']:.3f}"
+        f"  median={s['median']:.3f}  p75={s['p75']:.3f}  p95={s['p95']:.3f}"
+    )
     print(f"  Different person         n={d['n']}")
-    print(f"    median={d['median']:.3f}  p95={d['p95']:.3f}  p99={d['p99']:.3f}"
-          f"  max={d['max']:.3f}")
+    print(
+        f"    median={d['median']:.3f}  p95={d['p95']:.3f}  p99={d['p99']:.3f}"
+        f"  max={d['max']:.3f}"
+    )
     print()
 
     print("  --- Per-Camera Rank-1 ------------------------------------")
@@ -419,6 +425,7 @@ def print_report(
 # Main
 # ---------------------------------------------------------------------------
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="OSNet DukeMTMC-reID simulation")
     parser.add_argument(
@@ -432,23 +439,28 @@ def main() -> None:
         help="Path to OSNet AIN msmt17 .pth weights",
     )
     parser.add_argument(
-        "--device", default="cpu", choices=["cpu", "cuda"],
-        help="Inference device (default: cpu)"
+        "--device", default="cpu", choices=["cpu", "cuda"], help="Inference device (default: cpu)"
     )
     parser.add_argument(
-        "--max-query", type=int, default=0,
+        "--max-query",
+        type=int,
+        default=0,
         help="Limit queries (0=all 2228). Use 200 for a quick test.",
     )
     parser.add_argument(
-        "--batch-size", type=int, default=64,
+        "--batch-size",
+        type=int,
+        default=64,
         help="Images per forward pass (default 64)",
     )
     parser.add_argument(
-        "--save-embeddings", action="store_true",
+        "--save-embeddings",
+        action="store_true",
         help="Cache embeddings to data/duke_embeddings/ for re-runs",
     )
     parser.add_argument(
-        "--quick", action="store_true",
+        "--quick",
+        action="store_true",
         help=(
             "Fast mode: only embed gallery images whose person_id appears in the "
             "selected queries plus a random sample of 300 distractors. "
@@ -464,6 +476,7 @@ def main() -> None:
         print("Resolving DukeMTMC-reID via kagglehub ...")
         try:
             import kagglehub
+
             raw = kagglehub.dataset_download("igorkrashenyi/dukemtmc-reid")
         except Exception as exc:
             print(f"ERROR: kagglehub download failed: {exc}")
@@ -503,8 +516,7 @@ def main() -> None:
         distractors = [g for g in gallery_imgs if g.person_id not in query_pids]
         n_dist = min(300, len(distractors))
         distractor_sample = [
-            distractors[i]
-            for i in rng_q.choice(len(distractors), size=n_dist, replace=False)
+            distractors[i] for i in rng_q.choice(len(distractors), size=n_dist, replace=False)
         ]
         gallery_imgs = relevant + distractor_sample
         print(

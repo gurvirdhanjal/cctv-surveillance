@@ -57,6 +57,7 @@ _OPSET = 14
 # No external TransReID repo required.
 # ---------------------------------------------------------------------------
 
+
 def _build_model() -> "torch.nn.Module":  # noqa: F821
     import torch
     import torch.nn as nn
@@ -102,20 +103,20 @@ def _build_model() -> "torch.nn.Module":  # noqa: F821
             super().__init__()
             self.conv = nn.Sequential(
                 nn.Conv2d(3, 64, 7, stride=2, padding=3, bias=False),  # 0
-                _IBN(64),                                                # 1
-                nn.ReLU(inplace=True),                                  # 2
+                _IBN(64),  # 1
+                nn.ReLU(inplace=True),  # 2
                 nn.Conv2d(64, 64, 3, stride=1, padding=1, bias=False),  # 3
-                _IBN(64),                                                # 4
-                nn.ReLU(inplace=True),                                  # 5
+                _IBN(64),  # 4
+                nn.ReLU(inplace=True),  # 5
                 nn.Conv2d(64, 64, 3, stride=1, padding=1, bias=False),  # 6
-                nn.BatchNorm2d(64),                                      # 7
-                nn.ReLU(inplace=True),                                  # 8
+                nn.BatchNorm2d(64),  # 7
+                nn.ReLU(inplace=True),  # 8
             )
             self.proj = nn.Conv2d(64, _EMBED_DIM, kernel_size=8, stride=8)
 
         def forward(self, x: torch.Tensor) -> torch.Tensor:
-            x = self.conv(x)           # (B, 64, H/2, W/2)
-            x = self.proj(x)           # (B, 768, H/16, W/16)
+            x = self.conv(x)  # (B, 64, H/2, W/2)
+            x = self.proj(x)  # (B, 768, H/16, W/16)
             return x.flatten(2).transpose(1, 2)  # (B, N, 768)
 
     class _Attention(nn.Module):
@@ -123,17 +124,13 @@ def _build_model() -> "torch.nn.Module":  # noqa: F821
             super().__init__()
             self.num_heads = 12
             self.head_dim = _EMBED_DIM // 12  # 64
-            self.scale = self.head_dim ** -0.5
+            self.scale = self.head_dim**-0.5
             self.qkv = nn.Linear(_EMBED_DIM, _EMBED_DIM * 3)
             self.proj = nn.Linear(_EMBED_DIM, _EMBED_DIM)
 
         def forward(self, x: torch.Tensor) -> torch.Tensor:
             B, N, C = x.shape
-            qkv = (
-                self.qkv(x)
-                .reshape(B, N, 3, self.num_heads, self.head_dim)
-                .permute(2, 0, 3, 1, 4)
-            )
+            qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
             q, k, v = qkv.unbind(0)
             attn = (q @ k.transpose(-2, -1)) * self.scale
             attn = attn.softmax(dim=-1)
@@ -181,14 +178,14 @@ def _build_model() -> "torch.nn.Module":  # noqa: F821
 
         def forward(self, x: torch.Tensor) -> torch.Tensor:
             B = x.shape[0]
-            tokens = self.patch_embed(x)                       # (B, 192, 768)
-            cls = self.cls_token.expand(B, -1, -1)             # (B, 1, 768)
-            tokens = torch.cat([cls, tokens], dim=1)           # (B, 193, 768)
+            tokens = self.patch_embed(x)  # (B, 192, 768)
+            cls = self.cls_token.expand(B, -1, -1)  # (B, 1, 768)
+            tokens = torch.cat([cls, tokens], dim=1)  # (B, 193, 768)
             tokens = tokens + self.pos_embed
             for block in self.blocks:
                 tokens = block(tokens)
             tokens = self.norm(tokens)
-            return tokens[:, 0]                                # CLS token (B, 768)
+            return tokens[:, 0]  # CLS token (B, 768)
 
     class _TransReIDInference(nn.Module):
         """ViT-B/16+ICS backbone + BNNeck. Outputs L2-normalised 768-dim body embeddings.
@@ -203,9 +200,9 @@ def _build_model() -> "torch.nn.Module":  # noqa: F821
             self.bottleneck = nn.BatchNorm1d(_EMBED_DIM)
 
         def forward(self, x: torch.Tensor) -> torch.Tensor:
-            feat = self.base(x)                          # (B, 768)
-            feat_bn = self.bottleneck(feat)              # BNNeck
-            return F.normalize(feat_bn, p=2, dim=1)     # L2-normalised (B, 768)
+            feat = self.base(x)  # (B, 768)
+            feat_bn = self.bottleneck(feat)  # BNNeck
+            return F.normalize(feat_bn, p=2, dim=1)  # L2-normalised (B, 768)
 
     return _TransReIDInference()
 
@@ -213,6 +210,7 @@ def _build_model() -> "torch.nn.Module":  # noqa: F821
 # ---------------------------------------------------------------------------
 # Export
 # ---------------------------------------------------------------------------
+
 
 def _export(input_path: Path, output_path: Path) -> None:
     import torch
@@ -266,6 +264,7 @@ def _export(input_path: Path, output_path: Path) -> None:
 # Verify
 # ---------------------------------------------------------------------------
 
+
 def _verify(output_path: Path) -> None:
     try:
         import numpy as np
@@ -303,6 +302,7 @@ def _verify(output_path: Path) -> None:
 # Main
 # ---------------------------------------------------------------------------
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -310,7 +310,9 @@ def main() -> None:
     )
     parser.add_argument("--input", default=_DEFAULT_INPUT, help="Input .pth checkpoint")
     parser.add_argument("--output", default=_DEFAULT_OUTPUT, help="Output ONNX path")
-    parser.add_argument("--verify-only", metavar="PATH", help="Skip export, only verify existing ONNX")
+    parser.add_argument(
+        "--verify-only", metavar="PATH", help="Skip export, only verify existing ONNX"
+    )
     args = parser.parse_args()
 
     if args.verify_only:

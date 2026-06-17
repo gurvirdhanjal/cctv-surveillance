@@ -52,7 +52,7 @@ VIDEOS_DIR = DATA_DIR / "test_videos"
 # Output frame size — large enough for SCRFD to find faces (person at ~1/3 height)
 FRAME_W, FRAME_H = 1280, 720
 # Person crop target height in the composite frame
-PERSON_H = 380   # ~53% of frame height → face ~90px tall (above min_face_px=40)
+PERSON_H = 380  # ~53% of frame height → face ~90px tall (above min_face_px=40)
 FPS = 25
 # Frames each image is held for (longer = more sightings = confirmed gallery)
 HOLD_FRAMES = 12  # 12 frames @ 25fps = 0.48s per image
@@ -243,7 +243,7 @@ def build_scenario_single_person(
         print("  SKIP: no suitable person found")
         return
     pid, ca, cb = chosen[0]
-    imgs_cam1 = by_pc[pid][ca][:20]   # cap at 20 images per camera
+    imgs_cam1 = by_pc[pid][ca][:20]  # cap at 20 images per camera
     imgs_cam2 = by_pc[pid][cb][:20]
     print(f"  person={pid:04d}  cam{ca}={len(imgs_cam1)}imgs  cam{cb}={len(imgs_cam2)}imgs")
     # 2 second gap between cameras (simulate transit time)
@@ -347,11 +347,14 @@ def main() -> None:
     print("\n[1/4] Downloading Market-1501 via kagglehub...")
     try:
         import kagglehub
+
         raw_path = kagglehub.dataset_download("pengcw1/market-1501")
         print(f"  Downloaded to: {raw_path}")
     except Exception as e:
         print(f"  ERROR: {e}")
-        print("  Make sure you are logged in: run  kaggle api init  or set KAGGLE_USERNAME + KAGGLE_KEY")
+        print(
+            "  Make sure you are logged in: run  kaggle api init  or set KAGGLE_USERNAME + KAGGLE_KEY"
+        )
         sys.exit(1)
 
     # Step 2: Locate the bounding_box_test folder
@@ -388,8 +391,10 @@ def main() -> None:
     images = parse_images(dest)
     print(f"  Parsed {len(images)} images")
     by_pc = group_by_person_camera(images)
-    print(f"  {len(by_pc)} unique persons  |  "
-          f"cameras: {sorted({c for cams in by_pc.values() for c in cams.keys()})}")
+    print(
+        f"  {len(by_pc)} unique persons  |  "
+        f"cameras: {sorted({c for cams in by_pc.values() for c in cams.keys()})}"
+    )
 
     VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
 

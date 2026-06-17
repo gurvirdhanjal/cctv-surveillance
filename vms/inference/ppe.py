@@ -78,7 +78,9 @@ class PPEModel:
         try:
             import onnxruntime as ort  # type: ignore[import-untyped]
 
-            providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+            from vms.inference.ort_providers import build_ort_providers
+
+            providers = build_ort_providers()
             sess = ort.InferenceSession(path, providers=providers)
             self._input_name = sess.get_inputs()[0].name
             self._session = sess

@@ -44,6 +44,7 @@ CLIP_SECONDS = 10  # download only the first N seconds of each video
 # Parsing
 # ---------------------------------------------------------------------------
 
+
 def _parse_pairs(text: str) -> list[tuple[int, str, str]]:
     """Parse veri_test2.txt into (label, path1, path2) triples.
 
@@ -75,6 +76,7 @@ def _speaker_id(path: str) -> str:
 # Pair selection
 # ---------------------------------------------------------------------------
 
+
 def _select_pairs(
     rows: list[tuple[int, str, str]],
     n_same: int = 25,
@@ -90,7 +92,8 @@ def _select_pairs(
 
     logger.info(
         "After filtering: %d same-person cross-video pairs, %d different-person pairs",
-        len(same), len(diff),
+        len(same),
+        len(diff),
     )
 
     if len(same) < n_same:
@@ -109,10 +112,12 @@ def _select_pairs(
 # Download
 # ---------------------------------------------------------------------------
 
+
 def _check_ytdlp() -> None:
     result = subprocess.run(
         ["yt-dlp", "--version"],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     if result.returncode != 0:
         print(
@@ -139,15 +144,21 @@ def _download_clip(video_id: str, out_path: Path, seconds: int = CLIP_SECONDS) -
         [
             "yt-dlp",
             url,
-            "--download-sections", f"*00:00-00:{seconds:02d}",
-            "--output", str(out_path),
-            "--format", "mp4/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]",
-            "--merge-output-format", "mp4",
+            "--download-sections",
+            f"*00:00-00:{seconds:02d}",
+            "--output",
+            str(out_path),
+            "--format",
+            "mp4/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]",
+            "--merge-output-format",
+            "mp4",
             "--no-playlist",
             "--quiet",
             "--no-warnings",
         ],
-        capture_output=True, text=True, timeout=120,
+        capture_output=True,
+        text=True,
+        timeout=120,
     )
     if result.returncode != 0:
         logger.warning("Failed to download %s: %s", video_id, result.stderr[:200])
@@ -161,6 +172,7 @@ def _download_clip(video_id: str, out_path: Path, seconds: int = CLIP_SECONDS) -
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 
 def run(
     out_dir: str = "data/voxceleb_mini",
@@ -241,12 +253,21 @@ def run(
 
 
 def _parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     p.add_argument("--out", default="data/voxceleb_mini", help="Output directory")
-    p.add_argument("--pairs", type=int, default=50,
-                   help="Total pairs to download (split evenly same/different)")
-    p.add_argument("--dry-run", action="store_true",
-                   help="Show what would be downloaded without actually downloading")
+    p.add_argument(
+        "--pairs",
+        type=int,
+        default=50,
+        help="Total pairs to download (split evenly same/different)",
+    )
+    p.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be downloaded without actually downloading",
+    )
     return p.parse_args()
 
 

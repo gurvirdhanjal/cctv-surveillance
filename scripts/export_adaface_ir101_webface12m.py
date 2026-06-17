@@ -77,8 +77,10 @@ def _load_backbone(snapshot_dir: Path):  # type: ignore[return]
 
         config = json.loads(Path("config.json").read_text())
         model_conf = OmegaConf.create(config["conf"])
-        print(f"Config: name={model_conf.name}, output_dim={model_conf.output_dim}, "
-              f"color_space={model_conf.color_space}")
+        print(
+            f"Config: name={model_conf.name}, output_dim={model_conf.output_dim}, "
+            f"color_space={model_conf.color_space}"
+        )
 
         model = get_model(model_conf)
         model.load_state_dict_from_path("pretrained_model/model.pt")
@@ -170,7 +172,9 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--output", default=_DEFAULT_OUT, help="Output ONNX path")
-    parser.add_argument("--verify-only", metavar="PATH", help="Skip export, only verify existing ONNX")
+    parser.add_argument(
+        "--verify-only", metavar="PATH", help="Skip export, only verify existing ONNX"
+    )
     args = parser.parse_args()
 
     if args.verify_only:

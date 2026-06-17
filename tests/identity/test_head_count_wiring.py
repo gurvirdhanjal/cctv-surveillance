@@ -77,15 +77,15 @@ async def test_orchestrator_feeds_person_id_from_identity_engine() -> None:
         patch.object(orch, "_zone_tracker", new=MagicMock()),
         patch.object(orch, "_zone_lookup", return_value={}),
     ):
-                ts_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
-                frame = DetectionFrame(
-                    camera_id=1,
-                    seq_id=1,
-                    timestamp_ms=ts_ms,
-                    tracklets=(),
-                    face_embeddings=(),
-                )
-                await orch.process_frame(frame)
+        ts_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+        frame = DetectionFrame(
+            camera_id=1,
+            seq_id=1,
+            timestamp_ms=ts_ms,
+            tracklets=(),
+            face_embeddings=(),
+        )
+        await orch.process_frame(frame)
 
     snap = agg.snapshot()
     assert (
