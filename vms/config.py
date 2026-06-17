@@ -37,8 +37,6 @@ class Settings(BaseSettings):
     # Export: python scripts/export_transreid_onnx.py
     # Calibrated 2026-06-16 on webcam; re-calibrate on real footage before tightening thresholds.
     transreid_body_model: str = "models/transreid_body_msmt17.onnx"
-    # OSNet AIN x1.0 msmt17 — legacy; model file deleted. Keep empty so factory skips it.
-    osnet_ain_model: str = ""
     # PPE compliance — YOLOv8l SH17 ONNX (empty = disabled)
     # Export: from ultralytics import YOLO; YOLO('models/sh17_ppe_yolov8l.pt').export(format='onnx',imgsz=640,opset=11,simplify=True)
     ppe_model: str = ""

@@ -70,17 +70,21 @@ if str(_PROJECT_ROOT) not in sys.path:
 _torch_lib = _PROJECT_ROOT / "venv" / "Lib" / "site-packages" / "torch" / "lib"
 if _torch_lib.is_dir():
     import os as _os
+
     _os.environ["PATH"] = str(_torch_lib) + _os.pathsep + _os.environ.get("PATH", "")
 
 try:
     from dotenv import load_dotenv  # type: ignore[import-untyped]
+
     load_dotenv(_PROJECT_ROOT / ".env")
 except ImportError:
     pass
 
 os.environ.setdefault("VMS_DB_URL", "postgresql://localhost/vms_unused")
 os.environ.setdefault("VMS_JWT_SECRET", "smoke-test-dummy-secret")
-os.environ.setdefault("VMS_SCRFD_CONF", "0.30")   # test default: lower than prod (0.50) per /advisor 2026-06-17
+os.environ.setdefault(
+    "VMS_SCRFD_CONF", "0.30"
+)  # test default: lower than prod (0.50) per /advisor 2026-06-17
 os.environ.setdefault("VMS_MIN_FACE_PX", "20")  # 20px catches workers at distance
 # Lower blur gate for live validation — gate cameras capture moving workers.
 # Production default (25.0) rejects slightly-blurred faces from motion; 8.0 keeps them.
@@ -91,10 +95,10 @@ os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
 
 # Face pipeline runs every N body frames — keep CPU load manageable.
 _FACE_SAMPLE_DEFAULT = 3
-_BODY_REID_SAMPLE_DEFAULT = 5   # body ReID every N frames (TransReID ~60ms on CPU)
-_YOLO_SAMPLE_DEFAULT = 3        # YOLO inference every N frames; last boxes reused in between
-_RECONNECT_AFTER = 8            # consecutive read fails before reconnect attempt
-_MAX_DELIVER_FPS = 30           # reader caps delivery to this rate regardless of GOP bursts
+_BODY_REID_SAMPLE_DEFAULT = 5  # body ReID every N frames (TransReID ~60ms on CPU)
+_YOLO_SAMPLE_DEFAULT = 3  # YOLO inference every N frames; last boxes reused in between
+_RECONNECT_AFTER = 8  # consecutive read fails before reconnect attempt
+_MAX_DELIVER_FPS = 30  # reader caps delivery to this rate regardless of GOP bursts
 _PANEL_H = 540
 _STATS_H = 60
 _SNAPSHOTS_DIR = Path(__file__).resolve().parent / "snapshots"
@@ -139,8 +143,8 @@ class PipelineState:
     face_sample_n: int = _FACE_SAMPLE_DEFAULT
     reid_sample_n: int = _BODY_REID_SAMPLE_DEFAULT
     yolo_sample_n: int = _YOLO_SAMPLE_DEFAULT  # run YOLO every N frames; reuse boxes between
-    conf: float = 0.55            # SCRFD face detection confidence
-    yolo_conf: float = 0.55       # YOLO person class confidence (overrides yolo_person_conf)
+    conf: float = 0.55  # SCRFD face detection confidence
+    yolo_conf: float = 0.55  # YOLO person class confidence (overrides yolo_person_conf)
     focus_idx: int | None = None  # None = grid view; 0-based index = fullscreen that camera
 
 
@@ -175,6 +179,7 @@ _TRACK_COLORS: dict[int, tuple[int, int, int]] = {}
 def _track_color(tid: int) -> tuple[int, int, int]:
     if tid not in _TRACK_COLORS:
         import random
+
         rng = random.Random(tid * 2654435761)
         _TRACK_COLORS[tid] = (rng.randint(60, 255), rng.randint(60, 255), rng.randint(60, 255))
     return _TRACK_COLORS[tid]
@@ -244,12 +249,15 @@ class CameraWorker:
         candidates = [self._url]
         if "/Streaming/Channels/101" in self._url:
             candidates.append(self._url.replace("/Streaming/Channels/101", "/Streaming/Channels/1"))
-            candidates.append(self._url.replace("/Streaming/Channels/101", "/Streaming/Channels/102"))
+            candidates.append(
+                self._url.replace("/Streaming/Channels/101", "/Streaming/Channels/102")
+            )
         elif "/101" in self._url:
             candidates.append(self._url.replace("/101", "/102"))
 
         for url in candidates:
             import re as _re
+
             safe = _re.sub(r"(rtsp://[^:]+:)[^@]+(@)", r"\1***\2", url)
             logger.info("%s: trying %s", self._label, safe)
             cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
@@ -262,12 +270,14 @@ class CameraWorker:
                 return cap
             cap.release()
         import re as _re
+
         safe_base = _re.sub(r"(rtsp://[^:]+:)[^@]+(@)", r"\1***\2", self._url)
         logger.error(
             "%s: cannot connect (%s) — 401 usually means wrong credentials. "
             "Hikvision username is 'admin' (lowercase) by default. "
             "Verify in VLC: Media > Open Network Stream.",
-            self._label, safe_base,
+            self._label,
+            safe_base,
         )
         return None
 
@@ -338,16 +348,14 @@ class CameraWorker:
 
             t0 = time.monotonic()
             fps_deque.append(1.0 / max(t0 - t_prev, 1e-6))
-            t_prev = t0   # measure delivery interval, not post-inference time
+            t_prev = t0  # measure delivery interval, not post-inference time
             frame_n += 1
 
             try:
                 # Body tracking — every yolo_sample_n frames; reuse last boxes in between.
                 # BoT-SORT with persist=True handles gaps gracefully.
                 if frame_n % self._state.yolo_sample_n == 0:
-                    self._last_tracklets = self._tracker.update(
-                        frame, conf=self._state.yolo_conf
-                    )
+                    self._last_tracklets = self._tracker.update(frame, conf=self._state.yolo_conf)
                 tracklets = self._last_tracklets
 
                 # Face pipeline — every N frames when enabled
@@ -413,7 +421,7 @@ class CameraWorker:
                     h_f, w_f = frame.shape[:2]
                     for t in tracklets:
                         x1, y1, x2, y2 = t.bbox
-                        crop = frame[max(0, y1):min(h_f, y2), max(0, x1):min(w_f, x2)]
+                        crop = frame[max(0, y1) : min(h_f, y2), max(0, x1) : min(w_f, x2)]
                         if crop.size > 0 and crop.shape[0] >= 32 and crop.shape[1] >= 32:
                             ppe_results.append(self._ppe_model.score_crop(crop))
                         else:
@@ -481,7 +489,7 @@ def _letterbox_cell(img: np.ndarray, cell_w: int, cell_h: int) -> np.ndarray:  #
     canvas = np.zeros((cell_h, cell_w, 3), dtype=np.uint8)
     y_off = (cell_h - nh) // 2
     x_off = (cell_w - nw) // 2
-    canvas[y_off:y_off + nh, x_off:x_off + nw] = resized
+    canvas[y_off : y_off + nh, x_off : x_off + nw] = resized
     return canvas
 
 
@@ -500,7 +508,7 @@ def _compose_grid(panels: list[np.ndarray], n_cols: int, n_rows: int, cell_w: in
         cells.append(blank)
     rows_list = []
     for r in range(n_rows):
-        row_cells = cells[r * n_cols: r * n_cols + n_cols]
+        row_cells = cells[r * n_cols : r * n_cols + n_cols]
         rows_list.append(np.hstack(row_cells))
     return np.vstack(rows_list)
 
@@ -523,16 +531,22 @@ def _render_panel(result: FrameResult, target_h: int, show_reid_dim: bool) -> np
             q = t.body_quality_norm
             label += f" q={q:.2f}"
 
-        cv2.putText(panel, label, (x1, max(y1 - 6, 12)),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
+        cv2.putText(panel, label, (x1, max(y1 - 6, 12)), cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
 
     # Face boxes
     for f in result.faces:
         x1, y1, x2, y2 = [int(v * scale) for v in f.bbox]
         cv2.rectangle(panel, (x1, y1), (x2, y2), (0, 200, 255), 1)
         norm_str = f"n={f.face_quality_norm:.2f}" if f.face_quality_norm != 1.0 else ""
-        cv2.putText(panel, f"F{norm_str}", (x1, max(y1 - 4, 10)),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 200, 255), 1)
+        cv2.putText(
+            panel,
+            f"F{norm_str}",
+            (x1, max(y1 - 4, 10)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.45,
+            (0, 200, 255),
+            1,
+        )
 
     # PPE badges — per-tracklet (only when ppe_results has data for this frame)
     for t, ppe in zip(result.tracklets, result.ppe_results):
@@ -542,15 +556,29 @@ def _render_panel(result: FrameResult, target_h: int, show_reid_dim: bool) -> np
         missing = [k[0].upper() for k, v in ppe.items() if v < 0.4]
         if missing:
             badge = "NO:" + "".join(missing)
-            cv2.putText(panel, badge, (x1, min(y1 + 14, target_h - 4)),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 60, 255), 1)
+            cv2.putText(
+                panel,
+                badge,
+                (x1, min(y1 + 14, target_h - 4)),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.42,
+                (0, 60, 255),
+                1,
+            )
 
     # Violence alert — red border + text when score exceeds threshold
     v_score = result.violence_score
     if v_score is not None and v_score >= 0.60:
         cv2.rectangle(panel, (0, 0), (w_scaled, target_h), (0, 0, 220), 4)
-        cv2.putText(panel, f"VIOLENCE {v_score:.2f}", (8, target_h - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
+        cv2.putText(
+            panel,
+            f"VIOLENCE {v_score:.2f}",
+            (8, target_h - 10),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.75,
+            (0, 0, 255),
+            2,
+        )
 
     # Stats bar
     person_count = len(result.tracklets)
@@ -575,11 +603,11 @@ def _render_panel(result: FrameResult, target_h: int, show_reid_dim: bool) -> np
 def _camera_spec(camera_id: int) -> tuple[str, str] | None:
     """Return (label, rtsp_url) for a given camera_id, or None if not configured."""
     mapping = {
-        105: ("Back Gate",  os.environ.get("VMS_CAM_GATE_BACK_URL", "")),
+        105: ("Back Gate", os.environ.get("VMS_CAM_GATE_BACK_URL", "")),
         110: ("Front Gate", os.environ.get("VMS_CAM_GATE_FRONT_URL", "")),
-        141: ("Gate 4",     os.environ.get("VMS_CAM_GATE_4_URL", "")),
-        144: ("Indoor 2",   os.environ.get("VMS_CAM_INDOOR_2_URL", "")),
-        200: ("ANPR",       os.environ.get("VMS_CAM_ANPR_URL", "")),
+        141: ("Gate 4", os.environ.get("VMS_CAM_GATE_4_URL", "")),
+        144: ("Indoor 2", os.environ.get("VMS_CAM_INDOOR_2_URL", "")),
+        200: ("ANPR", os.environ.get("VMS_CAM_ANPR_URL", "")),
     }
     entry = mapping.get(camera_id)
     if entry and entry[1]:
@@ -593,17 +621,29 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
-        "--cameras", nargs="+", type=int, default=[105, 110, 141, 144, 200],
+        "--cameras",
+        nargs="+",
+        type=int,
+        default=[105, 110, 141, 144, 200],
         help="Camera IDs to activate (default: all). Available: 105 110 141 144 200",
     )
-    parser.add_argument("--width",  type=int, default=_GRID_W, help=f"Display window width  (default {_GRID_W})")
-    parser.add_argument("--height", type=int, default=_GRID_H, help=f"Display window height (default {_GRID_H})")
     parser.add_argument(
-        "--yolo-every", type=int, default=_YOLO_SAMPLE_DEFAULT, metavar="N",
+        "--width", type=int, default=_GRID_W, help=f"Display window width  (default {_GRID_W})"
+    )
+    parser.add_argument(
+        "--height", type=int, default=_GRID_H, help=f"Display window height (default {_GRID_H})"
+    )
+    parser.add_argument(
+        "--yolo-every",
+        type=int,
+        default=_YOLO_SAMPLE_DEFAULT,
+        metavar="N",
         help=f"Run YOLO every N frames (default {_YOLO_SAMPLE_DEFAULT}); reuses last boxes between runs",
     )
     parser.add_argument(
-        "--device", default=None, choices=["cpu", "cuda"],
+        "--device",
+        default=None,
+        choices=["cpu", "cuda"],
         help="Inference device (default: cuda if available, else cpu)",
     )
     parser.add_argument("--dry-run", action="store_true", help="Process 10 frames and exit")
@@ -617,6 +657,7 @@ def main() -> None:
     else:
         try:
             import torch as _torch
+
             _device = "cuda" if _torch.cuda.is_available() else "cpu"
         except ImportError:
             _device = "cpu"
@@ -645,11 +686,7 @@ def main() -> None:
     logger.info("Loading models...")
     detector = SCRFDDetector.from_path(settings.scrfd_model)
     embedder = AdaFaceEmbedder.from_path(settings.adaface_model)
-    body_embedder = create_body_embedder(
-        transreid_path=settings.transreid_body_model,
-        osnet_path=settings.osnet_ain_model,
-        device=_device,
-    )
+    body_embedder = create_body_embedder(transreid_path=settings.transreid_body_model)
 
     if body_embedder is not None:
         kind = type(body_embedder).__name__
@@ -688,8 +725,18 @@ def main() -> None:
     workers: list[CameraWorker] = []
     for cid, label, url in cameras:
         tracker = PerCameraTracker.from_path(cid, _tracker_model)
-        w = CameraWorker(cid, label, url, detector, embedder, tracker, body_embedder, state,
-                         violence_model, ppe_model)
+        w = CameraWorker(
+            cid,
+            label,
+            url,
+            detector,
+            embedder,
+            tracker,
+            body_embedder,
+            state,
+            violence_model,
+            ppe_model,
+        )
         w.start()
         workers.append(w)
 
@@ -725,7 +772,9 @@ def main() -> None:
                 vio_tag = f"V:{'ON' if state.violence_enabled else 'OFF'}"
                 ppe_tag = f"P:{'ON' if state.ppe_enabled else 'OFF'}"
                 conf_tag = f"FC:{state.conf:.2f} YC:{state.yolo_conf:.2f}"
-                focus_tag = f" [CAM{state.focus_idx + 1}|G=grid]" if state.focus_idx is not None else ""
+                focus_tag = (
+                    f" [CAM{state.focus_idx + 1}|G=grid]" if state.focus_idx is not None else ""
+                )
                 footer_text = (
                     f"  HEAD:{total_persons}  {face_tag} {reid_tag} {vio_tag} {ppe_tag}"
                     f"  {conf_tag}  Ev:{state.yolo_sample_n}{focus_tag}"
@@ -734,7 +783,9 @@ def main() -> None:
                 if state.focus_idx is not None and state.focus_idx < n:
                     # Fullscreen: render at max content height that fits the window
                     fs_content_h = grid_h - _FOOTER_H - 28
-                    panel = _render_panel(live_results[state.focus_idx], fs_content_h, show_reid_dim)
+                    panel = _render_panel(
+                        live_results[state.focus_idx], fs_content_h, show_reid_dim
+                    )
                     grid = _letterbox_cell(panel, grid_w, grid_h - _FOOTER_H)
                 else:
                     # Adaptive grid: 16:9 cell height, capped so we never overflow the window
@@ -747,8 +798,9 @@ def main() -> None:
                     grid = _compose_grid(panels, n_cols, n_rows, cell_w, cell_h)
 
                 footer = np.zeros((_FOOTER_H, grid.shape[1], 3), dtype=np.uint8)
-                cv2.putText(footer, footer_text, (10, 25),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.60, (0, 255, 200), 2)
+                cv2.putText(
+                    footer, footer_text, (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.60, (0, 255, 200), 2
+                )
 
                 display = np.vstack([grid, footer])
                 cv2.imshow("VMS Pipeline Test", display)
@@ -781,15 +833,27 @@ def main() -> None:
                 state.face_sample_n = min(20, state.face_sample_n + 1)
                 logger.info("Face sample every %d frames", state.face_sample_n)
             elif key == ord("c"):
-                idx = (_CONF_CYCLE.index(state.conf) + 1) % len(_CONF_CYCLE) if state.conf in _CONF_CYCLE else 0
+                idx = (
+                    (_CONF_CYCLE.index(state.conf) + 1) % len(_CONF_CYCLE)
+                    if state.conf in _CONF_CYCLE
+                    else 0
+                )
                 state.conf = _CONF_CYCLE[idx]
                 logger.info("Face (SCRFD) confidence: %.2f", state.conf)
             elif key == ord("y"):
-                idx = (_YOLO_CONF_CYCLE.index(state.yolo_conf) + 1) % len(_YOLO_CONF_CYCLE) if state.yolo_conf in _YOLO_CONF_CYCLE else 1
+                idx = (
+                    (_YOLO_CONF_CYCLE.index(state.yolo_conf) + 1) % len(_YOLO_CONF_CYCLE)
+                    if state.yolo_conf in _YOLO_CONF_CYCLE
+                    else 1
+                )
                 state.yolo_conf = _YOLO_CONF_CYCLE[idx]
                 logger.info("YOLO person confidence: %.2f", state.yolo_conf)
             elif key == ord("t"):
-                idx = (_YOLO_SAMPLE_CYCLE.index(state.yolo_sample_n) + 1) % len(_YOLO_SAMPLE_CYCLE) if state.yolo_sample_n in _YOLO_SAMPLE_CYCLE else 0
+                idx = (
+                    (_YOLO_SAMPLE_CYCLE.index(state.yolo_sample_n) + 1) % len(_YOLO_SAMPLE_CYCLE)
+                    if state.yolo_sample_n in _YOLO_SAMPLE_CYCLE
+                    else 0
+                )
                 state.yolo_sample_n = _YOLO_SAMPLE_CYCLE[idx]
                 logger.info("YOLO runs every %d frames", state.yolo_sample_n)
             elif key == ord("s"):

@@ -16,7 +16,7 @@ import numpy as np
 import redis.asyncio as aioredis
 
 from vms.config import get_settings
-from vms.inference.body_embedder import BodyEmbedder, TransReIDBodyEmbedder, extract_torso_crop
+from vms.inference.body_embedder import TransReIDBodyEmbedder, extract_torso_crop
 from vms.inference.detector import (
     SCRFDDetector,
     _InsightFaceBackend,
@@ -69,7 +69,7 @@ def _associate_faces(
 def _extract_body_embeddings(
     frame_bgr: np.ndarray[Any, Any],
     tracklets: tuple[Tracklet, ...],
-    body_embedder: BodyEmbedder | TransReIDBodyEmbedder | None,
+    body_embedder: TransReIDBodyEmbedder | None,
 ) -> tuple[Tracklet, ...]:
     """Return tracklets with body_embedding and body_quality_norm populated from person bbox crops.
 
@@ -171,7 +171,7 @@ class InferenceEngine:
         trackers: dict[int, PerCameraTracker],
         redis_client: aioredis.Redis,
         violence: ViolenceModel | None = None,
-        body_embedder: BodyEmbedder | TransReIDBodyEmbedder | None = None,
+        body_embedder: TransReIDBodyEmbedder | None = None,
         ppe: PPEModel | None = None,
     ) -> None:
         self._camera_ids = camera_ids

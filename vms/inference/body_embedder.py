@@ -1,13 +1,7 @@
-"""Body Re-ID embedders.
+"""Body Re-ID embedder: TransReIDBodyEmbedder (ViT-B/16+ICS msmt17 ONNX, 768-dim, 384x128).
 
-Two implementations — same embed() interface, selected by create_body_embedder():
-
-  TransReIDBodyEmbedder — ViT-B/16+ICS msmt17 ONNX (768-dim, 384x128).  Current production.
-                          Requires onnxruntime. Export: python scripts/export_transreid_onnx.py
-                          Calibrated 2026-06-16; thresholds: confirmed=0.65, cross_cam=0.70.
-
-  BodyEmbedder          — OSNet AIN x1.0 msmt17 (512-dim, 256x128).  Legacy / fallback.
-                          Requires torchreid. Model file deleted from this deployment.
+Calibrated 2026-06-16; thresholds: reid_body_confirmed_sim=0.65, reid_body_cross_cam_sim=0.70.
+Any threshold change requires a mandatory /advisor session (CLAUDE.md §0.5).
 """
 
 from __future__ import annotations
@@ -32,75 +26,13 @@ _IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 _IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
 
-class BodyEmbedder:
-    """Wraps OSNet AIN x1.0 msmt17 via Torchreid FeatureExtractor for 512-dim body embeddings."""
-
-    def __init__(self, model_path: str, device: str = "cuda") -> None:
-        try:
-            from torchreid.utils import FeatureExtractor  # type: ignore[import-not-found]
-
-            self._extractor: Any = FeatureExtractor(
-                model_name="osnet_ain_x1_0",
-                model_path=model_path,
-                device=device,
-                verbose=False,
-            )
-            self._available = True
-            logger.info(
-                "BodyEmbedder: osnet_ain_x1_0 msmt17 loaded from %s (device=%s)", model_path, device
-            )
-        except ImportError:
-            logger.warning(
-                "torchreid not installed — BodyEmbedder disabled. "
-                "pip install torchreid (see scripts/download_osnet_ain_msmt17.py)"
-            )
-            self._extractor = None
-            self._available = False
-        except Exception as exc:
-            logger.warning("BodyEmbedder failed to load model %s: %s", model_path, exc)
-            self._extractor = None
-            self._available = False
-
-    def embed(self, crop_bgr: np.ndarray[Any, Any]) -> tuple[tuple[float, ...], float]:
-        """Return (embedding, pre_norm_quality) tuple.
-
-        embedding: 512-dim L2-normalised vector, or () on failure.
-        pre_norm_quality: L2 norm before normalisation; 0.0 on failure.
-        """
-        if not self._available or self._extractor is None:
-            return (), 0.0
-        h, w = crop_bgr.shape[:2]
-        if h < _MIN_H or w < _MIN_W:
-            return (), 0.0
-        crop_rgb = cv2.cvtColor(crop_bgr, cv2.COLOR_BGR2RGB)
-        import torch
-
-        with torch.no_grad():
-            features = self._extractor([crop_rgb])  # (1, 512) tensor
-        vec: np.ndarray[Any, Any] = features[0].cpu().numpy().astype(np.float32)
-        quality_norm = float(np.linalg.norm(vec))
-        if quality_norm > 1e-8:
-            vec = vec / quality_norm
-        return tuple(float(x) for x in vec), quality_norm
-
-
 class TransReIDBodyEmbedder:
     """ViT-B/16+ICS msmt17 ONNX body Re-ID embedder — 768-dim L2-normalised output.
-
-    Drop-in replacement for BodyEmbedder. Swap in by changing the embedder construction
-    in the engine — the embed() signature is identical.
 
     Input:  BGR numpy crop, any size >= 16h x 8w; resized internally to 384x128.
     Output: 768-dim L2-normalised embedding as tuple[float, ...], or () on failure.
 
-    Export the ONNX first:
-        python scripts/export_transreid_onnx.py
-    Then activate via config:
-        VMS_TRANSREID_BODY_MODEL=models/transreid_body_msmt17.onnx
-
-    Thresholds calibrated for TransReID 768-dim embeddings (webcam session 2026-06-16):
-    reid_body_confirmed_sim=0.65, reid_body_cross_cam_sim=0.70. Any further change to
-    these thresholds requires a mandatory /advisor session (CLAUDE.md §0.5).
+    Activate via config: VMS_TRANSREID_BODY_MODEL=models/transreid_body_msmt17.onnx
     """
 
     def __init__(self, model_path: str) -> None:
@@ -213,24 +145,8 @@ def extract_torso_crop(
     return frame_bgr[ty1:ty2, tx1:tx2]
 
 
-def create_body_embedder(
-    transreid_path: str = "",
-    osnet_path: str = "",
-    device: str = "cpu",
-) -> BodyEmbedder | TransReIDBodyEmbedder | None:
-    """Return the best available body embedder based on configured model paths.
-
-    Priority: TransReID ONNX > OSNet torchreid > None.
-    TransReID is preferred when both paths are set because it uses onnxruntime
-    (no torch dependency) and is lighter on CPU.
-
-    Pass empty string or omit a path to skip that embedder.
-    Returns None when no valid model path is provided.
-    """
-    import os
-
+def create_body_embedder(transreid_path: str = "") -> TransReIDBodyEmbedder | None:
+    """Return a TransReIDBodyEmbedder when the ONNX path exists, else None."""
     if transreid_path and os.path.exists(transreid_path):
         return TransReIDBodyEmbedder(transreid_path)
-    if osnet_path and os.path.exists(osnet_path):
-        return BodyEmbedder(osnet_path, device=device)
     return None
