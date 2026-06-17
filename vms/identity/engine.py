@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 from vms.config import get_settings
+from vms.identity.predictor import CrossCameraPredictor
 from vms.identity.reid import ReIdService
 from vms.identity.topology import CameraTopology
 
@@ -57,10 +58,21 @@ class _TrackletEntry:
 class IdentityEngine:
     """Stateful per-process identity assignment for detection frames."""
 
-    def __init__(self, reid_service: ReIdService) -> None:
+    def __init__(
+        self,
+        reid_service: ReIdService,
+        topology_json: str | None = None,
+    ) -> None:
         self._reid = reid_service
         self._registry: dict[tuple[int, int], _TrackletEntry] = {}
-        self._topology: CameraTopology | None = None
+        self._topology: CameraTopology | None = (
+            CameraTopology(topology_json) if topology_json is not None else None
+        )
+        settings = get_settings()
+        self._predictor = CrossCameraPredictor(
+            history_len=settings.reid_predictor_history_len,
+            max_predict_gap_ms=settings.reid_predictor_max_predict_gap_ms,
+        )
 
     # ------------------------------------------------------------------
     # Public API
@@ -74,6 +86,8 @@ class IdentityEngine:
         body_embedding: tuple[float, ...] | None = None,
         face_quality: float = 1.0,
         body_quality: float = 1.0,
+        floor_xy: tuple[float, float] | None = None,
+        ts_ms: int | None = None,
     ) -> uuid.UUID:
         """Return a stable global_track_id for (camera_id, local_track_id).
 
@@ -84,7 +98,7 @@ class IdentityEngine:
         Face wins for FAISS person identification; body wins for cross-camera tracking.
         """
         key = (camera_id, local_track_id)
-        now_ms = time.time_ns() // 1_000_000
+        now_ms = ts_ms if ts_ms is not None else time.time_ns() // 1_000_000
         settings = get_settings()
 
         if key in self._registry:
@@ -99,6 +113,8 @@ class IdentityEngine:
                 face_quality=face_quality,
                 body_quality=body_quality,
             )
+            if floor_xy is not None:
+                self._predictor.observe(entry.global_track_id, floor_xy, now_ms)
             return entry.global_track_id
 
         emb_arr = np.array(embedding, dtype=np.float32) if embedding else None
@@ -110,9 +126,13 @@ class IdentityEngine:
         # only runs if body finds nothing — ensuring we never miss an existing identity.
         matched_gid: uuid.UUID | None = None
         if body_arr is not None:
-            matched_gid = self._cross_camera_match(body_arr, "body", camera_id, now_ms)
+            matched_gid = self._cross_camera_match(
+                body_arr, "body", camera_id, now_ms, floor_xy=floor_xy
+            )
         if matched_gid is None and emb_arr is not None:
-            matched_gid = self._cross_camera_match(emb_arr, "face", camera_id, now_ms)
+            matched_gid = self._cross_camera_match(
+                emb_arr, "face", camera_id, now_ms, floor_xy=floor_xy
+            )
         gid = matched_gid if matched_gid is not None else uuid.uuid4()
         entry = _TrackletEntry(
             global_track_id=gid,
@@ -130,6 +150,8 @@ class IdentityEngine:
             body_quality=body_quality,
         )
         self._registry[key] = entry
+        if floor_xy is not None:
+            self._predictor.observe(gid, floor_xy, now_ms)
         return gid
 
     def assign_and_identify(
@@ -141,6 +163,7 @@ class IdentityEngine:
         ble_person_id: int | None = None,
         face_quality: float = 1.0,
         body_quality: float = 1.0,
+        floor_xy: tuple[float, float] | None = None,
     ) -> tuple[uuid.UUID, int | None, str]:
         """Assign a global_track_id and resolve person identity via FusionResolver.
 
@@ -159,6 +182,7 @@ class IdentityEngine:
             body_embedding,
             face_quality=face_quality,
             body_quality=body_quality,
+            floor_xy=floor_xy,
         )
 
         # Face identification via FAISS
@@ -345,6 +369,7 @@ class IdentityEngine:
         query_type: str,
         camera_id: int,
         now_ms: int,
+        floor_xy: tuple[float, float] | None = None,
     ) -> uuid.UUID | None:
         """Scan other-camera tracklets for a gallery-aware match with topology gate.
 
@@ -376,9 +401,14 @@ class IdentityEngine:
             if not target_gallery:
                 continue
 
-            # Spatial-temporal gate
+            # Spatial-temporal gate (+ optional Kalman spatial gate when floor_xy is available)
             elapsed_ms = now_ms - entry.last_seen_ms
-            if not topology.transit_ok(camera_id, cam, elapsed_ms):
+            predicted_xy = self._predictor.predict_position(entry.global_track_id, now_ms)
+            if not topology.transit_ok(
+                camera_id, cam, elapsed_ms,
+                floor_xy=floor_xy,
+                predicted_xy=predicted_xy,
+            ):
                 continue
 
             sim = self._gallery_sim(q, target_gallery)

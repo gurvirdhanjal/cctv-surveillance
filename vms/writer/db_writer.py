@@ -82,6 +82,10 @@ def flush_detection_frame(
         face_quality = face_quality_by_emb.get(face_emb, 1.0) if face_emb else 1.0
         body_quality = t.body_quality_norm
 
+        floor_coords = project_to_floor(t.bbox, homography_json) if homography_json else None
+        floor_x: float | None = floor_coords[0] if floor_coords else None
+        floor_y: float | None = floor_coords[1] if floor_coords else None
+
         if identity is not None:
             gid, person_id, _ = identity.assign_and_identify(
                 t.camera_id,
@@ -90,14 +94,11 @@ def flush_detection_frame(
                 body_embedding=body_emb,
                 face_quality=face_quality,
                 body_quality=body_quality,
+                floor_xy=floor_coords,
             )
         else:
             gid = uuid.uuid4()
             person_id = None
-
-        floor_coords = project_to_floor(t.bbox, homography_json) if homography_json else None
-        floor_x: float | None = floor_coords[0] if floor_coords else None
-        floor_y: float | None = floor_coords[1] if floor_coords else None
 
         if zone_tracker is not None and floor_coords is not None:
             zone_tracker.update(db, gid, floor_coords[0], floor_coords[1])
