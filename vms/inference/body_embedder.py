@@ -65,10 +65,13 @@ class TransReIDBodyEmbedder:
             logger.warning("TransReIDBodyEmbedder failed to load %s: %s", model_path, exc)
 
     def embed(self, crop_bgr: np.ndarray[Any, Any]) -> tuple[tuple[float, ...], float]:
-        """Return (embedding, pre_norm_quality) tuple.
+        """Return (embedding, quality) tuple.
 
         embedding: 768-dim L2-normalised vector, or () on failure.
-        pre_norm_quality: L2 norm before normalisation; 0.0 on failure.
+        quality: Laplacian variance of the input crop (higher = sharper).
+                 0.0 on failure. Note: semantically different from face_quality_norm
+                 (which is AdaFace pre-norm L2). Both feed reid_quality_norm_floor but
+                 that floor is 0.0 until separately calibrated per signal type.
         """
         if not self._available or self._sess is None:
             return (), 0.0
@@ -79,10 +82,10 @@ class TransReIDBodyEmbedder:
         raw: list[Any] = self._sess.run(None, {self._input_name: blob})
         emb: np.ndarray[Any, Any] = raw[0][0].astype(np.float32)
         # ONNX model includes F.normalize — re-normalise as a safety guard.
-        quality_norm = float(np.linalg.norm(emb))
-        if quality_norm > 1e-8:
-            emb = emb / quality_norm
-        return tuple(float(x) for x in emb), quality_norm
+        norm = float(np.linalg.norm(emb))
+        emb = emb / norm if norm > 1e-8 else emb
+        quality = float(cv2.Laplacian(crop_bgr, cv2.CV_64F).var())
+        return tuple(float(x) for x in emb), quality
 
     def _preprocess(self, crop_bgr: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
         # TransReID uses ImageNet normalisation on RGB [0,1] float input.
