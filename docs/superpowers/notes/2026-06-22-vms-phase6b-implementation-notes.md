@@ -130,13 +130,18 @@ CPU baseline (CPUExecutionProvider, same machine):
 - TRT DLLs live in `venv/Lib/site-packages/tensorrt_libs/` — NOT on system PATH. Added PATH injection to `multi_cam_pipeline_test.py` and `trt_fp16_drift_check.py` alongside the existing torch/lib injection.
 - Ultralytics 8.4.x requires `nvidia-modelopt` for TRT engine export (new dependency). This attempted to upgrade torch to 2.12.1 and caused partial torch corruption. YOLO TRT engine export is BLOCKED until modelopt install path is resolved (see Task 4 notes below).
 
-**YOLO TRT export (blocked):**
-- `scripts/export_yolo_trt.py` failed: Ultralytics 8.4.x auto-installs `nvidia-modelopt[onnx]` which requires torch>=2.8 — incompatible with pinned torch 2.6.0+cu124.
-- The install attempt partially corrupted torch (Access Denied on `torch/_C.pyd`). Torch reinstalled from `pytorch.org/whl/cu124`.
-- Workaround options: (A) downgrade Ultralytics to 8.3.x, (B) install modelopt in a separate env, (C) use ORT TRT EP for YOLO as well (bypass Ultralytics engine path entirely).
-- YOLO still runs on CUDA EP via Ultralytics. FP16 speedup for YOLO is deferred.
+**YOLO TRT export (DONE — 2026-06-22):**
+- Re-tried after downgrading TensorRT to 10.9.0.34. TRT 10.x uses the legacy calibrator — no `nvidia-modelopt` required.
+- Command: `python scripts/export_yolo_trt.py` with `tensorrt_libs/` on PATH.
+- Build time: 268s (~4.5 min). Engine saved to `models/yolo26m-pose.engine` (48.6 MB).
+- Activated via `VMS_YOLOV8X_POSE_MODEL=models/yolo26m-pose.engine` in `.env`.
+- Startup log confirms: `Loading models/yolo26m-pose.engine for TensorRT inference...` + `Loaded engine size: 48 MiB` per camera. Each camera context uses +33 MiB GPU.
+- Three-camera test confirmed clean load and operation.
 
-**FP16 drift check:** Not yet run (requires crop collection — Task 3 prerequisite). Script ready at `scripts/trt_fp16_drift_check.py`.
+**FP16 drift check:** Not yet run (requires crop collection — needs live calibration run). Script ready at `scripts/trt_fp16_drift_check.py`.
+
+**YOLO TRT active — confirmed 2026-06-22:**
+Startup log on 3-camera run: all 4 ONNX models (SCRFD/AdaFace/TransReID/PPE) log `TRT warm-up complete` + no provider fallback warnings. YOLO engine loads from cache in <1 s, 3 context instances (33 MiB each). VRAM at idle post-load: 428/16380 MB (not a full-pipeline number; earlier 5-cam run showed 1,125 MB steady state).
 
 | Metric | Value |
 |---|---|
