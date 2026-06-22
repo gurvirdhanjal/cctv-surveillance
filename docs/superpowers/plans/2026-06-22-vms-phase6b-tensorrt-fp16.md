@@ -4,7 +4,7 @@
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status: IN PROGRESS — Task 1**
+**Status: IN PROGRESS — Task 4**
 
 **Goal:** Enable TensorRT FP16 on RTX 2000 Ada (16 GB, compute cap 8.9) for all ONNX-via-ORT
 models (SCRFD, AdaFace, TransReID, PPE) and for YOLO via a pre-built Ultralytics `.engine`.
@@ -66,7 +66,7 @@ Python 3.13, CUDA 12.4, TensorRT 10.x (bundled with ORT), RTX 2000 Ada (compute 
 
 ## Tasks
 
-### Task 1 — Commit existing Phase 6a uncommitted work
+### Task 1 — Commit existing Phase 6a uncommitted work ✓
 
 Two files from Phase 6a are modified but uncommitted: `vms/inference/ort_providers.py` and
 `vms/inference/tracker.py` (motion gate + adaptive interval). These must be committed as a
@@ -77,7 +77,7 @@ clean baseline before Phase 6b layering begins.
 - [ ] Commit: `feat: phase 6a — ort_providers TRT EP helper + tracker motion gate / adaptive interval`
 - [ ] Verify: `git status` shows no uncommitted changes in `vms/`
 
-### Task 2 — Close the TRT warm-up gap in `body_embedder.py` and `ppe.py`
+### Task 2 — Close the TRT warm-up gap in `body_embedder.py` and `ppe.py` ✓
 
 SCRFD (`detector.py:124`) and AdaFace (`embedder.py:153`) already have a TRT warm-up pass
 (a dummy zero-tensor `sess.run()` guarded by `if settings.gpu_tensorrt_enabled`). `body_embedder.py`
@@ -113,7 +113,7 @@ live camera frame triggers the 2-5 min TRT engine build, stalling that camera's 
   `pytest tests/inference/test_ort_providers.py -v`
 - [ ] Commit: `fix: add TRT warm-up pass to body_embedder and ppe model loaders`
 
-### Task 3 — Mini-baseline: FP16 cosine-drift check (identity correctness gate)
+### Task 3 — Mini-baseline: FP16 cosine-drift check (identity correctness gate) ✓
 
 Before enabling FP16 on AdaFace and TransReID in production, prove that FP16 embeddings
 remain close enough to FP32 that existing `reid_*` / `adaface_min_sim` thresholds hold.
@@ -201,45 +201,78 @@ This task activates TRT for real and verifies the production-safety assertions.
 - [ ] Quality gate: `black vms/ tests/`, `ruff check vms/ tests/`, `mypy vms/`, `pytest`
 - [ ] Commit: `feat: add TRT provider assertion at startup (warn on silent fallback)`
 
-### Task 5 — Per-camera accuracy hardening + ramp to 12 cameras
+### Task 5 — Camera characterization across all production cameras
 
-**Per-camera `min_blur` overrides (CAM105, CAM200):**
+**Context and evidence scope (important):**
 
-CAM105 (Back Gate) and CAM200 (ANPR) show 100% face quality rejection with body_q min in
-the 2-10 range. The face crops are genuinely too blurry for reliable AdaFace embedding.
-The fix is NOT a global `min_blur` reduction (that would pass blurry crops from CAM141/CAM144
-and increase misidentification risk — operational priority #2 violation).
+The calibration data used by the /advisor on 2026-06-22 came from a single test-pipeline
+run on 5 cameras. That is sufficient to establish the methodology but NOT sufficient to lock
+in per-camera deployment decisions. Specifically:
 
-The correct fix is two-part:
-1. Per-camera lower `min_blur` via `cameras.model_overrides` for CAM105 and CAM200 only
-2. Treat both cameras as **body-Re-ID primary** — TransReID carries the identity signal;
-   face is a best-effort bonus. This matches the fusion order Face≻Body≻BLE by design.
+- CAM105/CAM200 classified as body-Re-ID primary based on one run; day/night variation,
+  shift-change traffic density, and worker distance have not been sampled.
+- CAM110 classified as detection-limited based on one run; angle and focal length at
+  different times of day have not been verified.
+- Cameras beyond the initial 5 (up to 12) have no characterization data at all.
 
-- [ ] Set in `.env` or camera config: `min_blur` override for CAM105 and CAM200 to match
-  their observed body_q minimums (≈ 3.0 for CAM105, ≈ 2.5 for CAM200). Use the
-  `cameras.model_overrides` mechanism already in config.
-  **Do NOT lower global `min_blur`.** CAM141 and CAM144 must remain unchanged.
+**Per-camera conclusions must be confirmed, not assumed, before deployment.**
 
-- [ ] Verify after override:
-  - CAM141 / CAM144 face-embed rate unchanged from pre-override baseline
-  - CAM105 / CAM200 now produce at least some body embeddings (not necessarily face)
-  - No increase in `reid_body_confirmed_sim` or `adaface_min_sim` hits (no threshold
-    change — if similarity distribution shifts, raise a /advisor call)
+**Characterization run procedure:**
+
+For each production camera in the 10-12 camera set:
+
+- [ ] Run `scripts/multi_cam_pipeline_test.py` for ≥ 5 minutes per camera, covering:
+  - At least one active-traffic period (workers present)
+  - If possible: one day and one night/low-light period
+  - Camera at closest expected worker distance and at farthest expected distance
+
+- [ ] For each camera, record from the calibration stats output:
+
+  | Camera | Face Detect % | Face Accept % | Avg Body Q | Avg Face Q | Min Body Q | Min Face Q |
+  |--------|--------------|---------------|------------|------------|------------|------------|
+  | CAM105 | | | | | | |
+  | CAM110 | | | | | | |
+  | CAM141 | | | | | | |
+  | CAM144 | | | | | | |
+  | CAM200 | | | | | | |
+  | CAM___ | | | | | | |
+
+- [ ] From the table, assign each camera a **primary modality**:
+  - `Face+Body` — face accept % ≥ 50% AND avg face Q ≥ 14 (CAM141/CAM144 level)
+  - `Body-primary` — face accept % < 20% OR avg body Q < 50 AND face Q unreliable
+  - `Detection-limited` — face detect % < 5% regardless of accept rate
+  - `Needs investigation` — inconsistent across runs; do not assign overrides yet
+
+  **CAM105/CAM200 are provisionally Body-primary from the test run; confirm or revise
+  after broader sampling. Do NOT treat the test-run result as the final classification.**
+
+**Per-camera min_blur overrides (only after table is complete):**
+
+- [ ] For cameras confirmed as Body-primary or Detection-limited: lower `min_blur` in
+  `cameras.model_overrides` to match observed body_q minimums. Do NOT lower globally.
+  Keep CAM141/CAM144-class cameras at their current threshold.
+
+- [ ] Verify after any override:
+  - Face-embed rate on Face+Body cameras (CAM141/CAM144 class) unchanged
+  - No increase in `reid_body_confirmed_sim` hits (no threshold change — if similarity
+    distribution shifts, raise a mandatory /advisor call per CLAUDE.md §0.5)
 
 **Ramp to 12 cameras:**
 
-- [ ] Add remaining cameras (up to 12 total) via `.env` `VMS_CAM_*_URL` vars
+- [ ] Add remaining cameras via `.env` `VMS_CAM_*_URL` vars (only after characterization
+  table is complete for ALL production cameras being deployed)
+
 - [ ] Run `scripts/multi_cam_pipeline_test.py --cameras <all 12>` and measure:
   - End-to-end ms/frame at 12 cameras ≤ 50 ms (CLAUDE.md §0.6 target)
   - `nvidia-smi` GPU utilization and VRAM at 12-camera steady state
   - No increase in frame drops vs 5-camera baseline
   - Identity-match rate on a known enrolled person (re-walk test) ≥ pre-TRT rate
 
-- [ ] Record benchmark numbers in the implementation notes file (mandatory per §6.0 spirit):
+- [ ] Record the completed characterization table and benchmark numbers in:
   `docs/superpowers/notes/2026-06-22-vms-phase6b-implementation-notes.md`
 
 - [ ] Quality gate: `black vms/ tests/`, `ruff check vms/ tests/`, `mypy vms/`, `pytest`
-- [ ] Commit: `feat: phase 6b — per-camera min_blur overrides + 12-camera MVP validated`
+- [ ] Commit: `feat: phase 6b — camera characterization table + 12-camera MVP validated`
 
 ---
 

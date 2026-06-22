@@ -56,22 +56,33 @@ Without it, the first live camera frame triggers a 2-5 min TRT engine build stal
 
 ### Accuracy hardening — CAM105 / CAM200 (100% face rejection)
 
-**Root cause:** `body_q min` is 2.1-2.9 (Laplacian), meaning face crops are genuinely blurry
-and unusable for AdaFace regardless of any threshold setting. Forcing them through produces
-low-confidence embeddings that increase misidentification risk (priority #2 violation).
+**Evidence scope (critical caveat added 2026-06-22):**
 
-**Decision:** Treat CAM105 and CAM200 as body-Re-ID primary. TransReID carries the identity
-signal; face is best-effort. This is consistent with the fusion order Face≻Body≻BLE.
+The calibration observations below came from a SINGLE test-pipeline run. They are sufficient
+to establish the methodology and direction, but NOT sufficient to finalize per-camera
+deployment decisions. Day/night variation, shift-change traffic, and different worker
+distances have not been sampled. The 7 remaining production cameras (beyond the 5 tested)
+have no characterization data at all. Task 5 adds a mandatory multi-run characterization
+procedure before any permanent override is applied.
 
-**Do NOT globally lower `min_blur`.** Use per-camera `model_overrides` for CAM105/CAM200 only.
-Lowering globally would flood CAM141/CAM144 (good cameras) with blurry face garbage.
+**Provisional findings (from test run only — confirm before deployment):**
 
-**CAM110 (0 faces detected):** this is a detection failure, not a quality-gate failure. SCRFD
-cannot see faces on this camera (likely overhead angle / distance). Treat as head-count + body
-Re-ID only. No threshold change will fix this.
+- CAM105/CAM200: `body_q min` is 2.1-2.9 (Laplacian). Face crops are blurry and unreliable
+  for AdaFace. Provisionally classified as body-Re-ID primary. **Must be confirmed with
+  broader sampling (day/night, shift-change, varied distance) before locking in.**
 
-**CAM144 (40% face rejection):** this is the gate working correctly, not a problem. 57-61%
-face-embed rate on an indoor camera is healthy. Do not tune it.
+- CAM110: 0 faces detected. Provisionally classified as detection-limited. **Must be
+  confirmed — could be angle or lighting that varies by time of day.**
+
+- CAM141/CAM144: 57-99% face-embed rate. Classified as Face+Body from test run.
+  These are the reference cameras; their thresholds should not change.
+
+**Standing decisions (valid regardless of sampling breadth):**
+
+- Do NOT globally lower `min_blur`. Per-camera overrides only, and only after confirming
+  each camera's classification with multi-run data.
+- No `reid_*` / `adaface_*` threshold change in this phase — separate mandatory /advisor.
+- Face-embed rate on CAM141/CAM144 is the canary: if it changes after any override, stop.
 
 ---
 
