@@ -50,6 +50,40 @@ def test_trt_creates_cache_dir(monkeypatch, tmp_path) -> None:  # type: ignore[n
     get_settings.cache_clear()
 
 
+def test_trt_cold_cache_logs_warning(monkeypatch, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """Empty engine cache directory must trigger a WARNING so operators know why startup stalls."""
+    cache = str(tmp_path / "trt_empty")
+    os.makedirs(cache)
+    monkeypatch.setenv("VMS_GPU_TENSORRT_ENABLED", "true")
+    monkeypatch.setenv("VMS_GPU_TENSORRT_ENGINE_CACHE_DIR", cache)
+    get_settings.cache_clear()
+
+    with patch("vms.inference.ort_providers.logger") as mock_log:
+        build_ort_providers()
+
+    assert mock_log.warning.called
+    warning_msg = str(mock_log.warning.call_args_list[0])
+    assert "cold" in warning_msg
+    get_settings.cache_clear()
+
+
+def test_trt_warm_cache_no_cold_warning(monkeypatch, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """Existing .engine files in cache dir must suppress the cold-cache warning."""
+    cache = str(tmp_path / "trt_warm")
+    os.makedirs(cache)
+    (tmp_path / "trt_warm" / "model.engine").write_text("fake")
+    monkeypatch.setenv("VMS_GPU_TENSORRT_ENABLED", "true")
+    monkeypatch.setenv("VMS_GPU_TENSORRT_ENGINE_CACHE_DIR", cache)
+    get_settings.cache_clear()
+
+    with patch("vms.inference.ort_providers.logger") as mock_log:
+        build_ort_providers()
+
+    cold_warnings = [c for c in mock_log.warning.call_args_list if "cold" in str(c)]
+    assert cold_warnings == []
+    get_settings.cache_clear()
+
+
 def test_trt_fp16_false_propagates(monkeypatch, tmp_path) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.setenv("VMS_GPU_TENSORRT_ENABLED", "true")
     monkeypatch.setenv("VMS_GPU_TENSORRT_FP16", "false")

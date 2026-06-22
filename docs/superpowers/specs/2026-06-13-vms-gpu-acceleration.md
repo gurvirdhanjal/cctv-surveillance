@@ -317,6 +317,13 @@ the adaptation is firing correctly and not stuck at 1 or pinned at max.
   AdaFace ships, run the §6.0 harness to confirm cosine-similarity drift vs FP32 stays within
   tolerance and that `reid_*` / `adaface_min_sim` thresholds still hold. **Per CLAUDE.md §0.5
   this is a MANDATORY /advisor checkpoint** — any threshold change requires it.
+- **Cold-cache detection + ops logging (mandatory):** `build_ort_providers()` must detect
+  whether the engine cache directory contains `.engine` files. If empty, log at WARNING level:
+  `"TRT engine cache cold — first inference will trigger engine build (est. 3-8 min). Cameras
+  will not attach until build completes."` A silent multi-minute stall at startup reads as a
+  hang to operators unfamiliar with TRT. The ops runbook for every `vms-models swap <name>`
+  must include: delete `models/trt_engines/` to force a clean rebuild on next start, and expect
+  this build delay. Logging is the only defence against a support ticket at model-swap time.
 - **Gate:** ≥2× frames/sec/GPU vs §6.0 baseline, identity accuracy within tolerance, CPU
   fallback still green in CI.
 
@@ -330,6 +337,14 @@ the adaptation is firing correctly and not stuck at 1 or pinned at max.
   explicitly-gated decision requiring full identity re-validation and **/advisor sign-off**
   (CLAUDE.md §0.5 — changing identity thresholds is non-negotiable). Default: detectors INT8,
   embedders stay FP16.
+- **Calibration dataset — use deployment-site frames, not generic CCTV:** PTQ calibration
+  with frames from generic CCTV footage produces suboptimal quantization for factory floors
+  (different lighting, overhead angles, occlusion patterns). `VMS_GPU_INT8_CALIBRATION_DIR`
+  must be populated with representative frames captured *after site go-live* — covering day,
+  night, shift-change periods, and the actual camera angles at the specific installation. This
+  is a **deployment step, not a build step**. Leave `gpu_tensorrt_int8=false` (the default)
+  until a site-specific calibration set exists; mark INT8 enablement as a post-MVP task in the
+  Phase 6c plan.
 - **Gate:** additional throughput gain measured; identity accuracy unchanged; per-model
   precision recorded in the model manifest.
 
@@ -381,6 +396,21 @@ prevent.
 - Set `.wslconfig` `memory` and `swap` limits explicitly — WSL2's default memory ballooning
   can starve the Triton container on a server running VMS + DB + Redis simultaneously.
 
+**Compatibility matrix — the real deliverable of the MVP Triton exercise:**
+The exercise is not complete until this table is filled in and committed to the deploy runbook.
+"Works" = Triton-in-WSL2 starts cleanly, GPU passthrough confirmed, `VMS_GPU_TRITON_URL`
+smoke-test passes against ≥3 live cameras.
+
+| Windows Server / OS | NVIDIA driver branch | WSL2 kernel pkg | Docker engine | Status |
+|---|---|---|---|---|
+| Windows Server 2022 (21H2) | 535.x | nvidia-utils-535 | 24.x rootless | ○ untested |
+| Windows Server 2022 (21H2) | 555.x | nvidia-utils-555 | 24.x rootless | ○ untested |
+| Windows 11 Pro 23H2 | 555.x | nvidia-utils-555 | 24.x rootless | ○ untested |
+
+Fill "Status" during MVP (○ untested / ✓ confirmed / ✗ incompatible + reason). Add the minimum
+confirmed row as a customer pre-requisite in the deployment guide. **Do not ship Triton as a
+supported configuration without at least one ✓ row.**
+
 **Scale trigger:** in-process TRT EP suffices through ~20–30 cameras on a 32 GB Ada/Ampere-class
 GPU with FP16 + motion-gate + detector-interval engaged. Triton's cross-camera batching becomes
 the marginal lever in the 30→52 band, where un-batched per-camera dispatch stops amortizing
@@ -422,6 +452,38 @@ trigger point — do not hard-commit a camera number before it is measured.
 - **Gate:** a written recommendation with numbers, not a rewrite. Adoption is unlikely given the
   Windows-first deployment model — the Triton path (§6.4) provides ~80% of DeepStream's
   inference benefit without the rewrite or Linux dependency.
+
+### §6.7 — Dual-stream analytics substream *(ingestion-side; immediate win)*
+
+IP cameras with dual-stream support expose:
+- **Main stream:** full resolution (2MP–4K), H.265 — stored for playback and forensic clips.
+- **Sub-stream / analytics stream:** reduced resolution (720p–1080p), H.264 — for analytics.
+
+For the VMS inference pipeline, **only the analytics substream should be ingested.** Running
+SCRFD/YOLO on 4K frames wastes decode CPU and GPU resize cycles — all models resize internally
+to 640×640 or smaller. At 52 cameras this is a meaningful idle-CPU reduction that requires no
+NVDEC and no model changes.
+
+**Implementation:** `cameras.analytics_rtsp_url` (nullable `String(500)`). When set, the
+ingestion worker opens this URL instead of `rtsp_url`. `rtsp_url` remains the primary/storage
+stream URL (used by recording/clip features). When `analytics_rtsp_url` is null the worker
+falls back to `rtsp_url` — backwards-compatible with all existing deployments.
+
+```python
+# vms/ingestion/worker.py — _capture_loop
+_stream_url = self._camera.analytics_rtsp_url or self._camera.rtsp_url
+cap = cv2.VideoCapture(_stream_url)
+```
+
+**Ops note:** when configuring a new camera with dual-stream support, set
+`analytics_rtsp_url` to the sub-stream URL (typically `rtsp://.../stream2` or `/ch0/sub`)
+and leave `rtsp_url` pointing at the main stream. **Never log `analytics_rtsp_url` at INFO
+level** — it contains RTSP credentials (CLAUDE.md §7.2).
+
+**Gate:** no throughput benchmark required (purely additive); confirm the analytics stream
+resolution is ≥ 640px on the shorter side before setting — sub-streams at 320×240 are not
+acceptable (YOLO accuracy degrades below 640px input). Log the stream resolution at worker
+startup so operators can verify.
 
 ---
 
@@ -505,6 +567,8 @@ unaffected until a deployment opts in.
 | Consumer-card NVDEC unit limit silently caps decode | Probe `nvdec_units`; log the cap explicitly; fall the overflow back to CPU decode (no silent truncation — CLAUDE.md discipline). |
 | DeepStream scope-creep | Hard go/no-go gate in §6.6; not built unless §6.1–6.5 measurably fall short. |
 | Performance-sensitive paths regress | `worker.py`, `engine.py` changes measured before/after per CLAUDE.md §0.6. |
+| Dual-stream sub-stream resolution below YOLO minimum | Log stream resolution at worker startup; reject sub-streams with shorter side < 640px with a clear ERROR and fall back to `rtsp_url`. Prevents silent accuracy degradation from a misconfigured `analytics_rtsp_url`. |
+| Body-only identification at face-limited cameras (e.g. overhead/angle cameras like CAM110) | `resolved_via='body'` in `tracking_events` IS the body_only signal — no separate column needed. Future `tracking_events` API routes must include `resolved_via` in responses. Guard view must show a visual indicator when `resolved_via='body'` so operators apply appropriate skepticism. This is an accuracy-disclosure obligation: at calibrated thresholds body Re-ID is reliable, but operators need to know face confirmation was unavailable. |
 
 ---
 

@@ -57,6 +57,9 @@ class Camera(Base):
     worker_group: Mapped[int | None] = mapped_column(Integer, nullable=True)
     homography_matrix: Mapped[str | None] = mapped_column(Text, nullable=True)
     recalibrate_required_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Sub-stream URL for analytics ingestion (§6.7 dual-stream). When set, the ingestion
+    # worker opens this instead of rtsp_url. rtsp_url is kept for recording/clip use.
+    analytics_rtsp_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
 
 class Zone(Base):

@@ -30,6 +30,7 @@ class CameraConfig:
     worker_group: int
     width: int = 1920
     height: int = 1080
+    analytics_rtsp_url: str | None = None
 
 
 class IngestionWorker:
@@ -110,7 +111,13 @@ class IngestionWorker:
             session.close()
 
     async def _capture_loop(self) -> None:
-        cap = cv2.VideoCapture(self._camera.rtsp_url)
+        _stream_url = self._camera.analytics_rtsp_url or self._camera.rtsp_url
+        if self._camera.analytics_rtsp_url:
+            logger.info(
+                "camera_id=%d opening analytics substream (main stream reserved for recording)",
+                self._camera.camera_id,
+            )
+        cap = cv2.VideoCapture(_stream_url)
         stream_name = f"frames:group{self._camera.worker_group}"
         settings = get_settings()
         failure_threshold = settings.rtsp_failure_threshold

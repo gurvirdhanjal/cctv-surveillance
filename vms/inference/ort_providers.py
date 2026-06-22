@@ -40,6 +40,16 @@ def build_ort_providers() -> list[Any]:
     cache_dir = settings.gpu_tensorrt_engine_cache_dir
     os.makedirs(cache_dir, exist_ok=True)
 
+    # Detect cold cache — a silent multi-minute engine build looks like a hang to operators.
+    _engine_count = sum(1 for f in os.listdir(cache_dir) if f.endswith(".engine"))
+    if _engine_count == 0:
+        logger.warning(
+            "TRT engine cache cold (dir=%s) — first inference per model will trigger "
+            "engine build (est. 3-8 min total). Cameras will not attach until complete. "
+            "Expected on first deployment or after a model swap / driver upgrade.",
+            cache_dir,
+        )
+
     trt_opts: dict[str, Any] = {
         "trt_engine_cache_enable": True,
         "trt_engine_cache_path": cache_dir,
