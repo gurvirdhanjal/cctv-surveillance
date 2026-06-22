@@ -247,6 +247,7 @@ class CameraWorker:
         self._frame_lock = threading.Lock()
         self._latest_raw_frame: np.ndarray | None = None  # type: ignore[type-arg]
         self._frame_seq: int = 0  # incremented by reader; inference skips unchanged frames
+        self._new_frame_event = threading.Event()  # reader signals; avoids Windows sleep granularity
         self._stats: CameraStats = stats if stats is not None else CameraStats(camera_id, label)
 
     def start(self) -> None:
@@ -354,6 +355,7 @@ class CameraWorker:
                     self._latest_raw_frame = frame
                     self._frame_seq += 1
                 _last_deliver = now
+                self._new_frame_event.set()  # wake inference thread immediately
         cap.release()
         logger.info("%s: reader stopped", self._label)
 
@@ -371,7 +373,8 @@ class CameraWorker:
                 frame_seq = self._frame_seq
 
             if frame is None or frame_seq == last_frame_seq:
-                time.sleep(0.005)  # wait for a new frame from the reader thread
+                self._new_frame_event.wait(timeout=0.033)  # woken by reader; no Windows sleep jitter
+                self._new_frame_event.clear()
                 continue
             last_frame_seq = frame_seq
 
@@ -948,8 +951,11 @@ def main() -> None:
     display: np.ndarray | None = None  # type: ignore[type-arg]
     live_results: list[FrameResult] = []
 
+    _TARGET_DISPLAY_MS = 33  # ~30 fps display loop target
+
     try:
         while True:
+            _t_loop_start = time.monotonic()
             current_results: list[FrameResult | None] = []
             for i, w in enumerate(workers):
                 r = w.latest()
@@ -1013,7 +1019,8 @@ def main() -> None:
                 _print_calibration_stats(all_stats, state, settings)
                 _last_stats_print = time.monotonic()
 
-            key = cv2.waitKey(33) & 0xFF
+            _elapsed_ms = int((time.monotonic() - _t_loop_start) * 1000)
+            key = cv2.waitKey(max(1, _TARGET_DISPLAY_MS - _elapsed_ms)) & 0xFF
             if args.dry_run:
                 frame_counter += 1
                 if frame_counter >= 10:

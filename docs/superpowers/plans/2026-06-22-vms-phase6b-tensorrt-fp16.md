@@ -159,7 +159,7 @@ a mandatory /advisor call to assess whether thresholds need recalibration.
 
 This task activates TRT for real and verifies the production-safety assertions.
 
-- [ ] Add a startup provider assertion in `vms/inference/detector.py` `SCRFDDetector.from_path()`:
+- [x] Add a startup provider assertion in `vms/inference/detector.py` `SCRFDDetector.from_path()`:
   after the TRT warm-up, assert:
   ```python
   if settings.gpu_tensorrt_enabled:
@@ -172,6 +172,7 @@ This task activates TRT for real and verifies the production-safety assertions.
   ```
   Mirror this assertion in `embedder.py`, `body_embedder.py`, `ppe.py`.
   (Log a WARNING, not an exception — fallback to CUDA EP is safe; silent fallback is not.)
+  **DONE — commit `63e4245`**
 
 - [ ] Set in `.env` (not committed):
   ```
