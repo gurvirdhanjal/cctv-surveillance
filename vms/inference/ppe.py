@@ -78,12 +78,17 @@ class PPEModel:
         try:
             import onnxruntime as ort  # type: ignore[import-untyped]
 
+            from vms.config import get_settings
             from vms.inference.ort_providers import build_ort_providers
 
             providers = build_ort_providers()
             sess = ort.InferenceSession(path, providers=providers)
             self._input_name = sess.get_inputs()[0].name
             self._session = sess
+            if get_settings().gpu_tensorrt_enabled:
+                dummy = np.zeros((1, 3, _INPUT_SIZE, _INPUT_SIZE), dtype=np.float32)
+                sess.run(None, {self._input_name: dummy})
+                logger.info("PPEModel TRT warm-up complete")
             logger.info("PPEModel loaded from %s", path)
         except Exception as exc:
             logger.warning("PPEModel load failed (%s) — PPE detection disabled.", exc)
