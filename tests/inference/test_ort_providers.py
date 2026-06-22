@@ -153,9 +153,7 @@ def test_ppe_provider_assertion_warns_on_fallback(monkeypatch, tmp_path) -> None
             model._target = {}
             model._load(dummy_model)
 
-    assert any(
-        "active provider" in str(call.args) for call in mock_warn.call_args_list
-    )
+    assert any("active provider" in str(call.args) for call in mock_warn.call_args_list)
     get_settings.cache_clear()
 
 
@@ -185,7 +183,5 @@ def test_ppe_provider_assertion_no_warning_on_trt(monkeypatch, tmp_path) -> None
             model._target = {}
             model._load(dummy_model)
 
-    assert not any(
-        "active provider" in str(call.args) for call in mock_warn.call_args_list
-    )
+    assert not any("active provider" in str(call.args) for call in mock_warn.call_args_list)
     get_settings.cache_clear()

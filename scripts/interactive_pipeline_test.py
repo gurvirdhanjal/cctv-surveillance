@@ -40,16 +40,17 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-try:
-    from dotenv import load_dotenv  # type: ignore[import-untyped]
+if __name__ == "__main__":
+    try:
+        from dotenv import load_dotenv  # type: ignore[import-untyped]
 
-    load_dotenv(_PROJECT_ROOT / ".env")
-except ImportError:
-    pass
+        load_dotenv(_PROJECT_ROOT / ".env")
+    except ImportError:
+        pass
 
-os.environ.setdefault("VMS_DB_URL", "postgresql://localhost/vms_unused")
-os.environ.setdefault("VMS_JWT_SECRET", "smoke-test-dummy-secret")
-os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
+    os.environ.setdefault("VMS_DB_URL", "postgresql://localhost/vms_unused")
+    os.environ.setdefault("VMS_JWT_SECRET", "smoke-test-dummy-secret")
+    os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
 
 # ---------------------------------------------------------------------------
 # TEST vs PRODUCTION model constants -- visible at the top of the file
