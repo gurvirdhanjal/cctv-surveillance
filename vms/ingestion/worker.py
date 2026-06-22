@@ -111,13 +111,34 @@ class IngestionWorker:
             session.close()
 
     async def _capture_loop(self) -> None:
+        _using_analytics = bool(self._camera.analytics_rtsp_url)
         _stream_url = self._camera.analytics_rtsp_url or self._camera.rtsp_url
-        if self._camera.analytics_rtsp_url:
+        if _using_analytics:
             logger.info(
                 "camera_id=%d opening analytics substream (main stream reserved for recording)",
                 self._camera.camera_id,
             )
         cap = cv2.VideoCapture(_stream_url)
+
+        # Validate resolution — sub-streams below 640px degrade YOLO accuracy silently.
+        # CAP_PROP_FRAME_WIDTH is best-effort for RTSP; returns 0 on cameras that don't
+        # report it before the first frame (check is skipped, not a startup blocker).
+        _w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        _h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        if _w > 0 and _h > 0:
+            logger.info("camera_id=%d stream resolution %dx%d", self._camera.camera_id, _w, _h)
+            if _using_analytics and min(_w, _h) < 640:
+                logger.error(
+                    "camera_id=%d analytics substream %dx%d is below 640px minimum — "
+                    "falling back to main rtsp_url. Set analytics_rtsp_url to a 720p+ stream.",
+                    self._camera.camera_id,
+                    _w,
+                    _h,
+                )
+                cap.release()
+                _using_analytics = False
+                cap = cv2.VideoCapture(self._camera.rtsp_url)
+
         stream_name = f"frames:group{self._camera.worker_group}"
         settings = get_settings()
         failure_threshold = settings.rtsp_failure_threshold

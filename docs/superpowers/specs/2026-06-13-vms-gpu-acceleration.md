@@ -324,6 +324,10 @@ the adaptation is firing correctly and not stuck at 1 or pinned at max.
   hang to operators unfamiliar with TRT. The ops runbook for every `vms-models swap <name>`
   must include: delete `models/trt_engines/` to force a clean rebuild on next start, and expect
   this build delay. Logging is the only defence against a support ticket at model-swap time.
+  **Stale-engine scope:** the warning fires only when the cache directory is empty. *Stale*
+  engines after a driver upgrade are detected and rebuilt by TRT's own engine-hash validation on
+  load (TRT-internal); the ops runbook note "delete `models/trt_engines/` after any driver
+  update" handles that case explicitly — no extra code needed.
 - **Gate:** ≥2× frames/sec/GPU vs §6.0 baseline, identity accuracy within tolerance, CPU
   fallback still green in CI.
 
@@ -345,6 +349,12 @@ the adaptation is firing correctly and not stuck at 1 or pinned at max.
   is a **deployment step, not a build step**. Leave `gpu_tensorrt_int8=false` (the default)
   until a site-specific calibration set exists; mark INT8 enablement as a post-MVP task in the
   Phase 6c plan.
+- **INT8 + empty calibration dir must hard-fail (future code requirement):** once the INT8
+  engine builder is implemented, if `gpu_tensorrt_int8=true` and `gpu_int8_calibration_dir=""`
+  the builder must raise a `ConfigError` rather than silently proceeding without calibration
+  data or silently falling back to FP16. Silent fallback would produce FP16 engines with no
+  indication that INT8 was skipped. This check is not yet wired (INT8 builder not built);
+  implement it as the first gate in the INT8 engine-build path in Phase 6c.
 - **Gate:** additional throughput gain measured; identity accuracy unchanged; per-model
   precision recorded in the model manifest.
 
@@ -401,15 +411,17 @@ The exercise is not complete until this table is filled in and committed to the 
 "Works" = Triton-in-WSL2 starts cleanly, GPU passthrough confirmed, `VMS_GPU_TRITON_URL`
 smoke-test passes against ≥3 live cameras.
 
-| Windows Server / OS | NVIDIA driver branch | WSL2 kernel pkg | Docker engine | Status |
-|---|---|---|---|---|
-| Windows Server 2022 (21H2) | 535.x | nvidia-utils-535 | 24.x rootless | ○ untested |
-| Windows Server 2022 (21H2) | 555.x | nvidia-utils-555 | 24.x rootless | ○ untested |
-| Windows 11 Pro 23H2 | 555.x | nvidia-utils-555 | 24.x rootless | ○ untested |
+| Windows Server / OS | NVIDIA driver | WSL2 kernel pkg | Docker engine | Triton image | CUDA in container | Status |
+|---|---|---|---|---|---|---|
+| Windows Server 2022 (21H2) | 535.x | nvidia-utils-535 | 24.x rootless | 24.x-trt10.x-cu12.x-ubuntu22.04 | 12.x | ○ untested |
+| Windows Server 2022 (21H2) | 555.x | nvidia-utils-555 | 24.x rootless | 24.x-trt10.x-cu12.x-ubuntu22.04 | 12.x | ○ untested |
+| Windows 11 Pro 23H2 | 555.x | nvidia-utils-555 | 24.x rootless | 24.x-trt10.x-cu12.x-ubuntu22.04 | 12.x | ○ untested |
 
-Fill "Status" during MVP (○ untested / ✓ confirmed / ✗ incompatible + reason). Add the minimum
-confirmed row as a customer pre-requisite in the deployment guide. **Do not ship Triton as a
-supported configuration without at least one ✓ row.**
+Fill "Status" during MVP (○ untested / ✓ confirmed / ✗ incompatible + reason). Record the exact
+image tag (`nvcr.io/nvidia/tritonserver:<tag>`) used for each confirmed row — the tag pins TRT
+and CUDA versions simultaneously. Add the minimum confirmed row as a customer pre-requisite in
+the deployment guide. **Do not ship Triton as a supported configuration without at least one ✓
+row.** Also record the sustained-load result: ≥3 cameras at steady state, not just smoke-start.
 
 **Scale trigger:** in-process TRT EP suffices through ~20–30 cameras on a 32 GB Ada/Ampere-class
 GPU with FP16 + motion-gate + detector-interval engaged. Triton's cross-camera batching becomes
@@ -480,10 +492,12 @@ cap = cv2.VideoCapture(_stream_url)
 and leave `rtsp_url` pointing at the main stream. **Never log `analytics_rtsp_url` at INFO
 level** — it contains RTSP credentials (CLAUDE.md §7.2).
 
-**Gate:** no throughput benchmark required (purely additive); confirm the analytics stream
-resolution is ≥ 640px on the shorter side before setting — sub-streams at 320×240 are not
-acceptable (YOLO accuracy degrades below 640px input). Log the stream resolution at worker
-startup so operators can verify.
+**Gate:** no throughput benchmark required (purely additive). Resolution guard is implemented:
+`_capture_loop` reads `CAP_PROP_FRAME_WIDTH/HEIGHT` at open time, logs the resolution at INFO,
+and falls back to `rtsp_url` with a clear ERROR if the analytics stream's shorter side is
+< 640px. For cameras where `CAP_PROP_FRAME_WIDTH` returns 0 before the first frame the guard is
+skipped (best-effort for RTSP); the spec-described fallback still applies if the resolution is
+detectable. Sub-streams at 320×240 or lower are not acceptable for YOLO inference.
 
 ---
 
@@ -567,7 +581,7 @@ unaffected until a deployment opts in.
 | Consumer-card NVDEC unit limit silently caps decode | Probe `nvdec_units`; log the cap explicitly; fall the overflow back to CPU decode (no silent truncation — CLAUDE.md discipline). |
 | DeepStream scope-creep | Hard go/no-go gate in §6.6; not built unless §6.1–6.5 measurably fall short. |
 | Performance-sensitive paths regress | `worker.py`, `engine.py` changes measured before/after per CLAUDE.md §0.6. |
-| Dual-stream sub-stream resolution below YOLO minimum | Log stream resolution at worker startup; reject sub-streams with shorter side < 640px with a clear ERROR and fall back to `rtsp_url`. Prevents silent accuracy degradation from a misconfigured `analytics_rtsp_url`. |
+| Dual-stream sub-stream resolution below YOLO minimum | **Implemented (§6.7):** `_capture_loop` reads resolution via `CAP_PROP_FRAME_WIDTH/HEIGHT` at open time, logs at INFO, and falls back to `rtsp_url` with an ERROR if shorter side < 640px. Best-effort for RTSP (returns 0 on some cameras before first frame — guard skipped in that case). |
 | Body-only identification at face-limited cameras (e.g. overhead/angle cameras like CAM110) | `resolved_via='body'` in `tracking_events` IS the body_only signal — no separate column needed. Future `tracking_events` API routes must include `resolved_via` in responses. Guard view must show a visual indicator when `resolved_via='body'` so operators apply appropriate skepticism. This is an accuracy-disclosure obligation: at calibrated thresholds body Re-ID is reliable, but operators need to know face confirmation was unavailable. |
 
 ---
