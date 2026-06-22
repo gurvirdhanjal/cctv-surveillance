@@ -333,22 +333,67 @@ the adaptation is firing correctly and not stuck at 1 or pinned at max.
 - **Gate:** additional throughput gain measured; identity accuracy unchanged; per-model
   precision recorded in the model manifest.
 
-### §6.3 — NVDEC hardware decode *(ingestion-side)*
+### §6.3 — NVDEC hardware decode *(ingestion-side; lower priority than §6.4)*
+
+**Priority note (added 2026-06-22, Opus advisor):** §6.3 is explicitly *below* §6.4 (Triton)
+in the build order. CPU decode is not the bottleneck at 12–30 cameras; after motion-gate +
+detector-interval savings cut idle-frame decode work, additional CPU cores on the hardware spec
+are a cheaper lever than a custom NVDEC integration. §6.3 must never gate the 52-cam target.
+
 - Move RTSP H.264/H.265 decode from CPU (OpenCV/FFmpeg software) to the GPU video engine.
+- **Windows implementation:** there is no clean Python-accessible NVDEC path on Windows
+  equivalent to Linux's `nvv4l2decoder` / GStreamer `nvdec` / DeepStream path. The preferred
+  Windows approach, if §6.3 is ever justified by measurement, is **FFmpeg `h264_cuvid` decode
+  launched as a subprocess feeding raw frames via shared memory** — lighter than the Video
+  Codec SDK ctypes bindings and avoids the CPU→GPU copy (frames decoded to VRAM via cuvid).
+  Do NOT plan for Video Codec SDK direct API integration in Python — the engineering cost
+  exceeds the benefit at 52 cameras with other levers available.
 - Probe `nvdec_units` — consumer cards have 1–2 NVDEC units (a real ceiling for 52 streams);
   data-center cards are effectively unlimited. The probe decides whether NVDEC handles all
   cameras or only a subset, with the rest staying on CPU decode.
 - Touches `vms/ingestion/worker.py` (a performance-sensitive path per CLAUDE.md §0.6 — measure
   before/after).
+- **Build trigger:** only if the §6.0 harness shows CPU decode is contributing ≥10ms/frame to
+  the end-to-end budget *after* §6.0.25 motion-gate savings are applied. Do not build
+  speculatively.
 - **Gate:** CPU decode load drops materially; no increase in dropped/stale frames.
 
-### §6.4 — Cross-camera dynamic batching via Triton *(scale lever)*
+### §6.4 — Cross-camera dynamic batching via Triton *(52-cam scale lever; deploy topology during MVP)*
+
+**Deployment risk note (added 2026-06-22, Opus advisor):** The code change to enable Triton is
+one config line (`VMS_GPU_TRITON_URL`). The *deployment* — WSL2 GPU passthrough on Windows
+Server + customer-controlled NVIDIA drivers + rootless Docker + ops runbook — is weeks of work.
+**Stand up Triton-in-WSL2 during the 10–12 camera MVP** as a deployment-validation exercise
+(not a throughput task). Prove GPU passthrough on representative Windows Server + driver combos,
+automate the install, write the runbook, and smoke-test `VMS_GPU_TRITON_URL` against a few
+live cameras at MVP. At 52-cam go-live, the topology is then proven and the switch is genuinely
+one line. Discovering a WSL2/driver incompatibility at the 52-cam launch is the failure mode to
+prevent.
+
+**Windows Triton deployment recipe:**
+- Triton ships as a Linux Docker image (no native Windows build). Run inside WSL2 on Windows
+  Server 2022 or Windows 11 Pro.
+- Prefer **rootless Docker in WSL2** (or `dockerd` directly in WSL2 via systemd) over Docker
+  Desktop — Docker Desktop has a commercial license restriction for large enterprises that
+  applies to customer hardware.
+- WSL2 GPU passthrough requires NVIDIA driver ≥ 535 on the Windows host and the WSL2 kernel
+  package `nvidia-utils-xxx`; probe and document the minimum driver version required.
+- Set `.wslconfig` `memory` and `swap` limits explicitly — WSL2's default memory ballooning
+  can starve the Triton container on a server running VMS + DB + Redis simultaneously.
+
+**Scale trigger:** in-process TRT EP suffices through ~20–30 cameras on a 32 GB Ada/Ampere-class
+GPU with FP16 + motion-gate + detector-interval engaged. Triton's cross-camera batching becomes
+the marginal lever in the 30→52 band, where un-batched per-camera dispatch stops amortizing
+kernel launches. The §6.0 harness (GPU utilization crossing ~70% sustained) is the precise
+trigger point — do not hard-commit a camera number before it is measured.
+
 - Stand up **Triton Inference Server** hosting the TensorRT engines; the `InferenceEngine`
   becomes a Triton client. Triton batches frames *across cameras* into one GPU pass — the
-  single biggest throughput multiplier at 52 cameras, and the lever the LinkedIn post is
-  really about.
+  single biggest throughput multiplier at 52 cameras.
 - Preserves the Redis-Streams bus (CLAUDE.md §17 invariant): ingestion → inference still flows
   through `frames:groupN`; only the model-execution call inside the engine changes.
+- `VMS_GPU_TRITON_URL=""` (empty) = current in-process EP; set to `http://localhost:8001` =
+  Triton client mode. This is the only code change in `engine.py`.
 - **Gate:** sustained 52-camera real-time at ≤50 ms/frame end-to-end (CLAUDE.md §0.6 target),
   with batching latency within budget.
 
@@ -366,10 +411,17 @@ the adaptation is firing correctly and not stuck at 1 or pinned at max.
 - **Only built if §6.1–6.5 fail to hit the throughput target.** Spike DeepStream's
   GStreamer NVDEC + nvinfer batched pipeline for a camera subset; compare frames/sec/GPU and
   engineering cost against the Triton path.
+- **Windows constraint (hard):** DeepStream is Linux-only. For a Windows-first on-prem SaaS
+  product, adopting DeepStream requires every customer deployment to run a Linux VM or container
+  (WSL2 with GStreamer + NVDEC passthrough), which adds a mandatory infrastructure dependency
+  the operator must install and maintain per site. This cost must be quantified in the go/no-go
+  evaluation — it is not just an engineering trade-off, it is a customer-ops burden.
 - Explicit decision record: adopt, partially adopt (decode only), or reject. DeepStream's
   CUDA lock-in and rewrite cost must be justified by measured headroom the Triton path cannot
   reach.
-- **Gate:** a written recommendation with numbers, not a rewrite.
+- **Gate:** a written recommendation with numbers, not a rewrite. Adoption is unlikely given the
+  Windows-first deployment model — the Triton path (§6.4) provides ~80% of DeepStream's
+  inference benefit without the rewrite or Linux dependency.
 
 ---
 
