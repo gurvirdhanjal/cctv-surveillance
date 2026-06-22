@@ -62,6 +62,12 @@ _torch_lib = _PROJECT_ROOT / "venv" / "Lib" / "site-packages" / "torch" / "lib"
 if _torch_lib.is_dir():
     os.environ["PATH"] = str(_torch_lib) + os.pathsep + os.environ.get("PATH", "")
 
+# Prepend TRT 10.x DLLs so ORT TRT EP can find nvinfer_10.dll.
+# onnxruntime-gpu 1.22 requires TRT 10.x; DLLs live in tensorrt_libs, not on system PATH.
+_trt_libs = _PROJECT_ROOT / "venv" / "Lib" / "site-packages" / "tensorrt_libs"
+if _trt_libs.is_dir():
+    os.environ["PATH"] = str(_trt_libs) + os.pathsep + os.environ.get("PATH", "")
+
 try:
     from dotenv import load_dotenv  # type: ignore[import-untyped]
 

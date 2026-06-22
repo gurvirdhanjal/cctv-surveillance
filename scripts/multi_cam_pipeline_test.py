@@ -71,6 +71,14 @@ if _torch_lib.is_dir():
 
     _os.environ["PATH"] = str(_torch_lib) + _os.pathsep + _os.environ.get("PATH", "")
 
+# Prepend tensorrt_libs so ORT's TRT EP can find nvinfer_10.dll (TRT 10.x).
+# onnxruntime-gpu 1.22 was built against TRT 10.x; the DLLs are not on system PATH.
+_trt_libs = _PROJECT_ROOT / "venv" / "Lib" / "site-packages" / "tensorrt_libs"
+if _trt_libs.is_dir():
+    import os as _os
+
+    _os.environ["PATH"] = str(_trt_libs) + _os.pathsep + _os.environ.get("PATH", "")
+
 try:
     from dotenv import load_dotenv  # type: ignore[import-untyped]
 
@@ -247,7 +255,9 @@ class CameraWorker:
         self._frame_lock = threading.Lock()
         self._latest_raw_frame: np.ndarray | None = None  # type: ignore[type-arg]
         self._frame_seq: int = 0  # incremented by reader; inference skips unchanged frames
-        self._new_frame_event = threading.Event()  # reader signals; avoids Windows sleep granularity
+        self._new_frame_event = (
+            threading.Event()
+        )  # reader signals; avoids Windows sleep granularity
         self._stats: CameraStats = stats if stats is not None else CameraStats(camera_id, label)
 
     def start(self) -> None:
@@ -373,7 +383,9 @@ class CameraWorker:
                 frame_seq = self._frame_seq
 
             if frame is None or frame_seq == last_frame_seq:
-                self._new_frame_event.wait(timeout=0.033)  # woken by reader; no Windows sleep jitter
+                self._new_frame_event.wait(
+                    timeout=0.033
+                )  # woken by reader; no Windows sleep jitter
                 self._new_frame_event.clear()
                 continue
             last_frame_seq = frame_seq

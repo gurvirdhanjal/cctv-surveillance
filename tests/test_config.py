@@ -49,7 +49,9 @@ def test_missing_required_raises() -> None:
 
 
 def test_phase6a_config_defaults() -> None:
-    s = Settings()
+    _required = {"VMS_DB_URL": "postgresql://x/y", "VMS_JWT_SECRET": "s"}
+    with patch.dict(os.environ, _required, clear=True):
+        s = Settings()
     assert s.gpu_tensorrt_enabled is False
     assert s.gpu_tensorrt_fp16 is True
     assert s.gpu_tensorrt_int8 is False

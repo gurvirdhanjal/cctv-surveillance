@@ -4,7 +4,7 @@
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status: IN PROGRESS — Task 4**
+**Status: IN PROGRESS — Task 5**
 
 **Goal:** Enable TensorRT FP16 on RTX 2000 Ada (16 GB, compute cap 8.9) for all ONNX-via-ORT
 models (SCRFD, AdaFace, TransReID, PPE) and for YOLO via a pre-built Ultralytics `.engine`.
@@ -155,7 +155,7 @@ a mandatory /advisor call to assess whether thresholds need recalibration.
 - [ ] Add `trt_fp16_drift_check.py` to ruff + mypy check scope
 - [ ] Commit: `feat: add TRT FP16 cosine-drift check script (identity correctness gate)`
 
-### Task 4 — Enable TRT in .env; assert active provider at startup; VRAM check
+### Task 4 — Enable TRT in .env; assert active provider at startup; VRAM check ✓
 
 This task activates TRT for real and verifies the production-safety assertions.
 

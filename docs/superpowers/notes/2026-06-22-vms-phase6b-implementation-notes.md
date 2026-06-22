@@ -98,14 +98,53 @@ procedure before any permanent override is applied.
 
 ---
 
-### Benchmark numbers to record (fill in during Tasks 4-5)
+### Benchmark numbers (Task 4 results — 2026-06-22)
 
-| Metric | Value | Recorded |
-|---|---|---|
-| ms/frame at 5 cams — CUDA EP baseline | | Task 4 |
-| ms/frame at 5 cams — TRT FP16 | | Task 4 |
-| FP16 cosine drift — AdaFace (mean / min) | | Task 3 |
-| FP16 cosine drift — TransReID (mean / min) | | Task 3 |
-| ms/frame at 12 cams — TRT FP16 | | Task 5 |
-| VRAM at 12 cams — steady state | | Task 5 |
-| GPU utilization at 12 cams | | Task 5 |
+**TRT engine build (first run, RTX 2000 Ada):**
+- SCRFD: ~37 s
+- AdaFace: ~34 s
+- TransReID: ~27 s
+- PPE (YOLOv8l): ~3 min 9 s
+- Total first-run build time: ~5 minutes; subsequent loads from cache (models/trt_engines/)
+
+**Per-model inference latency — TensorrtExecutionProvider FP16:**
+
+| Model | Provider | mean ms | p95 ms |
+|---|---|---|---|
+| SCRFD (640x640) | TensorrtExecutionProvider | 2.3 ms | 2.6 ms |
+| AdaFace (112x112) | TensorrtExecutionProvider | 2.2 ms | 2.2 ms |
+| TransReID (384x128) | TensorrtExecutionProvider | 4.2 ms | 4.8 ms |
+| PPE YOLOv8l (640x640) | TensorrtExecutionProvider | 6.7 ms | 7.3 ms |
+
+CPU baseline (CPUExecutionProvider, same machine):
+- SCRFD: 20.5 ms, AdaFace: 230.9 ms, TransReID: 34.8 ms, PPE: 127.1 ms
+- Total serial CPU: 413 ms vs TRT serial: 15.4 ms → **27x speedup**
+
+**VRAM during TRT inference:** 1,125 MB / 16,380 MB (6.9%) — well under the 14 GB safety limit.
+**GPU util during active inference:** 97% (correct — fully utilizing GPU during burst inference).
+
+**Active provider assertion:** All four models log warm-up complete and NO fallback warnings. TRT EP confirmed active.
+
+**Installation notes (path issues encountered):**
+- `onnxruntime-gpu 1.22.0` requires `nvinfer_10.dll` (TRT 10.x). TRT 11 was installed (nvinfer_11.dll) — downgraded to `tensorrt-cu12==10.9.0.34`.
+- TRT DLLs live in `venv/Lib/site-packages/tensorrt_libs/` — NOT on system PATH. Added PATH injection to `multi_cam_pipeline_test.py` and `trt_fp16_drift_check.py` alongside the existing torch/lib injection.
+- Ultralytics 8.4.x requires `nvidia-modelopt` for TRT engine export (new dependency). This attempted to upgrade torch to 2.12.1 and caused partial torch corruption. YOLO TRT engine export is BLOCKED until modelopt install path is resolved (see Task 4 notes below).
+
+**YOLO TRT export (blocked):**
+- `scripts/export_yolo_trt.py` failed: Ultralytics 8.4.x auto-installs `nvidia-modelopt[onnx]` which requires torch>=2.8 — incompatible with pinned torch 2.6.0+cu124.
+- The install attempt partially corrupted torch (Access Denied on `torch/_C.pyd`). Torch reinstalled from `pytorch.org/whl/cu124`.
+- Workaround options: (A) downgrade Ultralytics to 8.3.x, (B) install modelopt in a separate env, (C) use ORT TRT EP for YOLO as well (bypass Ultralytics engine path entirely).
+- YOLO still runs on CUDA EP via Ultralytics. FP16 speedup for YOLO is deferred.
+
+**FP16 drift check:** Not yet run (requires crop collection — Task 3 prerequisite). Script ready at `scripts/trt_fp16_drift_check.py`.
+
+| Metric | Value |
+|---|---|
+| ms/frame — SCRFD TRT FP16 | 2.3 ms |
+| ms/frame — AdaFace TRT FP16 | 2.2 ms |
+| ms/frame — TransReID TRT FP16 | 4.2 ms |
+| ms/frame — PPE TRT FP16 | 6.7 ms |
+| VRAM at steady state (5-cam) | 1,125 MB / 16,380 MB |
+| FP16 cosine drift — AdaFace (mean / min) | pending Task 3 run |
+| FP16 cosine drift — TransReID (mean / min) | pending Task 3 run |
+| ms/frame at 12 cams — TRT FP16 | pending Task 5 |
