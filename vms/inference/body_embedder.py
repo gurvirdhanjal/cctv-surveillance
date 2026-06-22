@@ -62,6 +62,13 @@ class TransReIDBodyEmbedder:
                 dummy = np.zeros((1, 3, _TRANSREID_H, _TRANSREID_W), dtype=np.float32)
                 self._sess.run(None, {self._input_name: dummy})
                 logger.info("TransReIDBodyEmbedder TRT warm-up complete")
+                active = self._sess.get_providers()
+                if active[0] != "TensorrtExecutionProvider":
+                    logger.warning(
+                        "TransReIDBodyEmbedder: TRT EP requested but active provider is %s"
+                        " -- check ONNX op compatibility",
+                        active[0],
+                    )
             logger.info("TransReIDBodyEmbedder: loaded %s", model_path)
         except ImportError:
             logger.warning(

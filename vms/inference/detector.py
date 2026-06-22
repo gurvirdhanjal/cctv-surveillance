@@ -125,6 +125,13 @@ class SCRFDDetector:
                     dummy = np.zeros((1, 3, _INPUT_SIZE, _INPUT_SIZE), dtype=np.float32)
                     sess.run(None, {sess.get_inputs()[0].name: dummy})
                     logger.info("SCRFDDetector TRT warm-up complete")
+                    active = sess.get_providers()
+                    if active[0] != "TensorrtExecutionProvider":
+                        logger.warning(
+                            "SCRFDDetector: TRT EP requested but active provider is %s"
+                            " -- check ONNX op compatibility",
+                            active[0],
+                        )
                 logger.info("SCRFDDetector loaded from %s", model_path)
                 return cls(session=sess, conf_thres=conf, min_face_px=min_px)
             except Exception as exc:

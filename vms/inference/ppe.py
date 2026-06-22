@@ -89,6 +89,13 @@ class PPEModel:
                 dummy = np.zeros((1, 3, _INPUT_SIZE, _INPUT_SIZE), dtype=np.float32)
                 sess.run(None, {self._input_name: dummy})
                 logger.info("PPEModel TRT warm-up complete")
+                active = sess.get_providers()
+                if active[0] != "TensorrtExecutionProvider":
+                    logger.warning(
+                        "PPEModel: TRT EP requested but active provider is %s"
+                        " -- check ONNX op compatibility",
+                        active[0],
+                    )
             logger.info("PPEModel loaded from %s", path)
         except Exception as exc:
             logger.warning("PPEModel load failed (%s) — PPE detection disabled.", exc)

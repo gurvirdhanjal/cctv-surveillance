@@ -112,3 +112,80 @@ def test_ppe_model_trt_warmup_runs_on_enabled(monkeypatch, tmp_path) -> None:  #
     assert inp.shape == (1, 3, 640, 640)
     assert inp.dtype == np.float32
     get_settings.cache_clear()
+
+
+# -- provider assertion tests --------------------------------------------------
+
+
+def _make_mock_ort(active_provider: str) -> MagicMock:
+    """Return a mock onnxruntime module whose InferenceSession reports active_provider."""
+    mock_sess = MagicMock()
+    mock_sess.get_inputs.return_value = [MagicMock(name="input")]
+    mock_sess.get_providers.return_value = [active_provider, "CPUExecutionProvider"]
+    mock_ort = MagicMock()
+    mock_ort.InferenceSession.return_value = mock_sess
+    return mock_ort
+
+
+def test_ppe_provider_assertion_warns_on_fallback(monkeypatch, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """PPEModel._load() must call logger.warning when TRT EP falls back to CUDA."""
+    monkeypatch.setenv("VMS_GPU_TENSORRT_ENABLED", "true")
+    monkeypatch.setenv("VMS_GPU_TENSORRT_ENGINE_CACHE_DIR", str(tmp_path))
+    monkeypatch.setenv("VMS_DB_URL", "postgresql://x/y")
+    monkeypatch.setenv("VMS_JWT_SECRET", "s")
+    get_settings.cache_clear()
+
+    dummy_model = str(tmp_path / "ppe.onnx")
+    open(dummy_model, "w").close()
+
+    mock_ort = _make_mock_ort("CUDAExecutionProvider")
+
+    with patch.dict("sys.modules", {"onnxruntime": mock_ort}):
+        from vms.inference import ppe as ppe_mod
+
+        with patch.object(ppe_mod.logger, "warning") as mock_warn:
+            model = ppe_mod.PPEModel.__new__(ppe_mod.PPEModel)
+            model._path = dummy_model
+            model._session = None
+            model._input_name = "input"
+            model._conf_threshold = 0.25
+            model._nms_iou_threshold = 0.45
+            model._target = {}
+            model._load(dummy_model)
+
+    assert any(
+        "active provider" in str(call.args) for call in mock_warn.call_args_list
+    )
+    get_settings.cache_clear()
+
+
+def test_ppe_provider_assertion_no_warning_on_trt(monkeypatch, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """PPEModel._load() must NOT call logger.warning when TRT EP is active."""
+    monkeypatch.setenv("VMS_GPU_TENSORRT_ENABLED", "true")
+    monkeypatch.setenv("VMS_GPU_TENSORRT_ENGINE_CACHE_DIR", str(tmp_path))
+    monkeypatch.setenv("VMS_DB_URL", "postgresql://x/y")
+    monkeypatch.setenv("VMS_JWT_SECRET", "s")
+    get_settings.cache_clear()
+
+    dummy_model = str(tmp_path / "ppe.onnx")
+    open(dummy_model, "w").close()
+
+    mock_ort = _make_mock_ort("TensorrtExecutionProvider")
+
+    with patch.dict("sys.modules", {"onnxruntime": mock_ort}):
+        from vms.inference import ppe as ppe_mod
+
+        with patch.object(ppe_mod.logger, "warning") as mock_warn:
+            model = ppe_mod.PPEModel.__new__(ppe_mod.PPEModel)
+            model._path = dummy_model
+            model._session = None
+            model._input_name = "input"
+            model._conf_threshold = 0.25
+            model._nms_iou_threshold = 0.45
+            model._target = {}
+            model._load(dummy_model)
+
+    assert not any(
+        "active provider" in str(call.args) for call in mock_warn.call_args_list
+    )
+    get_settings.cache_clear()

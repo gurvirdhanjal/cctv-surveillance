@@ -154,6 +154,13 @@ class AdaFaceEmbedder:
                     dummy = np.zeros((1, 3, _EMBED_INPUT_SIZE, _EMBED_INPUT_SIZE), dtype=np.float32)
                     sess.run(None, {sess.get_inputs()[0].name: dummy})
                     logger.info("AdaFaceEmbedder TRT warm-up complete")
+                    active = sess.get_providers()
+                    if active[0] != "TensorrtExecutionProvider":
+                        logger.warning(
+                            "AdaFaceEmbedder: TRT EP requested but active provider is %s"
+                            " -- check ONNX op compatibility",
+                            active[0],
+                        )
                 logger.info("AdaFaceEmbedder loaded from %s", model_path)
                 return cls(session=sess, min_face_px=min_px)
             except Exception as exc:
