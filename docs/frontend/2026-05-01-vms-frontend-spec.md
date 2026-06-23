@@ -1,16 +1,16 @@
-# VMS v2 — Frontend Design Specification
+# VMS Frontend Specification
 
-> **MOVED** — The canonical, edited version of this document is now at:
-> **`docs/frontend/2026-05-01-vms-frontend-spec.md`**
-> This copy is kept for CLAUDE.md §1 cross-reference compatibility. For implementation work, use the `docs/frontend/` version.
-
-**Design Specification** · 2026-05-01 · **Last updated: 2026-06-01**
+**Design Specification** · 2026-05-01 · **Last updated: 2026-06-24**
 **Status:** Approved · Companion to `2026-05-01-vms-v2-hardened-design.md` §12 (high-level frontend)
 **Audience:** Frontend engineers implementing the React app in Phase 4.
 
-> **Implementation status (2026-06-01): Frontend is DEFERRED — not starting until Phase 3 (Dispatcher + Profiler + Audit) backend work is complete.** The design below is correct and ready to build from; the sequencing decision is that Phase 3 API surface must exist before frontend development begins. See §0 for prerequisites.
+> **Phase 4 plan written** — `docs/superpowers/plans/2026-06-24-vms-phase4-frontend.md`. Phase 3 backend prerequisites are met; begin with the plan's pre-work tasks (P0–P2).
 
-This document is the source of truth for the frontend. Every component, screen, and interaction below should be implementable without further design discussion.
+**This document owns:** tech stack, routes, file layout, backend prerequisites, feature behavior, real-time events, forms, state management, testing, and performance budgets.
+
+> **For all visual design** — colors, typography, spacing, CSS variables, component states, theme switching, motion, and accessibility details — the canonical source is:
+> **[`docs/frontend/2026-06-24-vms-design-system.md`](2026-06-24-vms-design-system.md)**
+> Sections here summarise those concerns; the design system is authoritative on anything visual.
 
 ---
 
@@ -217,84 +217,22 @@ The frontend lives in a `frontend/` subdirectory of the repo root, separate from
 
 ## §5. Design tokens
 
-### Colour palette
+> **Canonical source:** All token values, CSS custom properties, complete color palette (both themes), typography scale, spacing, elevation, motion, and theme switching behavior are defined in:
+> **[`docs/frontend/2026-06-24-vms-design-system.md`](2026-06-24-vms-design-system.md)**
 
-Two themes — **dark** (default for Guard view, control rooms) and **light** (Admin, Analytics).
+Token names used throughout this spec:
 
-```ts
-// src/shared/design-system/tokens.ts
-export const colors = {
-  // brand
-  brand: {
-    50:  '#eef6ff',
-    100: '#d9eaff',
-    300: '#7eb0ff',
-    500: '#2b6cb0',  // primary brand
-    700: '#1a4480',
-    900: '#102a4c',
-  },
-  // alert severity (universal — same in both themes)
-  severity: {
-    critical: '#dc2626',  // red-600
-    high:     '#ea580c',  // orange-600
-    medium:   '#d97706',  // amber-600
-    low:      '#65a30d',  // lime-600
-  },
-  // semantic tokens — resolved per theme
-  text: {
-    primary:   { dark: '#f3f4f6', light: '#0f172a' },
-    secondary: { dark: '#9ca3af', light: '#475569' },
-    muted:     { dark: '#6b7280', light: '#94a3b8' },
-  },
-  surface: {
-    base:  { dark: '#0a0e1a', light: '#ffffff' },
-    raised: { dark: '#111827', light: '#f8fafc' },
-    sunken: { dark: '#020617', light: '#f1f5f9' },
-  },
-  border: {
-    default: { dark: '#1f2937', light: '#e2e8f0' },
-    strong:  { dark: '#374151', light: '#cbd5e1' },
-  },
-};
-```
+| Category | Tokens |
+|---|---|
+| Brand | `brand-50` → `brand-950`; primary = `brand-500 (#2b6cb0)` |
+| Severity | `severity.critical` / `.high` / `.medium` / `.low` — identical in both themes |
+| Surfaces | `surface.base`, `surface.raised`, `surface.sunken` |
+| Text | `text.primary`, `text.secondary`, `text.muted`, `text.inverse` |
+| Borders | `border.default`, `border.strong` |
+| Interactive | `focus.ring`, `interactive.hover`, `interactive.disabledBg`, `destructive.base` |
+| Status | `status.online`, `status.offline`, `status.auth_failed`, `status.maintenance` |
 
-Tailwind config imports these into a custom palette so utilities like `bg-surface-base text-text-primary` work in both themes via CSS custom properties.
-
-### Typography
-
-```
-Display:  Inter Display 700/600 — 32 / 28 / 24
-Body:     Inter 400/500/600     — 16 / 14 / 13
-Mono:     JetBrains Mono 400/500 — 13 / 12 (used for IDs, timestamps)
-```
-
-Self-hosted via `@fontsource/inter` and `@fontsource/jetbrains-mono` — no Google Fonts CDN (privacy + offline operation).
-
-### Spacing scale
-
-Tailwind default 4-unit scale (4, 8, 12, 16, 20, 24, 32, 40, 48, 64, 80, 96, 128). Don't use ad-hoc pixel values.
-
-### Elevation
-
-```
-shadow-1: 0 1px 2px rgba(0,0,0,0.06)        — cards
-shadow-2: 0 4px 6px rgba(0,0,0,0.10)        — popovers
-shadow-3: 0 10px 25px rgba(0,0,0,0.20)      — modals
-```
-
-Dark theme uses lower opacity (0.40 multiplier) since shadow contrast is reversed.
-
-### Motion
-
-```
-duration-fast:   120ms   — hover, focus rings
-duration-base:   200ms   — page transitions, drawer open
-duration-slow:   400ms   — large layout shifts
-easing-standard: cubic-bezier(0.4, 0, 0.2, 1)
-easing-emphasized: cubic-bezier(0.2, 0, 0, 1)
-```
-
-Respect `prefers-reduced-motion` — when set, durations collapse to 0 except for opacity.
+**Implementation:** tokens live as CSS custom properties on `:root[data-theme="light"|"dark"]`; Tailwind consumes them as `bg-surface-base`, `text-text-primary`, etc. Fonts are Inter Display / Inter / JetBrains Mono, self-hosted via `@fontsource`. Spacing is the Tailwind 4px base scale. See the design system for all hex values, font loading snippet, and the full elevation/motion specs.
 
 ---
 
@@ -783,21 +721,24 @@ Tables that always need virtualisation:
 
 ## §14. Accessibility
 
-Target **WCAG 2.1 Level AA**. Specific requirements:
+Target **WCAG 2.1 Level AA**.
 
-- All interactive elements reachable by keyboard. Tab order matches visual order.
-- Focus rings always visible (Tailwind `focus-visible:ring-2 ring-brand-500`).
-- Colour is never the only semantic carrier. Severity also shown via icon + label.
-- All icons have `aria-label` or are decorative (`aria-hidden="true"`).
-- `<video>` elements have caption tracks where available; live HLS has no captions but is decorative for guard scenarios.
-- Form errors announced via `role="alert"`.
-- Dialogs trap focus; Esc closes; restoring focus to the trigger on close.
-- Toast notifications: live region with `aria-live="polite"`; critical toasts use `assertive`.
-- Colour contrast minimum 4.5:1 for body, 3:1 for large text.
-- Reduced motion (`@media (prefers-reduced-motion: reduce)`) collapses all non-essential animation to 0ms.
-- All routes have a unique, descriptive `<title>` (set via `react-helmet-async`).
+> **Canonical reference:** Contrast ratio tables, keyboard navigation map, focus ring spec, live-region annotations, icon-only button patterns, and screen-reader guidance are in the design system:
+> **[`docs/frontend/2026-06-24-vms-design-system.md §13`](2026-06-24-vms-design-system.md#13-accessibility-checklist)**
 
-CI step: `pnpm test:a11y` runs axe-core against every page in storybook (Phase 4 task — `/storybook` not part of v1 ship but used for component dev).
+Implementation requirements (what every component must do):
+
+- All interactive elements reachable by keyboard; tab order matches visual order.
+- Focus rings: `focus-visible:ring-2 ring-offset-2` using `focus.ring` token — never suppressed.
+- Severity conveyed by color + icon + label (color never the sole carrier).
+- Icons: `aria-label` on interactive icons; `aria-hidden="true"` on decorative ones.
+- `<video>` elements have caption tracks where available; live HLS has no captions (decorative for guard use).
+- Form errors: `role="alert"` on error message, `aria-invalid="true"` + `aria-describedby` on input.
+- Dialogs trap focus; Esc closes; focus restores to trigger on close.
+- Toasts: `aria-live="polite"` for info/success/warning; `aria-live="assertive"` for critical errors.
+- All routes have a unique `<title>` via `react-helmet-async`.
+- `prefers-reduced-motion`: all non-essential animation durations collapse to 0ms.
+- CI: `pnpm test:a11y` runs axe-core against every page (Phase 4G.5 task).
 
 ---
 

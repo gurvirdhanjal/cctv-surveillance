@@ -88,7 +88,8 @@ The design is split across multiple spec files. They are read together, not in i
 | `docs/superpowers/specs/2026-04-23-vms-facial-recognition-design.md` | v1 baseline. Sections marked "unchanged" in v2 are still authoritative |
 | `docs/superpowers/specs/2026-05-01-vms-v2-hardened-design.md` | **v2 — the current source of truth.** Supersedes v1 for every section it touches. Includes scope, anomaly framework, maintenance windows, alert dispatcher, capacity model, model lifecycle, and 12 hardening items |
 | `docs/superpowers/specs/2026-05-01-vms-db-edge-cases.md` | Companion to v2: every concurrency, cascade, partition, time, GDPR, and invariant rule the DB must enforce. Adds CHECK constraints + UNIQUE constraints to the migration |
-| `docs/superpowers/specs/2026-05-01-vms-frontend-design.md` | Frontend source of truth: tech stack, three views (Guard / Management / Admin), state management, real-time integration, a11y, perf budgets |
+| `docs/frontend/2026-05-01-vms-frontend-spec.md` | **Frontend spec (canonical).** Tech stack, routes, file layout, feature behavior, real-time events, state, forms, testing, perf budgets. (`docs/superpowers/specs/2026-05-01-vms-frontend-design.md` is the old location — MOVED notice added there) |
+| `docs/frontend/2026-06-24-vms-design-system.md` | **Design system (canonical).** Colors, typography, spacing, CSS variables, theme toggle, component patterns, motion, accessibility. Companion to the frontend spec above. |
 | `docs/superpowers/specs/2026-05-27-vms-production-readiness.md` | **v1 GA acceptance spec.** Exit criteria, SLOs, security/GDPR/ops gates, capacity claims, per-phase gate-closing matrix |
 | `docs/superpowers/specs/2026-05-28-vms-storage-scalability.md` | **Storage scalability spec.** StorageBackend Protocol (local/MinIO), `tracking_events` monthly partitioning, three-tier scaling roadmap |
 | `docs/superpowers/specs/2026-06-12-vms-recording-clips-analytics.md` | **Recording, alert clips & analytics spec (Draft, not yet planned).** Pluggable `RecordingBackend` (FFmpeg HLS remux), alert clip + live + forensic playback API, PostgreSQL rollup analytics. Target Phase 3 |
@@ -182,9 +183,9 @@ a plan checkbox before Phase 4 starts. No implementation without an approved pla
 
 **Last major milestone:** Phase 3 TransReID Pose-Normalized Crops — COMPLETE (678 tests, commit `b341d03`). Plan: `docs/superpowers/plans/2026-06-17-vms-phase3-transreid-pose-normalized-crops.md`.
 
-**Next parallel work (while Task 5 is hardware-blocked):** Write Phase 5 security plan (`2026-06-24-vms-phase5-security.md`) — at-rest thumbnail cipher, JWT hardening, audit-log immutability DB trigger, sensitive-log filter (§7.2). Flag `/advisor`-mandatory items (cipher over biometric data, anything touching `audit.py`). Phase 5 is a GA exit criterion per `2026-05-27-vms-production-readiness.md`.
+**Next parallel work (while Task 5 is hardware-blocked):** Phase 4 frontend plan written (`2026-06-24-vms-phase4-frontend.md`); 96 tasks, 7 sub-plans (4A–4G) + 3 backend pre-work items (persons list, zones CRUD, Socket.io). Begin pre-work P0–P2, then sub-plans in order. Write Phase 5 security plan after Phase 4 implementation is underway (`2026-06-24-vms-phase5-security.md` — at-rest thumbnail cipher, JWT hardening, audit-log immutability DB trigger, sensitive-log filter). Phase 5 is a GA exit criterion per `2026-05-27-vms-production-readiness.md`; must land before any customer deployment.
 
-**Defer:** Phase 4 frontend (no plan yet), Phase 6c INT8/NVDEC (only needed past 12 cameras).
+**Defer:** Phase 6c INT8/NVDEC (only needed past 12 cameras).
 
 **Rule:** Never start a phase without an approved plan file in `docs/superpowers/plans/`. Each phase gets exactly one plan file; do not start implementation before the plan is reviewed.
 
