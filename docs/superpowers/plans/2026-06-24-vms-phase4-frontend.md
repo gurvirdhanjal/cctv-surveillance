@@ -4,7 +4,7 @@
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status: NOT STARTED**
+**Status: IN PROGRESS — 4A scaffold**
 
 **Goal:** Build the VMS React SPA from scratch — three role-gated views (Guard / Manager / Admin) backed by the existing FastAPI surface. Close the three backend gaps (`GET /api/persons` list, Zones CRUD API, Socket.io real-time server) that the frontend depends on, then deliver sub-plans 4A–4G to a shippable state: scaffold + design system, auth + routing, live guard view, analytics + forensic, admin views, real-time integration, and E2E/a11y/perf gates.
 
@@ -41,45 +41,45 @@ These three gaps block specific frontend features. Each must be closed and merge
 
 ### P0. `GET /api/persons` list endpoint (blocks 4E Admin persons page)
 
-- [ ] **P0.1** Write failing test `tests/api/test_persons_list.py::test_list_persons_returns_paginated_persons` — authenticated admin gets a paginated list (`items`, `total`, `limit`, `offset`); assert shape + ordering by `full_name`.
+- [x] **P0.1** Write failing test `tests/api/test_persons_list.py::test_list_persons_returns_paginated_persons` — authenticated admin gets a paginated list (`items`, `total`, `limit`, `offset`); assert shape + ordering by `full_name`.
   - verify: `pytest tests/api/test_persons_list.py -v` fails (route 404 / not implemented).
-- [ ] **P0.2** Write failing negative tests: `test_list_persons_requires_auth` (401 without JWT) and `test_list_persons_rejects_guard_role` (403 for `guard`; persons admin is manager/admin per §9).
+- [x] **P0.2** Write failing negative tests: `test_list_persons_requires_auth` (401 without JWT) and `test_list_persons_rejects_guard_role` (403 for `guard`; persons admin is manager/admin per §9).
   - verify: `pytest tests/api/test_persons_list.py -v` — new tests fail.
-- [ ] **P0.3** Add `PersonListResponse` to `vms/api/schemas.py` (`items: list[PersonResponse]`, `total: int`, `limit: int`, `offset: int`) and implement `GET /api/persons` in `vms/api/routes/persons.py` with `limit`/`offset` query params (default 50, max 200), role guard, ordered by `full_name`. Reuse the existing `get_db`/`get_current_user` deps.
+- [x] **P0.3** Add `PersonListResponse` to `vms/api/schemas.py` (`items: list[PersonResponse]`, `total: int`, `limit: int`, `offset: int`) and implement `GET /api/persons` in `vms/api/routes/persons.py` with `limit`/`offset` query params (default 50, max 200), role guard, ordered by `full_name`. Reuse the existing `get_db`/`get_current_user` deps.
   - verify: `pytest tests/api/test_persons_list.py -v` all pass; `pytest tests/api/test_persons*.py` regression green.
-- [ ] **P0.4** Spec-coverage check: confirm `persons.py` now covers the §9 Admin-persons read surface (list + search + create + enroll + delete). Backend quality gate + commit.
+- [x] **P0.4** Spec-coverage check: confirm `persons.py` now covers the §9 Admin-persons read surface (list + search + create + enroll + delete). Backend quality gate + commit.
   - verify: `ruff check vms/ tests/` clean; `mypy vms/` clean; `pytest` green. Commit `feat: add GET /api/persons list endpoint for admin persons view`.
 
 ### P1. Zones CRUD API — new `vms/api/routes/zones.py` (blocks 4E zone editor)
 
-- [ ] **P1.1** Confirm a `Zone` ORM model exists in `vms/db/models.py` (polygon geometry, `allowed_hours`, `max_capacity`, `loiter_threshold_s`, `floor_plan_id`). If fields are missing for the editor (§9 zones), STOP — this needs a migration; write the Alembic migration in the same commit (CLAUDE.md §6.1) and round-trip test `upgrade`/`downgrade` locally before proceeding.
+- [x] **P1.1** Confirm a `Zone` ORM model exists in `vms/db/models.py` (polygon geometry, `allowed_hours`, `max_capacity`, `loiter_threshold_s`, `floor_plan_id`). If fields are missing for the editor (§9 zones), STOP — this needs a migration; write the Alembic migration in the same commit (CLAUDE.md §6.1) and round-trip test `upgrade`/`downgrade` locally before proceeding.
   - verify: `grep -n "class Zone" vms/db/models.py`; if migration needed, `alembic upgrade head && alembic downgrade -1 && alembic upgrade head` succeeds.
-- [ ] **P1.2** Write failing tests `tests/api/test_zones.py` — `GET /api/zones` (list, auth required), `POST /api/zones` (admin creates, returns 201), `PATCH /api/zones/{id}` (update polygon/capacity), `DELETE /api/zones/{id}` (soft-delete/archive per §9 "soft delete only"). One positive + one negative (401 + 403 for non-admin write) per verb.
+- [x] **P1.2** Write failing tests `tests/api/test_zones.py` — `GET /api/zones` (list, auth required), `POST /api/zones` (admin creates, returns 201), `PATCH /api/zones/{id}` (update polygon/capacity), `DELETE /api/zones/{id}` (soft-delete/archive per §9 "soft delete only"). One positive + one negative (401 + 403 for non-admin write) per verb.
   - verify: `pytest tests/api/test_zones.py -v` fails (module/route missing).
-- [ ] **P1.3** Add `ZoneCreate`, `ZoneUpdate`, `ZoneResponse` Pydantic schemas to `vms/api/schemas.py` (polygon as list of `[x, y]` float pairs validated non-empty ≥3 points; `allowed_hours`, `max_capacity ≥ 0`, `loiter_threshold_s ≥ 0`).
+- [x] **P1.3** Add `ZoneCreate`, `ZoneUpdate`, `ZoneResponse` Pydantic schemas to `vms/api/schemas.py` (polygon as list of `[x, y]` float pairs validated non-empty ≥3 points; `allowed_hours`, `max_capacity ≥ 0`, `loiter_threshold_s ≥ 0`).
   - verify: `mypy vms/api/schemas.py` clean.
-- [ ] **P1.4** Implement `vms/api/routes/zones.py` with all four endpoints, admin role gate on writes, zone-level permission check on reads (CLAUDE.md §7.1 — check `user_camera_permissions`/zone scope, not just role). Register router in `vms/api/main.py` (`app.include_router(zones.router, prefix="/api")`).
+- [x] **P1.4** Implement `vms/api/routes/zones.py` with all four endpoints, admin role gate on writes, zone-level permission check on reads (CLAUDE.md §7.1 — check `user_camera_permissions`/zone scope, not just role). Register router in `vms/api/main.py` (`app.include_router(zones.router, prefix="/api")`).
   - verify: `pytest tests/api/test_zones.py -v` all pass.
-- [ ] **P1.5** Backend quality gate + commit.
+- [x] **P1.5** Backend quality gate + commit.
   - verify: `ruff check vms/ tests/` clean; `mypy vms/` clean; `pytest` green. Commit `feat: add zones CRUD API (GET/POST/PATCH/DELETE /api/zones)`.
 
 ### P2. Socket.io real-time server (blocks 4C live view + 4F real-time integration)
 
 The guard live view cannot function without server-push. `GET /api/state/snapshot` exists (used for reconnect rehydration); this adds the push channel bridging Redis streams to connected clients. Implements the §10 event contract.
 
-- [ ] **P2.1** Add `python-socketio` (ASGI) to backend deps (`pyproject.toml`/requirements). Create `vms/api/realtime/__init__.py` and `vms/api/realtime/server.py` with an `AsyncServer` (cors restricted to configured origins via `VMS_FRONTEND_ORIGIN`). Add `VMS_FRONTEND_ORIGIN` to `vms/config.py` (no hard-coded origin — CLAUDE.md §12).
+- [x] **P2.1** Add `python-socketio` (ASGI) to backend deps (`pyproject.toml`/requirements). Create `vms/api/realtime/__init__.py` and `vms/api/realtime/server.py` with an `AsyncServer` (cors restricted to configured origins via `VMS_FRONTEND_ORIGIN`). Add `VMS_FRONTEND_ORIGIN` to `vms/config.py` (no hard-coded origin — CLAUDE.md §12).
   - verify: `mypy vms/api/realtime/server.py` clean; import succeeds.
-- [ ] **P2.2** Write failing test `tests/api/test_realtime_auth.py::test_socket_connect_requires_valid_jwt` — connection handshake must validate the JWT (auth token in connect payload); reject unauthenticated connect. Use `socketio.AsyncClient` or the server's test harness.
+- [x] **P2.2** Write failing test `tests/api/test_realtime_auth.py::test_socket_connect_requires_valid_jwt` — connection handshake must validate the JWT (auth token in connect payload); reject unauthenticated connect. Use `socketio.AsyncClient` or the server's test harness.
   - verify: `pytest tests/api/test_realtime_auth.py -v` fails.
-- [ ] **P2.3** Implement JWT validation in the `connect` handler (reuse `vms.api.deps` token decode); reject with `ConnectionRefusedError` on invalid/missing token. Implement `subscribe_camera` / `unsubscribe_camera` / `subscribe_track` client→server handlers (room membership per §10). Role-gate: only authenticated users join rooms.
+- [x] **P2.3** Implement JWT validation in the `connect` handler (reuse `vms.api.deps` token decode); reject with `ConnectionRefusedError` on invalid/missing token. Implement `subscribe_camera` / `unsubscribe_camera` / `subscribe_track` client→server handlers (room membership per §10). Role-gate: only authenticated users join rooms.
   - verify: `pytest tests/api/test_realtime_auth.py -v` passes.
-- [ ] **P2.4** Write failing test `tests/api/test_realtime_bridge.py::test_alert_stream_event_emits_alert_fired` — pushing an event onto the Redis alert stream results in an `alert_fired` emit with the §10 payload shape (`alert_id, alert_type, severity, camera_id, zone_id, global_track_id, snapshot_url, ts`).
+- [x] **P2.4** Write failing test `tests/api/test_realtime_bridge.py::test_alert_stream_event_emits_alert_fired` — pushing an event onto the Redis alert stream results in an `alert_fired` emit with the §10 payload shape (`alert_id, alert_type, severity, camera_id, zone_id, global_track_id, snapshot_url, ts`).
   - verify: `pytest tests/api/test_realtime_bridge.py -v` fails.
-- [ ] **P2.5** Implement the Redis→Socket.io bridge as an async background task started on app startup: consume the alert stream and `person_location`/`head_count`/`worker_health`/`alert_state_changed`/`track_corrected`/`camera_snapshot` sources, emit the §10 events with their throttling (5fps `person_location` per track diff-only; 1s `head_count`; 2s `camera_snapshot`; immediate for alerts). Do not log embeddings/RTSP. This is a per-frame-adjacent path — batch emits, no per-event DB query (CLAUDE.md §0.6).
+- [x] **P2.5** Implement the Redis→Socket.io bridge as an async background task started on app startup: consume the alert stream and `person_location`/`head_count`/`worker_health`/`alert_state_changed`/`track_corrected`/`camera_snapshot` sources, emit the §10 events with their throttling (5fps `person_location` per track diff-only; 1s `head_count`; 2s `camera_snapshot`; immediate for alerts). Do not log embeddings/RTSP. This is a per-frame-adjacent path — batch emits, no per-event DB query (CLAUDE.md §0.6).
   - verify: `pytest tests/api/test_realtime_bridge.py -v` passes.
-- [ ] **P2.6** Mount the Socket.io ASGI app under the FastAPI app (e.g. `socketio.ASGIApp(sio, app)` or sub-mount at `/socket.io`) in `vms/api/main.py`; add a `degraded_mode` emit hook when the bridge detects Redis lag/disconnect.
+- [x] **P2.6** Mount the Socket.io ASGI app under the FastAPI app (e.g. `socketio.ASGIApp(sio, app)` or sub-mount at `/socket.io`) in `vms/api/main.py`; add a `degraded_mode` emit hook when the bridge detects Redis lag/disconnect.
   - verify: app starts; `pytest tests/api/test_realtime*.py` green; manual `GET /api/health` still 200.
-- [ ] **P2.7** Backend quality gate + commit.
+- [x] **P2.7** Backend quality gate + commit.
   - verify: `ruff check vms/ tests/` clean; `mypy vms/` clean; `pytest` green. Commit `feat: add Socket.io real-time server bridging Redis streams (§10)`.
 
 **Pre-work gate (all of P0–P2):** `ruff check vms/ tests/` clean; `mypy vms/` strict clean; `pytest` green. Do not start 4C/4E features that depend on these until merged.
