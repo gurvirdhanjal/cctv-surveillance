@@ -160,8 +160,9 @@ a plan checkbox before Phase 4 starts. No implementation without an approved pla
 | ~~`POST /PATCH /DELETE /api/maintenance` + calendar endpoint~~ | §D | **DONE** — commits `1d94c8fe`, `f24c1257`, `dffcad7e`, `88e9e686` |
 | ~~`PATCH /api/anomaly-detectors/{id}` (enable/disable, update config)~~ | §C | **DONE** |
 | ~~`PATCH /api/alert-routing/{id}`~~ | §E | **DONE** — commit `ad85adfe` |
-| `GET /api/forensic/search` + `GET /api/forensic/clips/{id}` | §F.2 | Needs CLIP embedding pipeline; DB table exists |
-| `GET /api/audit/verify` + `GET /api/audit/export` | §F.3 | AuditLog table + hash-chain exist; no route |
+| ~~`GET /api/forensic/clips/{id}`~~ | §F.2 | **DONE** — fully implemented in `forensic.py` |
+| `GET /api/forensic/search` | §F.2 | Returns 501; blocked on CLIP-ViT-B/32 ONNX text encoder pipeline (`VMS_CLIP_MODEL`). Needs recording/analytics spec Phase 3. |
+| ~~`GET /api/audit/verify` + `GET /api/audit/export`~~ | §F.3 | **DONE** — fully implemented in `audit.py`; PDF export, hash-chain re-verify, role gates. Only deferred item: digital signature on PDF (needs crypto signing spec). |
 | ~~Body Re-ID upgrade: TransReID-SSL ViT-B/16+ICS MSMT17~~ | Phase 6 | **DONE** — `transreid_body_msmt17.onnx` deployed; `TransReIDBodyEmbedder` in `body_embedder.py`; thresholds calibrated 2026-06-16 (`confirmed=0.65`, `cross_cam=0.70`). DukeMTMC retracted — do not use. |
 | `adaface_min_sim=0.72` re-calibration | — | Threshold set for old IR50/MS1MV2 embeddings. IR101/WebFace12M + affine alignment shifts distribution. Re-run on real footage before tightening; mandatory `/advisor` before changing. |
 | ~~`POST /api/cameras/{id}/recalibrate-required`~~ | §H.3 | **DONE** — `recalibrate_required_at` column + migration `a1b2c3d4e5f7` + route |
@@ -175,13 +176,15 @@ a plan checkbox before Phase 4 starts. No implementation without an approved pla
 
 ---
 
-**Active:** Phase 3 TransReID Pose-Normalized Crops — **COMPLETE** (678 tests, commit `b341d03`). Plan: `docs/superpowers/plans/2026-06-17-vms-phase3-transreid-pose-normalized-crops.md`. Delivered: `extract_torso_crop()` using COCO shoulder+hip keypoints for pose-invariant body Re-ID input; latent `keypoints`/`face_visible` preservation bug fixed in `_extract_body_embeddings`; dead OSNet `BodyEmbedder` removed.
+**Active:** Phase 6b — TensorRT FP16 + 12-camera MVP. **IN PROGRESS — Task 5 (camera characterization)**. Plan: `docs/superpowers/plans/2026-06-22-vms-phase6b-tensorrt-fp16.md`. Tasks 1–4 complete (725 tests, TRT EP confirmed active, 27× speedup, 1,125 MB VRAM at 5-cam). Task 5 requires live camera hardware.
 
-**Last major milestone:** Phase 3 Cross-Camera Accuracy — COMPLETE (666 tests, commit `71f00d0`). Plan: `docs/superpowers/plans/2026-06-17-vms-phase3-crosscam-accuracy.md`.
+**Task 5 critical gate:** FP16 cosine drift check (`scripts/trt_fp16_drift_check.py`) must be the **first step** of the Task 5 hardware session — collect ≥50 face crops + ≥50 body crops from the multi-cam run, then run the script. HARD STOP if any crop < 0.99 cosine FP32-vs-FP16 → mandatory `/advisor`. This is the §6.1 identity-correctness gate and blocks GA sign-off on TRT FP16.
 
-**Planned (not started):** ReID Quality Hardening — plan written 2026-06-15. Plan: `docs/superpowers/plans/2026-06-15-vms-phase3-reid-quality-hardening.md`. Adds: (A) hybrid crop quality gates + pre-norm embedding norm signal; (B) temporal quality-windowed gallery sub-sampling; (C) enrollment cosine-dedup check. `/advisor` session confirmed approach.
+**Last major milestone:** Phase 3 TransReID Pose-Normalized Crops — COMPLETE (678 tests, commit `b341d03`). Plan: `docs/superpowers/plans/2026-06-17-vms-phase3-transreid-pose-normalized-crops.md`.
 
-**Next after ReID hardening:** Camera Profiler + Audit hardening (Phase 3 remaining) — no plan written yet. Do not begin without an approved plan file. See §4.1.
+**Next parallel work (while Task 5 is hardware-blocked):** Write Phase 5 security plan (`2026-06-24-vms-phase5-security.md`) — at-rest thumbnail cipher, JWT hardening, audit-log immutability DB trigger, sensitive-log filter (§7.2). Flag `/advisor`-mandatory items (cipher over biometric data, anything touching `audit.py`). Phase 5 is a GA exit criterion per `2026-05-27-vms-production-readiness.md`.
+
+**Defer:** Phase 4 frontend (no plan yet), Phase 6c INT8/NVDEC (only needed past 12 cameras).
 
 **Rule:** Never start a phase without an approved plan file in `docs/superpowers/plans/`. Each phase gets exactly one plan file; do not start implementation before the plan is reviewed.
 

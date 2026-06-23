@@ -91,6 +91,9 @@ os.environ.setdefault("VMS_JWT_SECRET", "smoke-test-dummy-secret")
 os.environ.setdefault(
     "VMS_SCRFD_CONF", "0.30"
 )  # test default: lower than prod (0.50) per /advisor 2026-06-17
+os.environ.setdefault(
+    "VMS_YOLO_PERSON_CONF", "0.40"
+)  # test default: lower than prod (0.50) to catch distant/oblique persons
 os.environ.setdefault("VMS_MIN_FACE_PX", "20")  # 20px catches workers at distance
 # Lower blur gate for live validation — gate cameras capture moving workers.
 # Production default (25.0) rejects slightly-blurred faces from motion; 8.0 keeps them.
@@ -176,6 +179,7 @@ class CameraStats:
         self.total_faces_embedded: int = 0  # embed() returned non-None result
         self.total_faces_rejected: int = 0  # embed() returned None (blur / size gate)
         self.total_body_attempts: int = 0  # tracklets that met the size gate
+        self.total_body_embedded: int = 0  # of attempts, tracklets that produced an embedding
         self.total_kp_available: int = 0  # of those, tracklets with 17 COCO keypoints
         # rolling windows (last 200 samples) for live quality distribution
         self.body_quality_norms: deque[float] = deque(maxlen=200)
@@ -401,6 +405,7 @@ class CameraWorker:
             _face_rejected = 0
             _face_q_batch: list[float] = []
             _body_attempts = 0
+            _body_embedded = 0
             _kp_available = 0
             _body_q_batch: list[float] = []
 
@@ -459,6 +464,7 @@ class CameraWorker:
                             )
                             emb_tuple, quality = self._body_embedder.embed(torso)
                             if emb_tuple:
+                                _body_embedded += 1
                                 _body_q_batch.append(quality)
                             enriched.append(
                                 Tracklet(
@@ -518,6 +524,7 @@ class CameraWorker:
                 self._stats.total_faces_embedded += _face_embedded
                 self._stats.total_faces_rejected += _face_rejected
                 self._stats.total_body_attempts += _body_attempts
+                self._stats.total_body_embedded += _body_embedded
                 self._stats.total_kp_available += _kp_available
                 self._stats.body_quality_norms.extend(_body_q_batch)
                 self._stats.face_quality_norms.extend(_face_q_batch)
@@ -709,6 +716,7 @@ def _print_calibration_stats(
             f_emb = s.total_faces_embedded
             f_rej = s.total_faces_rejected
             b_att = s.total_body_attempts
+            b_emb = s.total_body_embedded
             kp_av = s.total_kp_available
             bq = list(s.body_quality_norms)
             fq = list(s.face_quality_norms)
@@ -720,16 +728,24 @@ def _print_calibration_stats(
         p_avg = sum(pc) / len(pc) if pc else 0.0
         p_peak = max(pc) if pc else 0
 
-        bq_str = (
-            f"avg={sum(bq)/len(bq):.3f}  min={min(bq):.3f}  max={max(bq):.3f}  n={len(bq)}"
-            if bq
-            else "no data yet"
-        )
-        fq_str = (
-            f"avg={sum(fq)/len(fq):.3f}  min={min(fq):.3f}  max={max(fq):.3f}  n={len(fq)}"
-            if fq
-            else "no data yet"
-        )
+        if bq:
+            _bq = np.array(bq)
+            bq_str = (
+                f"p5={np.percentile(_bq, 5):.1f}  p25={np.percentile(_bq, 25):.1f}"
+                f"  p50={np.percentile(_bq, 50):.1f}  p75={np.percentile(_bq, 75):.1f}"
+                f"  p95={np.percentile(_bq, 95):.1f}  n={len(bq)}"
+            )
+        else:
+            bq_str = "no data yet"
+        if fq:
+            _fq = np.array(fq)
+            fq_str = (
+                f"p5={np.percentile(_fq, 5):.2f}  p25={np.percentile(_fq, 25):.2f}"
+                f"  p50={np.percentile(_fq, 50):.2f}  p75={np.percentile(_fq, 75):.2f}"
+                f"  p95={np.percentile(_fq, 95):.2f}  n={len(fq)}"
+            )
+        else:
+            fq_str = "no data yet"
 
         print(f"  CAM{s.camera_id}  {s.label}  ({frms} frames processed)")
         print(f"    Persons  : avg={p_avg:.1f}  peak={p_peak}  (rolling {len(pc)} frames)")
@@ -737,8 +753,10 @@ def _print_calibration_stats(
             f"    Faces    : detected={f_det}  embedded={f_emb} ({emb_pct:.1f}%)"
             f"  quality-rejected={f_rej}"
         )
+        b_emb_pct = b_emb * 100 / b_att if b_att > 0 else 0.0
         print(
-            f"    Body     : crops={b_att}  pose-kpts={kp_pct:.1f}%" f"  (kpts available={kp_av})"
+            f"    Body     : crops={b_att}  embedded={b_emb} ({b_emb_pct:.1f}%)"
+            f"  pose-kpts={kp_pct:.1f}%  (kpts available={kp_av})"
         )
         print(f"    Body  Bq : {bq_str}")
         print(f"    Face  Fq : {fq_str}")
@@ -766,11 +784,13 @@ def _print_calibration_stats(
             bq = list(s.body_quality_norms)
             f_det = s.total_faces_detected
             f_rej = s.total_faces_rejected
-        if bq and min(bq) < 20.0:
-            hints.append(
-                f"CAM{s.camera_id}: body_q min={min(bq):.1f} (Laplacian) -- blurry crops in gallery;"
-                f" consider raising reid_body_quality_floor above {min(bq):.0f}"
-            )
+        if len(bq) >= 10:
+            _bq_p25 = float(np.percentile(bq, 25))
+            if _bq_p25 < 200.0:
+                hints.append(
+                    f"CAM{s.camera_id}: body_q p25={_bq_p25:.0f} (Laplacian) -- bottom quartile"
+                    f" is low; collect more data before setting reid_body_quality_floor"
+                )
         if f_det > 20 and f_rej / f_det > 0.35:
             hints.append(
                 f"CAM{s.camera_id}: {f_rej/f_det*100:.0f}% face embed rejection --"
