@@ -9,6 +9,15 @@ import { RoleGuard } from './RoleGuard'
 const GuardView = lazy(() =>
   import('@/features/guard/GuardView').then((m) => ({ default: m.GuardView })),
 )
+const LivePage = lazy(() =>
+  import('@/features/live/LivePage').then((m) => ({ default: m.LivePage })),
+)
+const FocusedCameraPage = lazy(() =>
+  import('@/features/live/FocusedCameraPage').then((m) => ({ default: m.FocusedCameraPage })),
+)
+const FollowPersonPage = lazy(() =>
+  import('@/features/live/FollowPersonPage').then((m) => ({ default: m.FollowPersonPage })),
+)
 const AnalyticsPage = lazy(() =>
   import('@/features/analytics/AnalyticsPage').then((m) => ({ default: m.AnalyticsPage })),
 )
@@ -55,6 +64,30 @@ export function AppRoutes() {
           element={
             <RoleGuard allow={['guard', 'manager', 'admin']}>
               <GuardView />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/live"
+          element={
+            <RoleGuard allow={['guard', 'manager', 'admin']}>
+              <LivePage />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/live/cameras/:cameraId"
+          element={
+            <RoleGuard allow={['guard', 'manager', 'admin']}>
+              <FocusedCameraPage />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/live/follow/:trackId"
+          element={
+            <RoleGuard allow={['guard', 'manager', 'admin']}>
+              <FollowPersonPage />
             </RoleGuard>
           }
         />
