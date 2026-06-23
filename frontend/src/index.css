@@ -1,0 +1,155 @@
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource-variable/inter/index.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Font roles ──────────────────────────────────────────────────── */
+:root {
+  --font-display: 'InterVariable', 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* ─── Severity (theme-invariant) ─────────────────────────────────── */
+:root {
+  --severity-critical: #dc2626;
+  --severity-high: #ea580c;
+  --severity-medium: #d97706;
+  --severity-low: #65a30d;
+}
+
+/* ─── Light theme (default / Manager / Admin) ────────────────────── */
+:root[data-theme='light'] {
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --text-inverse: #ffffff;
+
+  --surface-base: #ffffff;
+  --surface-raised: #f8fafc;
+  --surface-sunken: #f1f5f9;
+
+  --border-default: #e2e8f0;
+  --border-strong: #cbd5e1;
+
+  --focus-ring: #2b6cb0;
+  --interactive-hover: #1a4480;
+  --interactive-active: #102a4c;
+  --disabled-bg: #e2e8f0;
+  --disabled-text: #94a3b8;
+
+  --destructive: #dc2626;
+  --destructive-hover: #b91c1c;
+  --destructive-subtle: #fef2f2;
+
+  --status-online: #16a34a;
+  --status-offline: #6b7280;
+  --status-auth-failed: #d97706;
+  --status-maintenance: #2563eb;
+
+  --success: #16a34a;
+  --info: #2563eb;
+  --warning: #d97706;
+  --error: #dc2626;
+
+  --overlay-scrim: rgba(15, 23, 42, 0.45);
+  --selected-row: #eef6ff;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-2: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-3: 0 10px 25px rgba(0, 0, 0, 0.2);
+
+  --body-letter-spacing: 0;
+}
+
+/* ─── Dark theme (Guard / control-room) ─────────────────────────── */
+:root[data-theme='dark'] {
+  --text-primary: #f3f4f6;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  --text-inverse: #0f172a;
+
+  --surface-base: #0a0e1a;
+  --surface-raised: #111827;
+  --surface-sunken: #020617;
+
+  --border-default: #1f2937;
+  --border-strong: #374151;
+
+  --focus-ring: #7eb0ff;
+  --interactive-hover: #3b82f6;
+  --interactive-active: #2b6cb0;
+  --disabled-bg: #1f2937;
+  --disabled-text: #4b5563;
+
+  --destructive: #dc2626;
+  --destructive-hover: #ef4444;
+  --destructive-subtle: #1f1315;
+
+  --status-online: #22c55e;
+  --status-offline: #9ca3af;
+  --status-auth-failed: #f59e0b;
+  --status-maintenance: #3b82f6;
+
+  --success: #22c55e;
+  --info: #3b82f6;
+  --warning: #f59e0b;
+  --error: #ef4444;
+
+  --overlay-scrim: rgba(2, 6, 23, 0.7);
+  --selected-row: #0a1c33;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.024);
+  --shadow-2: 0 4px 6px rgba(0, 0, 0, 0.04);
+  --shadow-3: 0 10px 25px rgba(0, 0, 0, 0.08);
+
+  /* Slightly wider letter-spacing aids legibility on dark backgrounds */
+  --body-letter-spacing: 0.01em;
+}
+
+/* ─── Base layer ─────────────────────────────────────────────────── */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    font-family: var(--font-body);
+    background-color: var(--surface-base);
+    color: var(--text-primary);
+    letter-spacing: var(--body-letter-spacing);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+  }
+
+  /* Respect reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Visible focus ring for keyboard navigation */
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+}
