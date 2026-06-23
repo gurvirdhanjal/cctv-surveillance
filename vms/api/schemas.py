@@ -432,3 +432,34 @@ class ForensicClipItem(BaseModel):
 class ForensicClipsResponse(BaseModel):
     clips: list[ForensicClipItem]
     total: int
+
+
+class ZoneCreate(BaseModel):
+    name: str = Field(..., max_length=200)
+    polygon: list[tuple[float, float]] = Field(..., min_length=3)
+    allowed_hours: str | None = None
+    max_capacity: int | None = Field(default=None, ge=0)
+    loiter_threshold_s: int = Field(default=180, ge=0)
+    floor_plan_id: int | None = None
+
+
+class ZoneUpdate(BaseModel):
+    name: str | None = Field(default=None, max_length=200)
+    polygon: list[tuple[float, float]] | None = Field(default=None, min_length=3)
+    allowed_hours: str | None = None
+    max_capacity: int | None = Field(default=None, ge=0)
+    loiter_threshold_s: int | None = Field(default=None, ge=0)
+    floor_plan_id: int | None = None
+    is_active: bool | None = None
+
+
+class ZoneResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=False)
+    zone_id: int
+    name: str
+    polygon: list[tuple[float, float]] | None
+    allowed_hours: str | None
+    max_capacity: int | None
+    loiter_threshold_s: int
+    floor_plan_id: int | None
+    is_active: bool

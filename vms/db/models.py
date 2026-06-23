@@ -64,10 +64,18 @@ class Camera(Base):
 
 class Zone(Base):
     __tablename__ = "zones"
+    __table_args__ = (
+        CheckConstraint(
+            "(max_capacity IS NULL OR max_capacity >= 0) AND loiter_threshold_s >= 0",
+            name="chk_zone_nonneg",
+        ),
+    )
 
     zone_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     is_restricted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    floor_plan_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_capacity: Mapped[int | None] = mapped_column(Integer, nullable=True)
     allowed_hours: Mapped[str | None] = mapped_column(Text, nullable=True)
     loiter_threshold_s: Mapped[int] = mapped_column(Integer, nullable=False, default=180)

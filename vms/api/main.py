@@ -26,6 +26,7 @@ from vms.api.routes import (
     persons,
     routing,
     state,
+    zones,
 )
 from vms.config import Settings, get_settings
 from vms.db.partition_manager import ensure_future_partitions
@@ -82,6 +83,7 @@ async def integrity_error_handler(request: Request, exc: SAIntegrityError) -> JS
 app.include_router(auth.router, prefix="/api")
 app.include_router(health.router, prefix="/api")
 app.include_router(persons.router, prefix="/api")
+app.include_router(zones.router, prefix="/api")
 app.include_router(state.router, prefix="/api")
 app.include_router(alerts.router, prefix="/api")
 app.include_router(anomaly_detectors.router, prefix="/api")
