@@ -4,7 +4,7 @@
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status: IN PROGRESS — 4C**
+**Status: IN PROGRESS — 4D**
 
 **Goal:** Build the VMS React SPA from scratch — three role-gated views (Guard / Manager / Admin) backed by the existing FastAPI surface. Close the three backend gaps (`GET /api/persons` list, Zones CRUD API, Socket.io real-time server) that the frontend depends on, then deliver sub-plans 4A–4G to a shippable state: scaffold + design system, auth + routing, live guard view, analytics + forensic, admin views, real-time integration, and E2E/a11y/perf gates.
 
@@ -138,33 +138,33 @@ Establishes the `frontend/` workspace, toolchain, design tokens, and primitive c
 
 Depends on **P2 (Socket.io)** and existing `GET /api/state/snapshot`, `GET /api/cameras`, `GET /api/alerts`. HLS playback assumes the external transcoder exists (graceful "stream unavailable" state if not).
 
-- [ ] **4C.1** TDD `liveStore` (Zustand, §11) — `reset(snapshot)`, `applyLocations`, `applyAlertFired`, `applyAlertStateChanged`, `setFocusedCamera`, `setFollowedTrack`, `headCount`, `degraded`. Tests cover each action's state transition.
+- [x] **4C.1** TDD `liveStore` (Zustand, §11) — `reset(snapshot)`, `applyLocations`, `applyAlertFired`, `applyAlertStateChanged`, `setFocusedCamera`, `setFollowedTrack`, `headCount`, `degraded`. Tests cover each action's state transition.
   - verify: `pnpm test:run src/features/live/store/liveStore.test.ts` green.
-- [ ] **4C.2** TDD `useCameraSnapshot` hook — polls `GET /api/cameras/:id/snapshot` every 2s (5s in degraded mode, §10). Test interval + degraded switch (fake timers).
+- [x] **4C.2** TDD `useCameraSnapshot` hook — polls `GET /api/cameras/:id/snapshot` every 2s (5s in degraded mode, §10). Test interval + degraded switch (fake timers).
   - verify: `pnpm test:run` hook test green.
-- [ ] **4C.3** TDD `CameraTile` — states `online`/`offline`/`auth_failed`/`maintenance` with distinct icon + badge + tier chip (FULL/MID/LOW); `auth_failed` amber border (§6). Memoised. Tests cover each state render.
+- [x] **4C.3** TDD `CameraTile` — states `online`/`offline`/`auth_failed`/`maintenance` with distinct icon + badge + tier chip (FULL/MID/LOW); `auth_failed` amber border (§6). Memoised. Tests cover each state render.
   - verify: `pnpm test:run` CameraTile test green.
-- [ ] **4C.4** TDD `CameraGrid` — 4×3 paginated grid, keyboard ←/→ paginate, Esc returns to focused, active tile brand border, maintenance dimmed + calendar icon (§6). Tests: pagination + selection + keyboard.
+- [x] **4C.4** TDD `CameraGrid` — 4×3 paginated grid, keyboard ←/→ paginate, Esc returns to focused, active tile brand border, maintenance dimmed + calendar icon (§6). Tests: pagination + selection + keyboard.
   - verify: `pnpm test:run` CameraGrid test green.
-- [ ] **4C.5** TDD `FocusedCamera` — HLS.js attach to `<video>`, "stream unavailable" fallback when no HLS source, lazy-loaded HLS.js (live chunk, §15). Test: source attach + fallback (HLS.js mocked).
+- [x] **4C.5** TDD `FocusedCamera` — HLS.js attach to `<video>`, "stream unavailable" fallback when no HLS source, lazy-loaded HLS.js (live chunk, §15). Test: source attach + fallback (HLS.js mocked).
   - verify: `pnpm test:run` FocusedCamera test green.
-- [ ] **4C.6** TDD bbox overlay SVG layer for FocusedCamera — subscribes to `person_location` for the focused camera, throttled 5fps; named persons show colour band, unknown red dotted box (§6). Direct DOM update via rAF (§15), not per-event React state. Test: overlay renders boxes from store; throttle batching.
+- [x] **4C.6** TDD bbox overlay SVG layer for FocusedCamera — subscribes to `person_location` for the focused camera, throttled 5fps; named persons show colour band, unknown red dotted box (§6). Direct DOM update via rAF (§15), not per-event React state. Test: overlay renders boxes from store; throttle batching.
   - verify: `pnpm test:run` overlay test green.
-- [ ] **4C.7** TDD `AlertCard` — severity colour bar + icon + label (colour never sole carrier, §14), time-since, camera+zone, Acknowledge/Resolve CTAs. Memoised. Test render + CTA callbacks.
+- [x] **4C.7** TDD `AlertCard` — severity colour bar + icon + label (colour never sole carrier, §14), time-since, camera+zone, Acknowledge/Resolve CTAs. Memoised. Test render + CTA callbacks.
   - verify: `pnpm test:run` AlertCard test green.
-- [ ] **4C.8** TDD `AlertSidebar` — sorted severity DESC then triggered_at DESC, grouped by `global_track_id` ("+N similar"), filter dropdown (severity/type/zone), sticky-scroll "New alerts above ↑" toast, click→focus camera (§6). Tests: sort, grouping, filter.
+- [x] **4C.8** TDD `AlertSidebar` — sorted severity DESC then triggered_at DESC, grouped by `global_track_id` ("+N similar"), filter dropdown (severity/type/zone), sticky-scroll "New alerts above ↑" toast, click→focus camera (§6). Tests: sort, grouping, filter.
   - verify: `pnpm test:run` AlertSidebar test green.
-- [ ] **4C.9** TDD `useLiveAlerts` hook — seeds historical from `GET /api/alerts`, merges `alert_fired`/`alert_state_changed` socket events into `liveStore`. Acknowledge/Resolve call backend (`/api/alerts` state transition) with optimistic update + rollback on error. Test merge + optimistic path.
+- [x] **4C.9** TDD `useLiveAlerts` hook — seeds historical from `GET /api/alerts`, merges `alert_fired`/`alert_state_changed` socket events into `liveStore`. Acknowledge/Resolve call backend (`/api/alerts` state transition) with optimistic update + rollback on error. Test merge + optimistic path.
   - verify: `pnpm test:run` hook test green.
-- [ ] **4C.10** TDD `HeadCountBanner` + TopBar HeadCount badge — live total + per-zone breakdown modal, updates from `head_count` socket event (§6/§10), "stale" indicator in degraded mode. Test render + stale state.
+- [x] **4C.10** TDD `HeadCountBanner` + TopBar HeadCount badge — live total + per-zone breakdown modal, updates from `head_count` socket event (§6/§10), "stale" indicator in degraded mode. Test render + stale state.
   - verify: `pnpm test:run` HeadCountBanner test green.
-- [ ] **4C.11** TDD `SystemStatusStrip` + `TopBar` — logo, site title, Cmd+K person search (autocomplete from `/api/persons/search`), GPU util bar, active-alert count link (§6). Test: Cmd+K opens search, selecting tracked person → `/live/follow/:trackId`.
+- [x] **4C.11** TDD `SystemStatusStrip` + `TopBar` — logo, site title, Cmd+K person search (autocomplete from `/api/persons/search`), GPU util bar, active-alert count link (§6). Test: Cmd+K opens search, selecting tracked person → `/live/follow/:trackId`.
   - verify: `pnpm test:run` TopBar test green.
-- [ ] **4C.12** TDD `LivePage` — three-column layout (CameraGrid 320px / Focused 1fr / AlertSidebar 380px), wires grid selection ↔ focused ↔ alert focus (§6). Integration test with mocked API + socket.
+- [x] **4C.12** TDD `LivePage` — three-column layout (CameraGrid 320px / Focused 1fr / AlertSidebar 380px), wires grid selection ↔ focused ↔ alert focus (§6). Integration test with mocked API + socket.
   - verify: `pnpm test:run` LivePage integration test green.
-- [ ] **4C.13** TDD `FocusedCameraPage` (`/live/cameras/:cameraId`) + `FollowPersonPage`/`FollowPersonPanel` (`/live/follow/:trackId`) — follow mode auto-switches focused video to the camera holding the track, movement timeline strip, mini floor-plan (Leaflet) with live dot, `subscribe_track` emit (§6/§10). Tests: route param wiring + follow subscription.
+- [x] **4C.13** TDD `FocusedCameraPage` (`/live/cameras/:cameraId`) + `FollowPersonPage`/`FollowPersonPanel` (`/live/follow/:trackId`) — follow mode auto-switches focused video to the camera holding the track, movement timeline strip, mini floor-plan (Leaflet) with live dot, `subscribe_track` emit (§6/§10). Tests: route param wiring + follow subscription.
   - verify: `pnpm test:run` follow-mode tests green.
-- [ ] **4C.14** `useTrackedPersons` hook + memoised `PersonDot` (direct DOM transform updates, §15) consolidating location subscriptions. Quality gate + commit.
+- [x] **4C.14** `useTrackedPersons` hook + memoised `PersonDot` (direct DOM transform updates, §15) consolidating location subscriptions. Quality gate + commit.
   - verify: `pnpm lint && pnpm typecheck && pnpm test:run` green; `features/live` coverage ≥70%. Commit `feat(frontend): guard live view — grid, focused camera, alerts, head count, follow`.
 
 **4C gate:** `pnpm lint && pnpm typecheck && pnpm test:run`.
