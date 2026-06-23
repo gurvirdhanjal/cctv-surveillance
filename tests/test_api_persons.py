@@ -407,6 +407,64 @@ async def test_purge_calls_storage_delete_for_thumbnail(db_session: Session) -> 
     mock_storage.delete.assert_called_with("thumbnails/2026/05/28/face.jpg")
 
 
+# ---------------------------------------------------------------------------
+# P0 — GET /api/persons list
+# ---------------------------------------------------------------------------
+
+
+async def test_list_persons_requires_auth() -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/persons")
+    assert response.status_code == 401
+
+
+async def test_list_persons_rejects_guard() -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/persons", headers=_auth_headers_role("guard"))
+    assert response.status_code == 403
+
+
+async def test_list_persons_returns_paginated(db_session: Session) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await client.post(
+            "/api/persons",
+            json={"name": "Zara Patel", "employee_id": "E_LP_01"},
+            headers=_auth_headers(),
+        )
+        await client.post(
+            "/api/persons",
+            json={"name": "Aaron Khan", "employee_id": "E_LP_02"},
+            headers=_auth_headers(),
+        )
+        response = await client.get(
+            "/api/persons?limit=50&offset=0", headers=_auth_headers_role("manager")
+        )
+    assert response.status_code == 200
+    body = response.json()
+    assert "items" in body
+    assert "total" in body
+    assert body["limit"] == 50
+    assert body["offset"] == 0
+    assert body["total"] >= 2
+    names = [p["name"] for p in body["items"]]
+    assert names == sorted(names)
+
+
+async def test_list_persons_respects_limit(db_session: Session) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        for i in range(3):
+            await client.post(
+                "/api/persons",
+                json={"name": f"LimitTest {i:02d}", "employee_id": f"E_LT_{i:02d}"},
+                headers=_auth_headers(),
+            )
+        response = await client.get("/api/persons?limit=1&offset=0", headers=_auth_headers())
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["items"]) == 1
+    assert body["total"] >= 3
+
+
 @pytest.mark.asyncio
 async def test_purge_calls_storage_delete_for_clip_snapshots(db_session: Session) -> None:
     from unittest.mock import MagicMock, patch

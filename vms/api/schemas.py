@@ -23,6 +23,13 @@ class PersonResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class PersonListResponse(BaseModel):
+    items: list[PersonResponse]
+    total: int
+    limit: int
+    offset: int
+
+
 class EmbeddingCreate(BaseModel):
     embedding: list[float] = Field(..., min_length=512, max_length=512)
     quality_score: float = Field(..., ge=0.0, le=1.0)

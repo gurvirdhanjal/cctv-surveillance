@@ -7,9 +7,9 @@ from datetime import datetime, timezone
 from typing import Any
 
 import numpy as np
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse, Response
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from vms.api.deps import get_api_redis, get_current_user, get_db
@@ -17,6 +17,7 @@ from vms.api.schemas import (
     EmbeddingCreate,
     EmbeddingResponse,
     PersonCreate,
+    PersonListResponse,
     PersonResponse,
     PurgeRequest,
 )
@@ -118,6 +119,36 @@ async def add_embedding(
         get_api_redis(), embedding_id=record.embedding_id, person_id=person_id
     )
     return record
+
+
+@router.get("/persons", response_model=PersonListResponse)
+def list_persons(
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),  # noqa: B008
+    user: dict[str, Any] = Depends(get_current_user),  # noqa: B008
+) -> PersonListResponse:
+    _require_manager(user)
+    total: int = db.execute(
+        select(func.count()).select_from(Person).where(Person.is_active.is_(True))
+    ).scalar_one()
+    rows = (
+        db.execute(
+            select(Person)
+            .where(Person.is_active.is_(True))
+            .order_by(Person.name)
+            .limit(limit)
+            .offset(offset)
+        )
+        .scalars()
+        .all()
+    )
+    return PersonListResponse(
+        items=[PersonResponse.model_validate(p) for p in rows],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get("/persons/search", response_model=list[PersonResponse])
