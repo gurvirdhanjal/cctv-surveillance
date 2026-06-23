@@ -225,6 +225,12 @@ class Settings(BaseSettings):
     motion_gate_roi_crop_enabled: bool = False  # crop YOLO input to motion-region bbox + margin
     motion_gate_roi_margin_px: int = 32  # expand motion ROI by this many pixels before crop
 
+    # frontend / real-time
+    # Comma-separated list of allowed CORS origins for the Socket.io server.
+    # Set to the React dev server in development, production origin in production.
+    # Empty string or "*" allows all origins (dev default).
+    frontend_origin: str = "*"
+
     # storage backend
     storage_backend: str = "local"  # "local" | "minio"
     storage_local_dir: str = "thumbnails"  # base dir for LocalStorageBackend

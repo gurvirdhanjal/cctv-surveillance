@@ -7,13 +7,17 @@ import logging
 import pathlib
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import Any
 
+import socketio as _socketio  # type: ignore[import-untyped]
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from prometheus_client import make_asgi_app
 from sqlalchemy.exc import IntegrityError as SAIntegrityError
 
+from vms.api.realtime.bridge import run_bridge
+from vms.api.realtime.server import sio
 from vms.api.routes import (
     alerts,
     anomaly_detectors,
@@ -56,16 +60,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         db_session_factory=SessionLocal,
     )
     task = asyncio.create_task(dispatcher.run(), name="alert-dispatcher")
+    bridge_task = asyncio.create_task(run_bridge(get_settings().redis_url), name="realtime-bridge")
     try:
         yield
     finally:
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
-        except Exception:
-            logger.exception("AlertDispatcher raised unexpected error during shutdown")
+        for t in (task, bridge_task):
+            t.cancel()
+            try:
+                await t
+            except asyncio.CancelledError:
+                pass
+            except Exception:
+                logger.exception("Background task raised unexpected error during shutdown")
         try:
             await redis.aclose()
         except Exception:
@@ -104,3 +110,7 @@ def _call_ensure_future_partitions() -> None:
 
 _apply_media_mount(app, get_settings())
 _call_ensure_future_partitions()
+
+# Combined ASGI app: socket.io intercepts /socket.io/* paths; all others go to FastAPI.
+# Run this with: uvicorn vms.api.main:socket_app
+socket_app: Any = _socketio.ASGIApp(sio, other_asgi_app=app)
