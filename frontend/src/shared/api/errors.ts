@@ -39,6 +39,13 @@ export class ValidationError extends ApiError {
   }
 }
 
+export class NotImplementedError extends ApiError {
+  constructor(body?: unknown) {
+    super('Not implemented', 501, body)
+    this.name = 'NotImplementedError'
+  }
+}
+
 export class ServerError extends ApiError {
   constructor(status: number, body?: unknown) {
     super('Server error', status, body)
@@ -57,6 +64,8 @@ export function mapHttpError(status: number, body?: unknown): ApiError {
       return new NotFoundError(body)
     case 422:
       return new ValidationError(body)
+    case 501:
+      return new NotImplementedError(body)
     default:
       return new ServerError(status, body)
   }

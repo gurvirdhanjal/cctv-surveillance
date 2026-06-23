@@ -18,12 +18,34 @@ const FocusedCameraPage = lazy(() =>
 const FollowPersonPage = lazy(() =>
   import('@/features/live/FollowPersonPage').then((m) => ({ default: m.FollowPersonPage })),
 )
-const AnalyticsPage = lazy(() =>
-  import('@/features/analytics/AnalyticsPage').then((m) => ({ default: m.AnalyticsPage })),
+
+// Analytics chunk — Recharts isolated here
+const AnalyticsLayout = lazy(() =>
+  import('@/features/analytics/AnalyticsLayout').then((m) => ({ default: m.AnalyticsLayout })),
 )
-const ForensicPage = lazy(() =>
-  import('@/features/forensic/ForensicPage').then((m) => ({ default: m.ForensicPage })),
+const AnalyticsDashboardPage = lazy(() =>
+  import('@/features/analytics/AnalyticsDashboardPage').then((m) => ({
+    default: m.AnalyticsDashboardPage,
+  })),
 )
+const TimelinePage = lazy(() =>
+  import('@/features/analytics/TimelinePage').then((m) => ({ default: m.TimelinePage })),
+)
+const HeatmapPage = lazy(() =>
+  import('@/features/analytics/HeatmapPage').then((m) => ({ default: m.HeatmapPage })),
+)
+const PersonProfilePage = lazy(() =>
+  import('@/features/analytics/PersonProfilePage').then((m) => ({
+    default: m.PersonProfilePage,
+  })),
+)
+
+const ForensicSearchPage = lazy(() =>
+  import('@/features/forensic/ForensicSearchPage').then((m) => ({
+    default: m.ForensicSearchPage,
+  })),
+)
+
 const AdminPage = lazy(() =>
   import('@/features/admin/AdminPage').then((m) => ({ default: m.AdminPage })),
 )
@@ -92,20 +114,26 @@ export function AppRoutes() {
           }
         />
 
-        {/* Manager and above */}
+        {/* Manager and above — analytics nested routes */}
         <Route
           path="/analytics"
           element={
             <RoleGuard allow={['manager', 'admin']}>
-              <AnalyticsPage />
+              <AnalyticsLayout />
             </RoleGuard>
           }
-        />
+        >
+          <Route index element={<AnalyticsDashboardPage />} />
+          <Route path="timeline" element={<TimelinePage />} />
+          <Route path="heatmap" element={<HeatmapPage />} />
+          <Route path="persons/:id" element={<PersonProfilePage />} />
+        </Route>
+
         <Route
           path="/forensic"
           element={
             <RoleGuard allow={['manager', 'admin']}>
-              <ForensicPage />
+              <ForensicSearchPage />
             </RoleGuard>
           }
         />

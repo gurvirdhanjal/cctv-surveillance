@@ -4,7 +4,7 @@
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status: IN PROGRESS — 4D**
+**Status: IN PROGRESS — 4E**
 
 **Goal:** Build the VMS React SPA from scratch — three role-gated views (Guard / Manager / Admin) backed by the existing FastAPI surface. Close the three backend gaps (`GET /api/persons` list, Zones CRUD API, Socket.io real-time server) that the frontend depends on, then deliver sub-plans 4A–4G to a shippable state: scaffold + design system, auth + routing, live guard view, analytics + forensic, admin views, real-time integration, and E2E/a11y/perf gates.
 
@@ -175,29 +175,29 @@ Depends on **P2 (Socket.io)** and existing `GET /api/state/snapshot`, `GET /api/
 
 Light theme. Depends on `GET /api/alerts`, `GET /api/persons/*`, `GET /api/zones` (P1), `GET /api/cameras`. Timeline time-series + forensic CLIP search are **deferred** (see Known defers) — build the UI shells with disabled/empty states pointing at the deferred backends.
 
-- [ ] **4D.1** TDD `AnalyticsLayout` + light-theme route shell for `/analytics/*` (lazy chunk; Recharts isolated to this chunk, §15).
+- [x] **4D.1** TDD `AnalyticsLayout` + light-theme route shell for `/analytics/*` (lazy chunk; Recharts isolated to this chunk, §15).
   - verify: `pnpm test:run` layout test green.
-- [ ] **4D.2** TDD KPI metric cards (`/analytics` dashboard row 1) — head count peak, avg dwell, unknown-person events, camera uptime %. TanStack Query fetch with §11 stale times. Test render + loading/error states.
+- [x] **4D.2** TDD KPI metric cards (`/analytics` dashboard row 1) — head count peak, avg dwell, unknown-person events, camera uptime %. TanStack Query fetch with §11 stale times. Test render + loading/error states.
   - verify: `pnpm test:run` KPI cards test green.
-- [ ] **4D.3** TDD dashboard charts (row 2) — Recharts line (head count 7d) + bar (alert volume by type top 5) from `GET /api/alerts`. Test data→chart mapping.
+- [x] **4D.3** TDD dashboard charts (row 2) — Recharts line (head count 7d) + bar (alert volume by type top 5) from `GET /api/alerts`. Test data→chart mapping.
   - verify: `pnpm test:run` charts test green.
-- [ ] **4D.4** TDD `FloorPlan` component (Leaflet image overlay + custom marker layer for person dots, §7). Reusable by timeline/heatmap/follow. Test: image overlay mount + marker render.
+- [x] **4D.4** TDD `FloorPlan` component (Leaflet image overlay + custom marker layer for person dots, §7). Reusable by timeline/heatmap/follow. Test: image overlay mount + marker render.
   - verify: `pnpm test:run` FloorPlan test green.
-- [ ] **4D.5** TDD `TimeScrubber` UI (`/analytics/timeline`) — date/time slider (24h default, up to 7d), playback controls (0.5×–10×), pause + frame-step, zone/person/alert filters (§7). **Data source `GET /api/tracking/timeline` is deferred (Phase 5)** — render the scrubber against a mocked/empty trail with a "timeline data pending (Phase 5)" notice. Test control state machine (play/pause/speed).
+- [x] **4D.5** TDD `TimeScrubber` UI (`/analytics/timeline`) — date/time slider (24h default, up to 7d), playback controls (0.5×–10×), pause + frame-step, zone/person/alert filters (§7). **Data source `GET /api/tracking/timeline` is deferred (Phase 5)** — render the scrubber against a mocked/empty trail with a "timeline data pending (Phase 5)" notice. Test control state machine (play/pause/speed).
   - verify: `pnpm test:run` TimeScrubber test green.
-- [ ] **4D.6** TDD `HeatmapOverlay` (`/analytics/heatmap`) — per-zone polygons (from `GET /api/zones`) coloured by dwell intensity, legend, time-window selector (today/week/month/custom) (§7). Test polygon colour mapping + legend.
+- [x] **4D.6** TDD `HeatmapOverlay` (`/analytics/heatmap`) — per-zone polygons (from `GET /api/zones`) coloured by dwell intensity, legend, time-window selector (today/week/month/custom) (§7). Test polygon colour mapping + legend.
   - verify: `pnpm test:run` Heatmap test green.
-- [ ] **4D.7** TDD `DwellChart` + `PersonTimeline` components for person profile (§7). Test horizontal zone-presence timeline render.
+- [x] **4D.7** TDD `DwellChart` + `PersonTimeline` components for person profile (§7). Test horizontal zone-presence timeline render.
   - verify: `pnpm test:run` person-component tests green.
-- [ ] **4D.8** TDD `PersonProfilePage` (`/analytics/persons/:id`) — header (name/ID/dept/last-seen/photo from `/api/persons/:id`), 24h journey, per-zone dwell heatmap, recent alerts, "Open in timeline scrubber" CTA (§7). Integration test with mocked API.
+- [x] **4D.8** TDD `PersonProfilePage` (`/analytics/persons/:id`) — header (name/ID/dept/last-seen/photo from `/api/persons/:id`), 24h journey, per-zone dwell heatmap, recent alerts, "Open in timeline scrubber" CTA (§7). Integration test with mocked API.
   - verify: `pnpm test:run` PersonProfile test green.
-- [ ] **4D.9** TDD `AnalyticsDashboardPage` composition (row 3 quick actions) tying KPIs + charts + nav to timeline/heatmap/forensic. Integration test.
+- [x] **4D.9** TDD `AnalyticsDashboardPage` composition (row 3 quick actions) tying KPIs + charts + nav to timeline/heatmap/forensic. Integration test.
   - verify: `pnpm test:run` dashboard test green.
-- [ ] **4D.10** TDD `ForensicSearchPage` (`/forensic`) — query input, time-range/zone/camera filters, results grid, empty-state hints (§8). **`GET /api/forensic/search` returns 501 (CLIP blocked)** — render a clear "Forensic search unavailable — CLIP text encoder not yet deployed" state on 501, keep the input + filters disabled/labelled accordingly. Test: 501→disabled-state render.
+- [x] **4D.10** TDD `ForensicSearchPage` (`/forensic`) — query input, time-range/zone/camera filters, results grid, empty-state hints (§8). **`GET /api/forensic/search` returns 501 (CLIP blocked)** — render a clear "Forensic search unavailable — CLIP text encoder not yet deployed" state on 501, keep the input + filters disabled/labelled accordingly. Test: 501→disabled-state render.
   - verify: `pnpm test:run` ForensicSearch test green.
-- [ ] **4D.11** TDD `ClipResultCard` + clip side-drawer — thumb, time, zone, score; drawer plays 10s HLS clip via `GET /api/forensic/clips/{global_track_id}` (this endpoint IS implemented), tracklet metadata, "Open in timeline" CTA (§8). Virtualise results when ≥100 (§13). Test card render + drawer open.
+- [x] **4D.11** TDD `ClipResultCard` + clip side-drawer — thumb, time, zone, score; drawer plays 10s HLS clip via `GET /api/forensic/clips/{global_track_id}` (this endpoint IS implemented), tracklet metadata, "Open in timeline" CTA (§8). Virtualise results when ≥100 (§13). Test card render + drawer open.
   - verify: `pnpm test:run` ClipResultCard test green.
-- [ ] **4D.12** Quality gate + commit.
+- [x] **4D.12** Quality gate + commit.
   - verify: `pnpm lint && pnpm typecheck && pnpm test:run` green; `features/analytics` + `features/forensic` coverage ≥70%. Commit `feat(frontend): analytics dashboard, timeline shell, heatmap, person profile, forensic shell`.
 
 **4D gate:** `pnpm lint && pnpm typecheck && pnpm test:run`.

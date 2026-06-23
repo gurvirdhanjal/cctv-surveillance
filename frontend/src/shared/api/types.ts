@@ -117,6 +117,51 @@ export interface CameraResponse {
   recalibrate_required_at: string | null
 }
 
+// ─── Analytics ────────────────────────────────────────────────────────────────
+
+export interface AnalyticsKpi {
+  head_count_peak: number
+  avg_dwell_minutes: number | null
+  unknown_person_events: number
+  camera_uptime_pct: number
+}
+
+export interface HeadCountPoint {
+  date: string
+  peak: number
+  avg: number
+}
+
+export interface AlertCountByType {
+  alert_type: AlertType
+  count: number
+}
+
+export interface PersonProfile {
+  person_id: number
+  name: string
+  employee_id: string
+  is_active: boolean
+  department: string | null
+  last_seen_at: string | null
+  last_seen_camera_id: number | null
+  thumbnail_url: string | null
+}
+
+// ─── Forensic ─────────────────────────────────────────────────────────────────
+
+export interface ForensicClip {
+  global_track_id: string
+  camera_id: number
+  zone_id: number | null
+  score: number
+  triggered_at: string
+  thumbnail_url: string | null
+  clip_url: string | null
+  duration_s: number | null
+  alert_id: number | null
+}
+
 // ─── State snapshot ───────────────────────────────────────────────────────
 
 export interface HeadCount {
