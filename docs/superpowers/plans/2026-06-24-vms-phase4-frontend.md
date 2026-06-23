@@ -4,7 +4,7 @@
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status: IN PROGRESS — 4A scaffold**
+**Status: IN PROGRESS — 4C**
 
 **Goal:** Build the VMS React SPA from scratch — three role-gated views (Guard / Manager / Admin) backed by the existing FastAPI surface. Close the three backend gaps (`GET /api/persons` list, Zones CRUD API, Socket.io real-time server) that the frontend depends on, then deliver sub-plans 4A–4G to a shippable state: scaffold + design system, auth + routing, live guard view, analytics + forensic, admin views, real-time integration, and E2E/a11y/perf gates.
 
@@ -90,25 +90,25 @@ The guard live view cannot function without server-push. `GET /api/state/snapsho
 
 Establishes the `frontend/` workspace, toolchain, design tokens, and primitive components. No backend dependency.
 
-- [ ] **4A.1** Scaffold the Vite + React + TS project under `frontend/` with pnpm. Add `package.json` scripts per spec §19 (`dev`, `build`, `preview`, `test`, `test:run`, `test:e2e`, `test:a11y`, `lint`, `typecheck`). Configure `vite.config.ts` to proxy `/api` and `/socket.io` → `:8000` in dev. Add `tsconfig.json` (strict).
+- [x] **4A.1** Scaffold the Vite + React + TS project under `frontend/` with pnpm. Add `package.json` scripts per spec §19 (`dev`, `build`, `preview`, `test`, `test:run`, `test:e2e`, `test:a11y`, `lint`, `typecheck`). Configure `vite.config.ts` to proxy `/api` and `/socket.io` → `:8000` in dev. Add `tsconfig.json` (strict).
   - verify: `pnpm install` succeeds; `pnpm dev` serves on :5173; `pnpm typecheck` clean.
-- [ ] **4A.2** Configure ESLint 9 + typescript-eslint 7 + prettier 3 and Vitest 1.6 + React Testing Library 16 (`vitest.config.ts`, `test-utils/` setup with jsdom + RTL matchers). Add coverage thresholds (shared 80 / features 70).
+- [x] **4A.2** Configure ESLint 9 + typescript-eslint 7 + prettier 3 and Vitest 1.6 + React Testing Library 16 (`vitest.config.ts`, `test-utils/` setup with jsdom + RTL matchers). Add coverage thresholds (shared 80 / features 70).
   - verify: `pnpm lint` clean on scaffold; `pnpm test:run` runs (0 tests OK).
-- [ ] **4A.3** Install + configure Tailwind 3.4 with the §5 palette wired through CSS custom properties for dark/light themes (`tailwind.config.ts`, `index.css`). Self-host fonts via `@fontsource/inter` + `@fontsource/jetbrains-mono`.
+- [x] **4A.3** Install + configure Tailwind 3.4 with the §5 palette wired through CSS custom properties for dark/light themes (`tailwind.config.ts`, `index.css`). Self-host fonts via `@fontsource/inter` + `@fontsource/jetbrains-mono`.
   - verify: a sample element using `bg-surface-base text-text-primary` renders both themes; `pnpm build` succeeds.
-- [ ] **4A.4** Create `src/shared/design-system/tokens.ts` (colors, typography, spacing, elevation, motion from §5). Write `tokens.test.ts` asserting severity colors + theme-resolved token shape.
+- [x] **4A.4** Create `src/shared/design-system/tokens.ts` (colors, typography, spacing, elevation, motion from §5). Write `tokens.test.ts` asserting severity colors + theme-resolved token shape.
   - verify: `pnpm test:run src/shared/design-system/tokens.test.ts` passes.
-- [ ] **4A.5** TDD `ThemeProvider` + `themeStore` (Zustand, §11) — theme/locale persisted to `localStorage`, `toggleTheme`, `prefers-reduced-motion` respected. Test: toggling theme flips `data-theme` and persists.
+- [x] **4A.5** TDD `ThemeProvider` + `themeStore` (Zustand, §11) — theme/locale persisted to `localStorage`, `toggleTheme`, `prefers-reduced-motion` respected. Test: toggling theme flips `data-theme` and persists.
   - verify: `pnpm test:run` ThemeProvider test green.
-- [ ] **4A.6** TDD primitive `Button` (shadcn-derived) — variants, `loading` spinner, `focus-visible:ring-2 ring-brand-500`, `aria-disabled`. Test render + variants + a11y (axe on component).
+- [x] **4A.6** TDD primitive `Button` (shadcn-derived) — variants, `loading` spinner, `focus-visible:ring-2 ring-brand-500`, `aria-disabled`. Test render + variants + a11y (axe on component).
   - verify: `pnpm test:run` Button test green.
-- [ ] **4A.7** TDD primitive `Input` — `label`, `error`, `aria-invalid`, `aria-describedby` linkage (§12). Test error wiring + label association.
+- [x] **4A.7** TDD primitive `Input` — `label`, `error`, `aria-invalid`, `aria-describedby` linkage (§12). Test error wiring + label association.
   - verify: `pnpm test:run` Input test green.
-- [ ] **4A.8** TDD primitives `Modal`/`Dialog` (focus trap, Esc closes, restore focus to trigger — §14) and `Toast` (`aria-live` polite/assertive — §14/§16). Tests cover focus trap + live region.
+- [x] **4A.8** TDD primitives `Modal`/`Dialog` (focus trap, Esc closes, restore focus to trigger — §14) and `Toast` (`aria-live` polite/assertive — §14/§16). Tests cover focus trap + live region.
   - verify: `pnpm test:run` Modal + Toast tests green.
-- [ ] **4A.9** TDD remaining shared primitives needed downstream: `Badge` (severity/tier), `Spinner`, `Table` wrapper (TanStack Table + react-virtual scaffold, §13), `Tabs`, `Select`, `Tooltip`. One render/behavior test each.
+- [x] **4A.9** TDD remaining shared primitives needed downstream: `Badge` (severity/tier), `Spinner`, `Table` wrapper (TanStack Table + react-virtual scaffold, §13), `Tabs`, `Select`, `Tooltip`. One render/behavior test each.
   - verify: `pnpm test:run src/shared/design-system` all green; coverage of `shared/design-system` ≥80%.
-- [ ] **4A.10** App shell composition: `src/main.tsx`, `src/app/App.tsx` (theme + query client + helmet root), `src/app/providers.tsx`, `src/shared/i18n/` (react-intl `IntlProvider` + `en/` message stubs), error boundary hierarchy scaffold (§16). Quality gate + commit.
+- [x] **4A.10** App shell composition: `src/main.tsx`, `src/app/App.tsx` (theme + query client + helmet root), `src/app/providers.tsx`, `src/shared/i18n/` (react-intl `IntlProvider` + `en/` message stubs), error boundary hierarchy scaffold (§16). Quality gate + commit.
   - verify: `pnpm lint && pnpm typecheck && pnpm test:run` all green. Commit `feat(frontend): scaffold Vite app, design system tokens + primitives`.
 
 **4A gate:** `pnpm lint && pnpm typecheck && pnpm test:run`.
@@ -117,17 +117,17 @@ Establishes the `frontend/` workspace, toolchain, design tokens, and primitive c
 
 ## 4B — Auth + routing + role guards (~6 tasks)
 
-- [ ] **4B.1** TDD `shared/api/client.ts` — fetch wrapper with JWT injection (Authorization header), typed error mapping to `ApiError`/`UnauthorizedError`/`ForbiddenError`/`NotFoundError`/`ValidationError`/`ServerError` (§16). Test each status→class mapping.
+- [x] **4B.1** TDD `shared/api/client.ts` — fetch wrapper with JWT injection (Authorization header), typed error mapping to `ApiError`/`UnauthorizedError`/`ForbiddenError`/`NotFoundError`/`ValidationError`/`ServerError` (§16). Test each status→class mapping.
   - verify: `pnpm test:run src/shared/api/client.test.ts` green.
-- [ ] **4B.2** Generate `shared/api/types.ts` from the backend OpenAPI schema (script in `package.json`, e.g. `openapi-typescript` against `/openapi.json`). Commit the generated file. Test: a representative type compiles against a sample payload.
+- [x] **4B.2** Generate `shared/api/types.ts` from the backend OpenAPI schema (script in `package.json`, e.g. `openapi-typescript` against `/openapi.json`). Commit the generated file. Test: a representative type compiles against a sample payload.
   - verify: `pnpm typecheck` clean with generated types imported.
-- [ ] **4B.3** TDD `authStore` + `AuthProvider` + `useAuth` (§11) — `login(creds)` calls `POST /api/auth/token`, stores token + decoded user/role, `logout` clears. JWT decoded client-side for routing only (server still authorises). Test login success + failure paths.
+- [x] **4B.3** TDD `authStore` + `AuthProvider` + `useAuth` (§11) — `login(creds)` calls `POST /api/auth/token`, stores token + decoded user/role, `logout` clears. JWT decoded client-side for routing only (server still authorises). Test login success + failure paths.
   - verify: `pnpm test:run` auth store/provider tests green.
-- [ ] **4B.4** TDD `LoginPage` (`/login`) — React Hook Form + Zod, error toast on 401, redirect to `?next=` on success. Test submit happy path + invalid creds.
+- [x] **4B.4** TDD `LoginPage` (`/login`) — React Hook Form + Zod, error toast on 401, redirect to `?next=` on success. Test submit happy path + invalid creds.
   - verify: `pnpm test:run` LoginPage test green.
-- [ ] **4B.5** TDD `RoleGuard` (§3 role table: guard / manager / admin) + route table `src/app/routes.tsx` with `React.lazy` per top-level route (§15 code splitting). Tests: guard role blocked from `/analytics` (→ `/403`), admin allowed all, unauthenticated → `/login`.
+- [x] **4B.5** TDD `RoleGuard` (§3 role table: guard / manager / admin) + route table `src/app/routes.tsx` with `React.lazy` per top-level route (§15 code splitting). Tests: guard role blocked from `/analytics` (→ `/403`), admin allowed all, unauthenticated → `/login`.
   - verify: `pnpm test:run` RoleGuard + routing tests green.
-- [ ] **4B.6** `/403` and `/404` pages + app-level `UnauthorizedError`→`/login` redirect effect (§16). Quality gate + commit.
+- [x] **4B.6** `/403` and `/404` pages + app-level `UnauthorizedError`→`/login` redirect effect (§16). Quality gate + commit.
   - verify: `pnpm lint && pnpm typecheck && pnpm test:run` green. Commit `feat(frontend): auth flow, route table, role guards, 403/404 pages`.
 
 **4B gate:** `pnpm lint && pnpm typecheck && pnpm test:run`.
