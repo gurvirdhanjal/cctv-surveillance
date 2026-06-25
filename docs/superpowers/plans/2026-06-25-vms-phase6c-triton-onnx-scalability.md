@@ -4,7 +4,7 @@
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status: IN PROGRESS — Task 9**
+**Status: IN PROGRESS — Task 10 (hardware-gated)**
 
 **Goal:** Move GPU kernel execution for the ONNX model stack (SCRFD, AdaFace, TransReID body,
 PPE) out of in-process ONNX Runtime and behind a Triton Inference Server gRPC endpoint, so the
@@ -426,19 +426,19 @@ This is the one task where "no code" is an acceptable outcome.
 **No code.**
 
 Write the operator runbook for standing up Triton in WSL2 on the Windows host:
-- [ ] WSL2 prerequisites: NVIDIA driver ≥ 535 on Windows host; `wsl --install`; Ubuntu 22.04;
+- [x] WSL2 prerequisites: NVIDIA driver ≥ 535 on Windows host; `wsl --install`; Ubuntu 22.04;
       verify `nvidia-smi` inside WSL2 (GPU passthrough).
-- [ ] `.wslconfig` template with **explicit** `memory` and `swap` (WSL2 ballooning can starve
+- [x] `.wslconfig` template with **explicit** `memory` and `swap` (WSL2 ballooning can starve
       Triton — document concrete values for the 16 GB / target-RAM host).
-- [ ] Rootless Docker install in WSL2 (no Docker Desktop license dependency) + NVIDIA Container
+- [x] Rootless Docker install in WSL2 (no Docker Desktop license dependency) + NVIDIA Container
       Toolkit.
-- [ ] `docker run` command for the Triton server: mount `models/triton_repo` (built in Task 2),
-      expose 8001 (gRPC), `--gpus all`, `--shm-size`, the chosen `nvcr.io/nvidia/tritonserver:24.xx-py3`
+- [x] `docker run` command for the Triton server: mount `models/triton_repo` (built in Task 2),
+      expose 8001 (gRPC), `--gpus all`, `--shm-size`, the chosen `nvcr.io/nvidia/tritonserver:24.05-py3`
       tag.
-- [ ] How the Windows-native VMS connects: `VMS_GPU_TRITON_URL=localhost:8001`.
-- [ ] Fill the spec §6.4 compatibility matrix rows discovered during MVP: Triton server tag ↔
+- [x] How the Windows-native VMS connects: `VMS_GPU_TRITON_URL=localhost:8001`.
+- [x] Fill the spec §6.4 compatibility matrix rows discovered during MVP: Triton server tag ↔
       ORT backend version ↔ CUDA ↔ TensorRT ↔ driver. Mark any combos tested vs untested.
-- [ ] Engine-cache invalidation note (TRT plans inside Triton must be rebuilt after a driver
+- [x] Engine-cache invalidation note (TRT plans inside Triton must be rebuilt after a driver
       upgrade — same gotcha flagged in Phase 6b).
 
 **Quality gate:** doc review only; no lint/test.

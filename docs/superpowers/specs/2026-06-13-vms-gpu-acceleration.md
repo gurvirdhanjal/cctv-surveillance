@@ -411,17 +411,23 @@ The exercise is not complete until this table is filled in and committed to the 
 "Works" = Triton-in-WSL2 starts cleanly, GPU passthrough confirmed, `VMS_GPU_TRITON_URL`
 smoke-test passes against ≥3 live cameras.
 
-| Windows Server / OS | NVIDIA driver | WSL2 kernel pkg | Docker engine | Triton image | CUDA in container | Status |
-|---|---|---|---|---|---|---|
-| Windows Server 2022 (21H2) | 535.x | nvidia-utils-535 | 24.x rootless | 24.x-trt10.x-cu12.x-ubuntu22.04 | 12.x | ○ untested |
-| Windows Server 2022 (21H2) | 555.x | nvidia-utils-555 | 24.x rootless | 24.x-trt10.x-cu12.x-ubuntu22.04 | 12.x | ○ untested |
-| Windows 11 Pro 23H2 | 555.x | nvidia-utils-555 | 24.x rootless | 24.x-trt10.x-cu12.x-ubuntu22.04 | 12.x | ○ untested |
+| Windows OS | NVIDIA Driver | WSL2 Kernel Pkg | Docker Engine | Triton Image | CUDA in Container | ORT Backend | Status |
+|---|---|---|---|---|---|---|---|
+| Windows 11 Pro 23H2 (26200) | 560.94 | nvidia-utils-535 | 26.x rootless | `24.05-py3` | 12.4 | 1.18.x | ○ untested |
+| Windows Server 2022 21H2 | 535.x | nvidia-utils-535 | 24.x rootless | `24.05-py3` | 12.4 | 1.18.x | ○ untested |
+| Windows Server 2022 21H2 | 555.x | nvidia-utils-555 | 24.x rootless | `24.05-py3` | 12.4 | 1.18.x | ○ untested |
+| Windows Server 2022 21H2 | 555.x | nvidia-utils-555 | 24.x rootless | `24.08-py3` | 12.6 | 1.19.x | ○ untested |
+
+**Triton image tag guide (added 2026-06-26):**
+- `24.05-py3` → TRT 10.0, CUDA 12.4, ORT 1.18 — minimum supported tag (OSNet ONNX opset 17 requires ORT ≥ 1.18)
+- `24.08-py3` → TRT 10.2, CUDA 12.6, ORT 1.19 — use on CUDA 12.6+ hosts
+- Do not use images older than `24.05-py3` — ORT ≤ 1.17 does not support opset 17 (OSNet export format)
 
 Fill "Status" during MVP (○ untested / ✓ confirmed / ✗ incompatible + reason). Record the exact
-image tag (`nvcr.io/nvidia/tritonserver:<tag>`) used for each confirmed row — the tag pins TRT
-and CUDA versions simultaneously. Add the minimum confirmed row as a customer pre-requisite in
-the deployment guide. **Do not ship Triton as a supported configuration without at least one ✓
-row.** Also record the sustained-load result: ≥3 cameras at steady state, not just smoke-start.
+image tag (`nvcr.io/nvidia/tritonserver:<tag>`) used for each confirmed row — the tag pins TRT,
+CUDA, and ORT backend versions simultaneously. Add the minimum confirmed row as a customer
+pre-requisite in the deployment guide. **Do not ship Triton as a supported configuration without
+at least one ✓ row.** Also record the sustained-load result: ≥3 cameras at steady state.
 
 **Scale trigger:** in-process TRT EP suffices through ~20–30 cameras on a 32 GB Ada/Ampere-class
 GPU with FP16 + motion-gate + detector-interval engaged. Triton's cross-camera batching becomes
