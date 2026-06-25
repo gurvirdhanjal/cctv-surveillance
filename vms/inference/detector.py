@@ -125,9 +125,7 @@ def scrfd_decode(
     if kpss_arr is not None:
         kpss_arr /= det_scale
 
-    boxes_xywh = [
-        [float(b[0]), float(b[1]), float(b[2] - b[0]), float(b[3] - b[1])] for b in boxes
-    ]
+    boxes_xywh = [[float(b[0]), float(b[1]), float(b[2] - b[0]), float(b[3] - b[1])] for b in boxes]
     idxs: Any = cv2.dnn.NMSBoxes(boxes_xywh, scores_arr.tolist(), conf_thres, nms_thres)
     if len(idxs) == 0:
         return []
@@ -298,7 +296,9 @@ class SCRFDDetector:
         return scrfd_preprocess(img)
 
     def _decode(self, outputs: list[Any], det_scale: float) -> list[FaceWithEmbedding]:
-        return scrfd_decode(outputs, det_scale, self._conf_thres, self._nms_thres, self._min_face_px)
+        return scrfd_decode(
+            outputs, det_scale, self._conf_thres, self._nms_thres, self._min_face_px
+        )
 
 
 class _YoloFaceBackend:

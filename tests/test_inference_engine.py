@@ -138,8 +138,8 @@ def test_extract_body_embeddings_populates_tracklets() -> None:
     from vms.inference.engine import _extract_body_embeddings
     from vms.inference.messages import Tracklet
 
-    embedder = MagicMock()
-    embedder.embed.return_value = (tuple([0.1] * 512), 0.95)
+    mock_backend = MagicMock()
+    mock_backend.embed_body.return_value = (tuple([0.1] * 512), 0.95)
 
     frame = np.zeros((480, 640, 3), dtype=np.uint8)
     tracklets = (
@@ -147,13 +147,13 @@ def test_extract_body_embeddings_populates_tracklets() -> None:
         Tracklet(local_track_id=2, camera_id=1, bbox=(200, 100, 280, 300), confidence=0.8),
     )
     with patch("vms.inference.engine._blur_score", return_value=100.0):
-        result = _extract_body_embeddings(frame, tracklets, embedder)
+        result = _extract_body_embeddings(frame, tracklets, mock_backend)
     assert len(result) == 2
     assert result[0].body_embedding == tuple([0.1] * 512)
     assert result[1].body_embedding == tuple([0.1] * 512)
     assert result[0].body_quality_norm == 0.95
     assert result[1].body_quality_norm == 0.95
-    assert embedder.embed.call_count == 2
+    assert mock_backend.embed_body.call_count == 2
 
 
 def test_extract_body_embeddings_no_embedder_returns_empty() -> None:
@@ -174,9 +174,11 @@ def test_score_ppe_returns_tracklets_unchanged_when_model_none() -> None:
     from vms.inference.engine import _score_ppe
     from vms.inference.messages import Tracklet
 
+    mock_backend = MagicMock()
+    mock_backend.score_ppe.return_value = None
     frame = np.zeros((480, 640, 3), dtype=np.uint8)
     tracklets = (Tracklet(local_track_id=1, camera_id=1, bbox=(10, 20, 60, 120), confidence=0.9),)
-    result = _score_ppe(frame, tracklets, None)
+    result = _score_ppe(frame, tracklets, mock_backend)
     assert result[0].ppe_helmet_conf is None
     assert result[0].ppe_vest_conf is None
     assert result[0].ppe_gloves_conf is None
@@ -184,15 +186,13 @@ def test_score_ppe_returns_tracklets_unchanged_when_model_none() -> None:
 
 
 def test_score_ppe_populates_all_four_ppe_fields() -> None:
-    from unittest.mock import MagicMock
-
     import numpy as np
 
     from vms.inference.engine import _score_ppe
     from vms.inference.messages import Tracklet
 
-    ppe_model = MagicMock()
-    ppe_model.score_crop.return_value = {
+    mock_backend = MagicMock()
+    mock_backend.score_ppe.return_value = {
         "helmet": 0.88,
         "vest": 0.73,
         "gloves": 0.55,
@@ -201,30 +201,27 @@ def test_score_ppe_populates_all_four_ppe_fields() -> None:
 
     frame = np.zeros((480, 640, 3), dtype=np.uint8)
     tracklets = (Tracklet(local_track_id=1, camera_id=1, bbox=(10, 20, 60, 120), confidence=0.9),)
-    result = _score_ppe(frame, tracklets, ppe_model)
+    result = _score_ppe(frame, tracklets, mock_backend)
     assert abs(result[0].ppe_helmet_conf - 0.88) < 1e-6
     assert abs(result[0].ppe_vest_conf - 0.73) < 1e-6
     assert abs(result[0].ppe_gloves_conf - 0.55) < 1e-6
     assert result[0].ppe_mask_conf == 0.0
-    assert ppe_model.score_crop.call_count == 1
+    assert mock_backend.score_ppe.call_count == 1
 
 
 def test_score_ppe_handles_none_return_from_model() -> None:
     """When score_crop returns None (e.g. crop too small), ppe fields stay None."""
-    from unittest.mock import MagicMock
-
     import numpy as np
 
     from vms.inference.engine import _score_ppe
     from vms.inference.messages import Tracklet
 
-    ppe_model = MagicMock()
-    ppe_model.is_available = True
-    ppe_model.score_crop.return_value = None
+    mock_backend = MagicMock()
+    mock_backend.score_ppe.return_value = None
 
     frame = np.zeros((100, 100, 3), dtype=np.uint8)
     tracklets = (Tracklet(local_track_id=1, camera_id=1, bbox=(0, 0, 10, 10), confidence=0.8),)
-    result = _score_ppe(frame, tracklets, ppe_model)
+    result = _score_ppe(frame, tracklets, mock_backend)
     assert result[0].ppe_helmet_conf is None
     assert result[0].ppe_vest_conf is None
 
@@ -277,8 +274,8 @@ def test_extract_body_embeddings_uses_torso_crop_when_keypoints_present() -> Non
         received_crops.append(crop)
         return tuple([0.1] * 768), 0.9
 
-    embedder = MagicMock()
-    embedder.embed.side_effect = _capture_embed
+    mock_backend = MagicMock()
+    mock_backend.embed_body.side_effect = _capture_embed
 
     frame = np.zeros((480, 640, 3), dtype=np.uint8)
     kpts = _make_torso_kpts(conf=0.9)
@@ -287,7 +284,7 @@ def test_extract_body_embeddings_uses_torso_crop_when_keypoints_present() -> Non
         local_track_id=1, camera_id=1, bbox=(50, 30, 400, 450), confidence=0.9, keypoints=kpts
     )
     with patch("vms.inference.engine._blur_score", return_value=100.0):
-        _extract_body_embeddings(frame, (tracklet,), embedder)
+        _extract_body_embeddings(frame, (tracklet,), mock_backend)
 
     assert len(received_crops) == 1
     crop_h, crop_w = received_crops[0].shape[:2]
@@ -309,15 +306,15 @@ def test_extract_body_embeddings_falls_back_to_bbox_without_keypoints() -> None:
         received_crops.append(crop)
         return tuple([0.1] * 768), 0.9
 
-    embedder = MagicMock()
-    embedder.embed.side_effect = _capture_embed
+    mock_backend = MagicMock()
+    mock_backend.embed_body.side_effect = _capture_embed
 
     frame = np.zeros((480, 640, 3), dtype=np.uint8)
     tracklet = Tracklet(
         local_track_id=1, camera_id=1, bbox=(50, 30, 250, 430), confidence=0.9, keypoints=()
     )
     with patch("vms.inference.engine._blur_score", return_value=100.0):
-        _extract_body_embeddings(frame, (tracklet,), embedder)
+        _extract_body_embeddings(frame, (tracklet,), mock_backend)
 
     assert len(received_crops) == 1
     # Full bbox: y30:430, x50:250 -> 400h x 200w
@@ -331,8 +328,8 @@ def test_extract_body_embeddings_preserves_keypoints_and_face_visible() -> None:
     from vms.inference.engine import _extract_body_embeddings
     from vms.inference.messages import Tracklet
 
-    embedder = MagicMock()
-    embedder.embed.return_value = (tuple([0.1] * 768), 0.9)
+    mock_backend = MagicMock()
+    mock_backend.embed_body.return_value = (tuple([0.1] * 768), 0.9)
 
     frame = np.zeros((480, 640, 3), dtype=np.uint8)
     kpts = _make_torso_kpts()
@@ -345,7 +342,7 @@ def test_extract_body_embeddings_preserves_keypoints_and_face_visible() -> None:
         face_visible=True,
     )
     with patch("vms.inference.engine._blur_score", return_value=100.0):
-        result = _extract_body_embeddings(frame, (tracklet,), embedder)
+        result = _extract_body_embeddings(frame, (tracklet,), mock_backend)
 
     assert result[0].keypoints == kpts
     assert result[0].face_visible is True

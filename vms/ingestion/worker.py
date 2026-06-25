@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 import cv2
@@ -41,10 +42,15 @@ class IngestionWorker:
         camera: CameraConfig,
         redis_client: aioredis.Redis,
         session_factory: Callable[[], Session] | None = None,
+        executor: ThreadPoolExecutor | None = None,
     ) -> None:
         self._camera = camera
         self._redis = redis_client
         self._session_factory = session_factory
+        # Caller should pass a shared executor sized to the total camera count so that
+        # all cap.read() calls can block concurrently without hitting the default pool
+        # ceiling (min(32, cpu_count+4)), which causes queuing lag at 20+ cameras.
+        self._executor = executor
         self._seq_id: int = 0
         self._running: bool = False
         self._slot: SHMSlot | None = None
@@ -119,6 +125,9 @@ class IngestionWorker:
                 self._camera.camera_id,
             )
         cap = cv2.VideoCapture(_stream_url)
+        # Limit OpenCV's internal RTSP buffer to 1 frame so stale frames are dropped
+        # automatically when the consumer falls behind, keeping display at real-time.
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
         # Validate resolution — sub-streams below 640px degrade YOLO accuracy silently.
         # CAP_PROP_FRAME_WIDTH is best-effort for RTSP; returns 0 on cameras that don't
@@ -138,6 +147,7 @@ class IngestionWorker:
                 cap.release()
                 _using_analytics = False
                 cap = cv2.VideoCapture(self._camera.rtsp_url)
+                cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
         stream_name = f"frames:group{self._camera.worker_group}"
         settings = get_settings()
@@ -145,7 +155,11 @@ class IngestionWorker:
         backoff_delays = [d / 1000.0 for d in settings.rtsp_backoff_delays_ms]
         try:
             while self._running:
-                ret, frame = cap.read()
+                # Run blocking RTSP decode in a dedicated executor so other camera
+                # coroutines are not starved, and so the pool does not become the
+                # bottleneck when camera count exceeds the default pool ceiling.
+                loop = asyncio.get_running_loop()
+                ret, frame = await loop.run_in_executor(self._executor, cap.read)
                 if not ret:
                     self._consecutive_failures += 1
                     delay = backoff_delays[

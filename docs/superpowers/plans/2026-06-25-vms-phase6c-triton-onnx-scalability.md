@@ -4,7 +4,7 @@
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status: IN PROGRESS — Task 5**
+**Status: IN PROGRESS — Task 6**
 
 **Goal:** Move GPU kernel execution for the ONNX model stack (SCRFD, AdaFace, TransReID body,
 PPE) out of in-process ONNX Runtime and behind a Triton Inference Server gRPC endpoint, so the
@@ -300,16 +300,16 @@ In `_process_one_message`, replace the four direct calls with backend calls:
   pre-work that belongs to the engine, not the backend).
 
 **RED → GREEN:**
-- [ ] `test_engine_factory_returns_ort_backend_when_triton_url_empty` — default settings →
+- [x] `test_engine_factory_returns_ort_backend_when_triton_url_empty` — default settings →
       `OrtInferenceBackend`.
-- [ ] `test_engine_factory_returns_triton_backend_when_triton_url_set` — patch settings with a
+- [x] `test_engine_factory_returns_triton_backend_when_triton_url_set` — patch settings with a
       URL + mock `TritonInferenceBackend` health check; assert Triton backend selected.
-- [ ] `test_engine_process_message_uses_backend_detect` — existing engine flow still publishes a
+- [x] `test_engine_process_message_uses_backend_detect` — existing engine flow still publishes a
       `DetectionFrame`; assert backend `detect`/`embed` are the call path (mock backend).
-- [ ] Run tests → confirm RED.
-- [ ] Implement factory + rewire `_process_one_message` + adjust `_extract_body_embeddings` /
+- [x] Run tests → confirm RED.
+- [x] Implement factory + rewire `_process_one_message` + adjust `_extract_body_embeddings` /
       `_score_ppe` to use the backend.
-- [ ] Run full suite → confirm no regression in existing engine tests (GREEN).
+- [x] Run full suite → confirm no regression in existing engine tests (GREEN).
 
 **Quality gate:** full gate. Critical: `pytest tests/inference/ -v` must show zero regressions —
 the default ORT path is byte-for-byte the old behavior.

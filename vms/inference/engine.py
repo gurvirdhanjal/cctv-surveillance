@@ -16,6 +16,7 @@ import numpy as np
 import redis.asyncio as aioredis
 
 from vms.config import get_settings
+from vms.inference.backend import InferenceBackend, OrtInferenceBackend, TritonInferenceBackend
 from vms.inference.body_embedder import TransReIDBodyEmbedder, extract_torso_crop
 from vms.inference.detector import (
     SCRFDDetector,
@@ -69,16 +70,13 @@ def _associate_faces(
 def _extract_body_embeddings(
     frame_bgr: np.ndarray[Any, Any],
     tracklets: tuple[Tracklet, ...],
-    body_embedder: TransReIDBodyEmbedder | None,
+    backend: InferenceBackend,
 ) -> tuple[Tracklet, ...]:
     """Return tracklets with body_embedding and body_quality_norm populated from person bbox crops.
 
     Crops below the configured min_blur Laplacian-variance threshold are skipped (body_embedding
     is left empty, body_quality_norm set to 0.0). Bbox is clamped to frame dimensions.
-    Returns original tracklets unchanged when body_embedder is None.
     """
-    if body_embedder is None:
-        return tracklets
     settings = get_settings()
     h, w = frame_bgr.shape[:2]
     min_px = settings.min_body_bbox_px
@@ -99,7 +97,7 @@ def _extract_body_embeddings(
                     settings.torso_kp_conf_threshold,
                     settings.torso_crop_pad_fraction,
                 )
-                body_emb_tuple, body_quality = body_embedder.embed(torso)
+                body_emb_tuple, body_quality = backend.embed_body(torso)
             else:
                 body_emb_tuple, body_quality = (), 0.0
         else:
@@ -123,15 +121,12 @@ def _extract_body_embeddings(
 def _score_ppe(
     frame_bgr: np.ndarray[Any, Any],
     tracklets: tuple[Tracklet, ...],
-    ppe_model: PPEModel | None,
+    backend: InferenceBackend,
 ) -> tuple[Tracklet, ...]:
     """Return tracklets with ppe_helmet_conf/ppe_vest_conf populated from person crops.
 
-    Returns original tracklets unchanged when ppe_model is None.
     Bbox is clamped to frame dimensions before cropping.
     """
-    if ppe_model is None:
-        return tracklets
     h, w = frame_bgr.shape[:2]
     result: list[Tracklet] = []
     for t in tracklets:
@@ -139,7 +134,7 @@ def _score_ppe(
         x1c, y1c = max(0, x1), max(0, y1)
         x2c, y2c = min(w, x2), min(h, y2)
         crop = frame_bgr[y1c:y2c, x1c:x2c]
-        scores = ppe_model.score_crop(crop) if crop.size > 0 else None
+        scores = backend.score_ppe(crop) if crop.size > 0 else None
         result.append(
             Tracklet(
                 local_track_id=t.local_track_id,
@@ -157,6 +152,24 @@ def _score_ppe(
             )
         )
     return tuple(result)
+
+
+def _build_inference_backend(
+    detector: Any,
+    embedder: Any,
+    body_embedder: TransReIDBodyEmbedder | None,
+    ppe: PPEModel | None,
+) -> InferenceBackend:
+    """Return OrtInferenceBackend or TritonInferenceBackend based on VMS_GPU_TRITON_URL."""
+    settings = get_settings()
+    if settings.gpu_triton_url:
+        return TritonInferenceBackend(url=settings.gpu_triton_url)
+    return OrtInferenceBackend(
+        detector=detector,
+        embedder=embedder,
+        body_embedder=body_embedder,
+        ppe=ppe,
+    )
 
 
 class InferenceEngine:
@@ -185,6 +198,9 @@ class InferenceEngine:
         self._ppe = ppe
         self._running = False
         self._last_id = "0-0"
+        self._backend: InferenceBackend = _build_inference_backend(
+            detector, embedder, body_embedder, ppe
+        )
 
     async def run(self) -> None:
         self._running = True
@@ -221,9 +237,9 @@ class InferenceEngine:
         any_face_visible = any(t.face_visible for t in raw_tracklets)
         face_embeddings: list[FaceWithEmbedding] = []
         if any_face_visible:
-            raw_faces = self._detector.detect(frame_bgr)
+            raw_faces = self._backend.detect(frame_bgr)
             for face in raw_faces:
-                with_emb = self._embedder.embed(face, frame_bgr)
+                with_emb = self._backend.embed(face, frame_bgr)
                 if with_emb is not None:
                     face_embeddings.append(with_emb)
 
@@ -241,10 +257,8 @@ class InferenceEngine:
             for t in raw_tracklets
         )
 
-        enriched_tracklets = _extract_body_embeddings(
-            frame_bgr, enriched_tracklets, self._body_embedder
-        )
-        enriched_tracklets = _score_ppe(frame_bgr, enriched_tracklets, self._ppe)
+        enriched_tracklets = _extract_body_embeddings(frame_bgr, enriched_tracklets, self._backend)
+        enriched_tracklets = _score_ppe(frame_bgr, enriched_tracklets, self._backend)
 
         violence_score = self._compute_violence_score(
             pointer.cam_id, frame_bgr, len(raw_tracklets), timestamp_ms

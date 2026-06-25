@@ -97,8 +97,7 @@ def ppe_decode(
         cls_confs = filtered_scores[cls_mask, cls_idx].tolist()
 
         boxes_xywh = [
-            [float(b[0]), float(b[1]), float(b[2] - b[0]), float(b[3] - b[1])]
-            for b in cls_boxes
+            [float(b[0]), float(b[1]), float(b[2] - b[0]), float(b[3] - b[1])] for b in cls_boxes
         ]
         indices = cv2.dnn.NMSBoxes(boxes_xywh, cls_confs, conf_threshold, nms_iou_threshold)
         if len(indices) == 0:

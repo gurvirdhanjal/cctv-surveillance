@@ -71,7 +71,9 @@ def adaface_preprocess(face_bgr: np.ndarray[Any, np.dtype[Any]]) -> np.ndarray[A
 
     Returns (1, 3, 112, 112) float32 blob.
     """
-    face = cv2.resize(face_bgr, (_EMBED_INPUT_SIZE, _EMBED_INPUT_SIZE), interpolation=cv2.INTER_LANCZOS4)
+    face = cv2.resize(
+        face_bgr, (_EMBED_INPUT_SIZE, _EMBED_INPUT_SIZE), interpolation=cv2.INTER_LANCZOS4
+    )
     face = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
     face_f = face.astype(np.float32)
     face_f = (face_f - 127.5) / 127.5

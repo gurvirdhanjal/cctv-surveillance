@@ -90,7 +90,10 @@ def test_triton_backend_init_raises_when_any_model_not_ready() -> None:
     try:
         with (
             patch("vms.inference.backend._discover_model_io", return_value=("input", ["output"])),
-            patch("vms.inference.backend.TritonModelClient", side_effect=lambda *a, **k: next(call_iter)),
+            patch(
+                "vms.inference.backend.TritonModelClient",
+                side_effect=lambda *a, **k: next(call_iter),
+            ),
         ):
             TritonInferenceBackend(url="localhost:8001")
         raise AssertionError("Expected RuntimeError not raised")
@@ -180,7 +183,9 @@ def test_triton_backend_embed_matches_ort_cosine() -> None:
     ort_emb = np.array(ort_result.embedding, dtype=np.float32)
     triton_emb = np.array(triton_result.embedding, dtype=np.float32)
 
-    cosine = float(np.dot(ort_emb, triton_emb) / (np.linalg.norm(ort_emb) * np.linalg.norm(triton_emb)))
+    cosine = float(
+        np.dot(ort_emb, triton_emb) / (np.linalg.norm(ort_emb) * np.linalg.norm(triton_emb))
+    )
     assert cosine >= 0.9999, (
         f"ORT vs Triton embedding cosine={cosine:.6f} < 0.9999 — "
         "pre/post-processing divergence detected. STOP: mandatory /advisor before proceeding."
