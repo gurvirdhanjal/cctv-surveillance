@@ -9,9 +9,15 @@ Output directory contains one subdirectory per model:
       transreid/ config.pbtxt   1/model.onnx
       ppe/       config.pbtxt   1/model.onnx
 
-IO tensor names are read from the ONNX graph itself so the config never drifts
-from the model. The leading batch dimension is omitted from dims — Triton prepends
-it from max_batch_size.
+IO tensor names and shapes are inferred by Triton's auto-complete from the ONNX graph
+(--strict-model-config=false at runtime). The config only sets batching behaviour and
+instance group; no IO spec is written, which avoids drift when model shapes change.
+
+Dynamic-batch detection: if the leading dimension of the first input is a named
+(symbolic) dim in the ONNX graph, max_batch_size is set to the requested value and
+dynamic_batching is enabled. If the leading dim is a fixed integer (e.g. YOLO-style
+[1,3,640,640]), max_batch_size is forced to 0 (no batching) so Triton does not
+misinterpret the fixed batch as a dynamic axis.
 
 Usage:
     python scripts/build_triton_repo.py --src models/ --out models/triton_repo/
@@ -40,33 +46,14 @@ _MODEL_SPECS: list[_ModelSpec] = [
     _ModelSpec(model_dir="ppe", onnx_filename="sh17_ppe_yolov8l.onnx"),
 ]
 
-_DTYPE_MAP: dict[int, str] = {
-    1: "FP32",
-    10: "FP16",
-    7: "INT64",
-    6: "INT32",
-    2: "UINT8",
-    9: "BOOL",
-}
 
-
-def _onnx_dtype_to_triton(elem_type: int) -> str:
-    return _DTYPE_MAP.get(elem_type, "FP32")
-
-
-def _dim_value(dim: onnx.TensorShapeProto.Dimension) -> int | str:
-    """Return the dim as an int or -1 for dynamic dims."""
-    if dim.HasField("dim_param"):
-        return -1
-    return dim.dim_value if dim.dim_value > 0 else -1
-
-
-def _dims_str(shape_proto: onnx.TensorShapeProto) -> str:
-    """Convert ONNX shape (minus the leading batch dim) to a Triton dims list string."""
-    dims = [_dim_value(d) for d in shape_proto.dim]
-    # Drop the leading (batch) dimension — Triton adds it from max_batch_size.
-    dims = dims[1:]
-    return ", ".join(str(d) for d in dims)
+def _has_dynamic_batch(onnx_path: Path) -> bool:
+    """Return True when the model's first input has a symbolic (dynamic) leading dim."""
+    graph = onnx.load(str(onnx_path)).graph
+    if not graph.input:
+        return False
+    dim0 = graph.input[0].type.tensor_type.shape.dim[0]
+    return dim0.HasField("dim_param")
 
 
 def _build_config_pbtxt(
@@ -74,43 +61,36 @@ def _build_config_pbtxt(
     onnx_path: Path,
     max_batch_size: int,
 ) -> str:
-    """Read IO names/shapes from the ONNX graph and emit a config.pbtxt string."""
-    graph = onnx.load(str(onnx_path)).graph
+    """Emit a minimal config.pbtxt; Triton auto-completes IO from the ONNX graph.
 
-    input_blocks = []
-    for inp in graph.input:
-        dtype = _onnx_dtype_to_triton(inp.type.tensor_type.elem_type)
-        dims = _dims_str(inp.type.tensor_type.shape)
-        input_blocks.append(
-            f'  {{\n    name: "{inp.name}"\n    data_type: TYPE_{dtype}\n    dims: [ {dims} ]\n  }}'
-        )
+    IO blocks are intentionally omitted so the config never drifts from the ONNX.
+    Triton's --strict-model-config=false (required at runtime) handles IO inference.
+    max_batch_size is forced to 0 for models with a fixed leading input dimension.
+    """
+    dynamic = _has_dynamic_batch(onnx_path)
+    effective_batch = max_batch_size if dynamic else 0
 
-    output_blocks = []
-    for out in graph.output:
-        dtype = _onnx_dtype_to_triton(out.type.tensor_type.elem_type)
-        dims = _dims_str(out.type.tensor_type.shape)
-        output_blocks.append(
-            f'  {{\n    name: "{out.name}"\n    data_type: TYPE_{dtype}\n    dims: [ {dims} ]\n  }}'
-        )
+    lines: list[str] = [
+        f'name: "{model_name}"',
+        'platform: "onnxruntime_onnx"',
+        f"max_batch_size: {effective_batch}",
+        "",
+    ]
 
-    inputs_str = "\n".join(input_blocks)
-    outputs_str = "\n".join(output_blocks)
+    if effective_batch > 0:
+        lines += [
+            "dynamic_batching {",
+            "  max_queue_delay_microseconds: 1000",
+            "}",
+            "",
+        ]
 
-    return (
-        f'name: "{model_name}"\n'
-        f'platform: "onnxruntime_onnx"\n'
-        f"max_batch_size: {max_batch_size}\n"
-        f"\n"
-        f"input [\n{inputs_str}\n]\n"
-        f"\n"
-        f"output [\n{outputs_str}\n]\n"
-        f"\n"
-        f"dynamic_batching {{\n"
-        f"  max_queue_delay_microseconds: 1000\n"
-        f"}}\n"
-        f"\n"
-        f"instance_group [ {{ count: 1 kind: KIND_GPU }} ]\n"
-    )
+    lines += [
+        "instance_group [ { count: 1 kind: KIND_GPU } ]",
+        "",
+    ]
+
+    return "\n".join(lines)
 
 
 def build_repo(
@@ -123,7 +103,8 @@ def build_repo(
     Args:
         src_dir: Directory containing the ONNX model files (e.g. models/).
         out_dir: Output directory for the Triton repo (e.g. models/triton_repo/).
-        max_batch_size: Dynamic-batch window size written into every config.pbtxt.
+        max_batch_size: Dynamic-batch window size for models with dynamic batch input.
+                        Fixed-batch models (e.g. YOLO-style) get max_batch_size=0.
     """
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -143,6 +124,10 @@ def build_repo(
         (model_out / "config.pbtxt").write_text(config, encoding="utf-8")
 
         shutil.copy2(onnx_src, versioned / "model.onnx")
+
+        dynamic = _has_dynamic_batch(onnx_src)
+        effective = max_batch_size if dynamic else 0
+        print(f"  {spec.model_dir}: max_batch_size={effective} ({'dynamic' if dynamic else 'fixed'})")
 
     print(f"Triton repo written to {out_dir} ({len(_MODEL_SPECS)} models)")
 

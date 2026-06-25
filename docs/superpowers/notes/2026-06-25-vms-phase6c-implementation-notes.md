@@ -113,6 +113,19 @@ would require client-side buffer management with session state — out of scope.
 
 See `docs/runbooks/triton-wsl2.md` (created in this task).
 
+**Docker Desktop path discovered during Task 10 setup:** Docker Desktop 29.x already provides
+GPU passthrough to containers (`docker run --gpus all` works from PowerShell without any
+additional NVIDIA toolkit installation). The runbook was updated to document this as
+"Path A" (developer/pilot) alongside the original rootless-Docker-in-WSL2 "Path B"
+(production/enterprise). For this developer machine (Windows 11 Pro, RTX 2000 Ada,
+driver 595.71), Path A is the active deployment path.
+
+**Triton model repo built** (`python scripts/build_triton_repo.py`) — 4 models confirmed:
+`scrfd`, `adaface`, `transreid`, `ppe`. All ONNX files present in `models/`.
+
+**`.wslconfig` applied**: 32 GB host → `memory=28GB`, `swap=16GB`. WSL2 confirmed at 27 GiB
+after `wsl --shutdown` + restart.
+
 ---
 
 ## Task 10 — End-to-end smoke test

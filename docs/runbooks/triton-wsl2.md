@@ -7,11 +7,34 @@
 
 ## Overview
 
-Triton ships as a Linux Docker image with no native Windows build. This runbook
-covers standing it up inside WSL2 on the Windows host, so the Windows-native VMS
-process connects to it over `localhost:8001`.
+Triton ships as a Linux Docker image with no native Windows build. This runbook covers
+two deployment paths depending on which Docker runtime is available on the host.
 
-Architecture at a glance:
+### Path A — Docker Desktop (developer machines, pilot sites)
+
+If Docker Desktop is installed on the Windows host, Triton can be run directly from
+PowerShell. Docker Desktop's WSL2 backend provides GPU passthrough with no additional
+NVIDIA toolkit installation required.
+
+```
+Windows process (VMS)
+  │
+  │  VMS_GPU_TRITON_URL=localhost:8001  (gRPC)
+  ▼
+Docker Desktop (Windows)
+  └── nvcr.io/nvidia/tritonserver container
+        ├── GPU: via Docker Desktop NVIDIA passthrough
+        └── models: bind-mount from F:\...\models\triton_repo
+```
+
+This is the **recommended path for developer and pilot installations.**
+Docker Desktop must have GPU support enabled (Settings → Resources → GPU acceleration).
+
+### Path B — Rootless Docker in WSL2 (production / enterprise customer sites)
+
+For production deployments on customer hardware, Docker Desktop has a commercial license
+restriction for large enterprises (> 250 employees or > $10M revenue). Use rootless Docker
+Engine installed inside WSL2 instead.
 
 ```
 Windows process (VMS)
@@ -22,8 +45,12 @@ WSL2 Ubuntu 22.04
   └── rootless Docker daemon
         └── nvcr.io/nvidia/tritonserver container
               ├── GPU: via NVIDIA Container Toolkit (WSL2 passthrough)
-              └── models: bind-mount from C:\vms\models\triton_repo
+              └── models: bind-mount from /mnt/c/vms/models/triton_repo
 ```
+
+Sections 1–3 cover prerequisites and Docker setup. Section 5 shows both run commands.
+
+---
 
 `VMS_GPU_TRITON_URL=""` (empty) keeps the in-process ORT/TRT EP — nothing else changes.
 Setting it to `localhost:8001` routes all four ONNX models through Triton with no other
@@ -87,7 +114,7 @@ wsl --update
 
 ---
 
-## 2. WSL2 Memory Configuration
+## 2. WSL2 Memory Configuration *(both paths)*
 
 WSL2's default memory ballooning can starve a Triton container on a server that is
 also running PostgreSQL, Redis, and the VMS inference process simultaneously.
@@ -120,10 +147,11 @@ wsl -d Ubuntu-22.04
 
 ---
 
-## 3. Rootless Docker in WSL2 + NVIDIA Container Toolkit
+## 3. Rootless Docker in WSL2 + NVIDIA Container Toolkit *(Path B only)*
 
-Rootless Docker avoids the Docker Desktop commercial license restriction that applies
-to enterprise customers (> 250 employees or > $10M revenue).
+Skip this section if using Docker Desktop (Path A). Rootless Docker avoids the Docker
+Desktop commercial license restriction that applies to enterprise customers
+(> 250 employees or > $10M revenue).
 
 ### 3.1 Install Docker Engine (rootless mode)
 
@@ -225,12 +253,36 @@ docker pull nvcr.io/nvidia/tritonserver:24.05-py3
 
 ### 5.2 Docker run command
 
-The `models/triton_repo` directory lives on the Windows filesystem (under
-`C:\vms\models\triton_repo`). WSL2 exposes Windows drives at `/mnt/c/`:
+**Path A — Docker Desktop (PowerShell on Windows host):**
+
+```powershell
+# PowerShell — Windows host
+$TRITON_REPO = "F:\facial_recognistion\facial_recognistion\models\triton_repo"
+$TRITON_IMAGE = "nvcr.io/nvidia/tritonserver:24.05-py3"
+
+docker run --rm -d `
+  --name vms-triton `
+  --gpus all `
+  --shm-size=4g `
+  -p 8000:8000 `
+  -p 8001:8001 `
+  -p 8002:8002 `
+  -v "${TRITON_REPO}:/models" `
+  $TRITON_IMAGE `
+  tritonserver `
+    --model-repository=/models `
+    --strict-model-config=false `
+    --log-verbose=0
+```
+
+**Path B — Rootless Docker (inside WSL2):**
+
+The `models/triton_repo` directory lives on the Windows filesystem. WSL2 exposes
+Windows drives at `/mnt/<drive>/`:
 
 ```bash
-# inside WSL2
-TRITON_REPO="/mnt/c/vms/models/triton_repo"
+# inside WSL2 — adjust path to match your project directory
+TRITON_REPO="/mnt/f/facial_recognistion/facial_recognistion/models/triton_repo"
 TRITON_IMAGE="nvcr.io/nvidia/tritonserver:24.05-py3"
 
 docker run --rm -d \
@@ -339,12 +391,13 @@ one ✓ row with a sustained-load result.
 "Works" = Triton starts cleanly + GPU passthrough confirmed + `VMS_GPU_TRITON_URL`
 smoke-test passes ≥3 live cameras at steady state.
 
-| Windows OS | NVIDIA Driver | WSL2 Kernel | Docker Engine | Triton Image | CUDA in Container | ORT Backend Ver | Status |
+| Windows OS | NVIDIA Driver | Docker Runtime | Triton Image | CUDA in Container | ORT Backend Ver | Status | Notes |
 |---|---|---|---|---|---|---|---|
-| Windows 11 Pro 23H2 (26200) | 560.94 | nvidia-utils-535 | 26.x rootless | `24.05-py3` | 12.4 | 1.18.x | ○ untested |
-| Windows Server 2022 21H2 | 535.x | nvidia-utils-535 | 24.x rootless | `24.05-py3` | 12.4 | 1.18.x | ○ untested |
-| Windows Server 2022 21H2 | 555.x | nvidia-utils-555 | 24.x rootless | `24.05-py3` | 12.4 | 1.18.x | ○ untested |
-| Windows Server 2022 21H2 | 555.x | nvidia-utils-555 | 24.x rootless | `24.08-py3` | 12.6 | 1.19.x | ○ untested |
+| Windows 11 Pro 23H2 (26200) | 595.71 | Docker Desktop 29.5.3 (Path A) | `24.05-py3` | 12.4 | 1.18.x | ✓ confirmed | All 4 models READY; GPU passthrough confirmed 2026-06-26 |
+| Windows 11 Pro 23H2 (26200) | 560.94 | Docker Desktop (Path A) | `24.05-py3` | 12.4 | 1.18.x | ○ untested | |
+| Windows Server 2022 21H2 | 535.x | rootless Docker WSL2 (Path B) | `24.05-py3` | 12.4 | 1.18.x | ○ untested | |
+| Windows Server 2022 21H2 | 555.x | rootless Docker WSL2 (Path B) | `24.05-py3` | 12.4 | 1.18.x | ○ untested | |
+| Windows Server 2022 21H2 | 555.x | rootless Docker WSL2 (Path B) | `24.08-py3` | 12.6 | 1.19.x | ○ untested | |
 
 **Triton image tag guide:**
 - `24.05-py3` → TRT 10.0, CUDA 12.4, ORT 1.18 backend — target for CUDA 12.4 hosts
@@ -372,6 +425,7 @@ Fill the Status column during MVP:
 | `VMS_GPU_TRITON_URL` set but VMS uses ORT | URL is empty or whitespace | Confirm `VMS_GPU_TRITON_URL=localhost:8001` (no quotes, no trailing slash) |
 | gRPC connection refused | Triton not yet ready | Wait for `Started GRPCInferenceService` in `docker logs` |
 | Model shows `UNAVAILABLE` in Triton logs | ONNX file missing or wrong path | Verify `models/triton_repo/<model>/1/model.onnx` exists; re-run `build_triton_repo.py` |
+| "shape expected by model is [1,3,640,640]" error | `config.pbtxt` sets `max_batch_size > 0` for a fixed-batch model | Re-run `build_triton_repo.py` — it auto-detects fixed vs dynamic batch and sets `max_batch_size=0` for fixed-batch models (SCRFD, PPE) |
 | `mmap failed` in Triton container | `--shm-size` too small | Increase to `--shm-size=8g` |
 | Triton port 8001 unreachable from Windows | WSL2 localhost forwarding not active | Verify `localhost` works: `curl http://localhost:8000/v2/health/ready` from PowerShell |
 
