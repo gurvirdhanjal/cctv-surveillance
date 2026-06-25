@@ -37,6 +37,80 @@ _MIN_CROP = 32
 _TARGET: dict[str, int] = {"helmet": 10, "vest": 16, "gloves": 9, "mask": 5}
 
 
+def ppe_preprocess(crop_bgr: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
+    """Letterbox-resize to 640x640 RGB, normalise to [0,1], add batch dim.
+
+    Returns (1, 3, 640, 640) float32 blob.
+    """
+    h, w = crop_bgr.shape[:2]
+    scale = _INPUT_SIZE / max(h, w)
+    new_h, new_w = int(h * scale), int(w * scale)
+    resized = cv2.resize(crop_bgr, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+
+    canvas = np.full((_INPUT_SIZE, _INPUT_SIZE, 3), 114, dtype=np.uint8)
+    pad_y = (_INPUT_SIZE - new_h) // 2
+    pad_x = (_INPUT_SIZE - new_w) // 2
+    canvas[pad_y : pad_y + new_h, pad_x : pad_x + new_w] = resized
+
+    rgb = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
+    return np.transpose(rgb, (2, 0, 1))[np.newaxis]
+
+
+def ppe_decode(
+    raw: np.ndarray[Any, Any],
+    conf_threshold: float = 0.25,
+    nms_iou_threshold: float = 0.45,
+) -> dict[str, float]:
+    """Decode YOLOv8 output (1, 21, 8400) → max score per SH17 target class."""
+    preds = raw[0].T  # (8400, 21)
+
+    boxes_cxcywh = preds[:, :4]
+    class_scores = preds[:, 4:]
+
+    max_scores = class_scores.max(axis=1)
+    keep_mask = max_scores >= conf_threshold
+    if not np.any(keep_mask):
+        return {name: 0.0 for name in _TARGET}
+
+    filtered_boxes = boxes_cxcywh[keep_mask]
+    filtered_scores = class_scores[keep_mask]
+
+    cx, cy, bw, bh = (
+        filtered_boxes[:, 0],
+        filtered_boxes[:, 1],
+        filtered_boxes[:, 2],
+        filtered_boxes[:, 3],
+    )
+    x1 = cx - bw / 2
+    y1 = cy - bh / 2
+    x2 = cx + bw / 2
+    y2 = cy + bh / 2
+
+    result: dict[str, float] = {}
+    for name, cls_idx in _TARGET.items():
+        cls_mask = filtered_scores[:, cls_idx] >= conf_threshold
+        if not np.any(cls_mask):
+            result[name] = 0.0
+            continue
+
+        cls_boxes = np.stack([x1[cls_mask], y1[cls_mask], x2[cls_mask], y2[cls_mask]], axis=1)
+        cls_confs = filtered_scores[cls_mask, cls_idx].tolist()
+
+        boxes_xywh = [
+            [float(b[0]), float(b[1]), float(b[2] - b[0]), float(b[3] - b[1])]
+            for b in cls_boxes
+        ]
+        indices = cv2.dnn.NMSBoxes(boxes_xywh, cls_confs, conf_threshold, nms_iou_threshold)
+        if len(indices) == 0:
+            result[name] = 0.0
+        else:
+            flat = indices.flatten() if hasattr(indices, "flatten") else list(indices)
+            kept = [cls_confs[int(i)] for i in flat]
+            result[name] = float(max(kept))
+
+    return result
+
+
 class PPEModel:
     """YOLOv8l SH17 ONNX PPE detector.  Stateless — no per-camera state.
 
@@ -132,77 +206,7 @@ class PPEModel:
             return None
 
     def _preprocess(self, crop_bgr: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
-        """Letterbox-resize to 640x640 RGB, normalise to [0,1], add batch dim."""
-        h, w = crop_bgr.shape[:2]
-        scale = _INPUT_SIZE / max(h, w)
-        new_h, new_w = int(h * scale), int(w * scale)
-        resized = cv2.resize(crop_bgr, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
-
-        canvas = np.full((_INPUT_SIZE, _INPUT_SIZE, 3), 114, dtype=np.uint8)
-        pad_y = (_INPUT_SIZE - new_h) // 2
-        pad_x = (_INPUT_SIZE - new_w) // 2
-        canvas[pad_y : pad_y + new_h, pad_x : pad_x + new_w] = resized
-
-        rgb = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
-        return np.transpose(rgb, (2, 0, 1))[np.newaxis]  # (1, 3, 640, 640)
+        return ppe_preprocess(crop_bgr)
 
     def _postprocess(self, raw: np.ndarray[Any, Any]) -> dict[str, float]:
-        """Decode YOLOv8 output (1, 21, 8400) → max score per target class.
-
-        YOLOv8 ONNX output (no NMS): (1, 4+num_classes, num_anchors)
-          dims: [cx, cy, w, h, cls_0..cls_16] per anchor, transposed.
-        """
-        # raw shape: (1, 21, 8400) — batch=1, 4+17 values, 8400 anchors
-        # raw[0] shape: (21, 8400) — transpose to (8400, 21)
-        preds = raw[0].T  # (8400, 21)
-
-        boxes_cxcywh = preds[:, :4]  # (8400, 4)
-        class_scores = preds[:, 4:]  # (8400, 17)
-
-        # Max score per anchor (used as detection confidence gate)
-        max_scores = class_scores.max(axis=1)  # (8400,)
-        keep_mask = max_scores >= self._conf_threshold
-        if not np.any(keep_mask):
-            return {name: 0.0 for name in self._target}
-
-        filtered_boxes = boxes_cxcywh[keep_mask]
-        filtered_scores = class_scores[keep_mask]
-
-        # Convert cx,cy,w,h → x1,y1,x2,y2
-        cx, cy, bw, bh = (
-            filtered_boxes[:, 0],
-            filtered_boxes[:, 1],
-            filtered_boxes[:, 2],
-            filtered_boxes[:, 3],
-        )
-        x1 = cx - bw / 2
-        y1 = cy - bh / 2
-        x2 = cx + bw / 2
-        y2 = cy + bh / 2
-
-        result: dict[str, float] = {}
-        for name, cls_idx in self._target.items():
-            cls_mask = filtered_scores[:, cls_idx] >= self._conf_threshold
-            if not np.any(cls_mask):
-                result[name] = 0.0
-                continue
-
-            cls_boxes = np.stack([x1[cls_mask], y1[cls_mask], x2[cls_mask], y2[cls_mask]], axis=1)
-            cls_confs = filtered_scores[cls_mask, cls_idx].tolist()
-
-            # NMS to deduplicate overlapping boxes for this class
-            boxes_xywh = [
-                [float(b[0]), float(b[1]), float(b[2] - b[0]), float(b[3] - b[1])]
-                for b in cls_boxes
-            ]
-            indices = cv2.dnn.NMSBoxes(
-                boxes_xywh, cls_confs, self._conf_threshold, self._nms_iou_threshold
-            )
-            if len(indices) == 0:
-                result[name] = 0.0
-            else:
-                flat = indices.flatten() if hasattr(indices, "flatten") else list(indices)
-                kept = [cls_confs[int(i)] for i in flat]
-                result[name] = float(max(kept))
-
-        return result
+        return ppe_decode(raw, self._conf_threshold, self._nms_iou_threshold)

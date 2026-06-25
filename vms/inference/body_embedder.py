@@ -26,6 +26,17 @@ _IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 _IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
 
+def transreid_preprocess(crop_bgr: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
+    """Resize to 128x384 (WxH), BGR->RGB, ImageNet normalise, CHW.
+
+    Returns (1, 3, 384, 128) float32 blob.
+    """
+    resized = cv2.resize(crop_bgr, (_TRANSREID_W, _TRANSREID_H), interpolation=cv2.INTER_LANCZOS4)
+    rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
+    rgb = (rgb - _IMAGENET_MEAN) / _IMAGENET_STD
+    return np.transpose(rgb, (2, 0, 1))[None]
+
+
 class TransReIDBodyEmbedder:
     """ViT-B/16+ICS msmt17 ONNX body Re-ID embedder — 768-dim L2-normalised output.
 
@@ -102,15 +113,7 @@ class TransReIDBodyEmbedder:
         return tuple(float(x) for x in emb), quality
 
     def _preprocess(self, crop_bgr: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
-        # TransReID uses ImageNet normalisation on RGB [0,1] float input.
-        # OpenCV is BGR-native; resize first (cheaper on smaller image), then convert.
-        resized = cv2.resize(
-            crop_bgr, (_TRANSREID_W, _TRANSREID_H), interpolation=cv2.INTER_LANCZOS4
-        )
-        rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
-        rgb = (rgb - _IMAGENET_MEAN) / _IMAGENET_STD  # (H, W, 3)
-        chw = np.transpose(rgb, (2, 0, 1))[None]  # (1, 3, H, W)
-        return chw
+        return transreid_preprocess(crop_bgr)
 
 
 def extract_torso_crop(

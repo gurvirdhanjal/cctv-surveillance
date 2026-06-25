@@ -39,6 +39,123 @@ _STRIDES = [8, 16, 32]
 _ANCHORS_PER_CELL = 2
 
 
+def scrfd_preprocess(
+    img: np.ndarray[Any, np.dtype[Any]],
+) -> tuple[np.ndarray[Any, np.dtype[Any]], float]:
+    """Letterbox-resize to _INPUT_SIZE x _INPUT_SIZE and normalise for SCRFD.
+
+    Returns (blob, det_scale) where det_scale converts model-space coords back to
+    original-frame coords via division: original_coord = model_coord / det_scale.
+    """
+    h0, w0 = img.shape[:2]
+    det_scale = min(_INPUT_SIZE / h0, _INPUT_SIZE / w0)
+    new_h, new_w = int(h0 * det_scale), int(w0 * det_scale)
+    resized = cv2.resize(img, (new_w, new_h))
+    canvas = np.zeros((_INPUT_SIZE, _INPUT_SIZE, 3), dtype=np.uint8)
+    canvas[:new_h, :new_w] = resized
+    rgb = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB).astype(np.float32)
+    rgb = (rgb - 127.5) / 128.0
+    return np.transpose(rgb, (2, 0, 1))[None], det_scale
+
+
+def scrfd_decode(
+    outputs: list[Any],
+    det_scale: float,
+    conf_thres: float,
+    nms_thres: float,
+    min_face_px: int,
+) -> list[FaceWithEmbedding]:
+    """Decode SCRFD ONNX outputs (6 or 9 tensors) into FaceWithEmbedding list."""
+    use_kps = len(outputs) == 9
+    cls_outputs = outputs[0:3]
+    bbox_outputs = outputs[3:6]
+    kps_outputs = outputs[6:9] if use_kps else [None, None, None]
+
+    boxes_all: list[np.ndarray[Any, np.dtype[Any]]] = []
+    scores_all: list[np.ndarray[Any, np.dtype[Any]]] = []
+    kpss_all: list[np.ndarray[Any, np.dtype[Any]]] = []
+
+    for cls_out, bbox_out, kps_out, stride in zip(
+        cls_outputs, bbox_outputs, kps_outputs, _STRIDES, strict=False
+    ):
+        n: int = cls_out.shape[0]
+        side = _INPUT_SIZE // stride
+        if n != side * side * _ANCHORS_PER_CELL:
+            continue
+
+        scores: np.ndarray[Any, np.dtype[Any]] = cls_out[:, 0]
+        keep: np.ndarray[Any, np.dtype[Any]] = scores > conf_thres
+        if not np.any(keep):
+            continue
+
+        centers: np.ndarray[Any, np.dtype[Any]] = (
+            np.stack(np.mgrid[:side, :side][::-1], axis=-1).reshape(-1, 2).astype(np.float32)  # type: ignore[call-overload]
+        )
+        centers = np.repeat(centers, _ANCHORS_PER_CELL, axis=0) * stride
+
+        centers_k = centers[keep]
+        bbox: np.ndarray[Any, np.dtype[Any]] = bbox_out[keep]
+
+        x1 = centers_k[:, 0] - bbox[:, 0] * stride
+        y1 = centers_k[:, 1] - bbox[:, 1] * stride
+        x2 = centers_k[:, 0] + bbox[:, 2] * stride
+        y2 = centers_k[:, 1] + bbox[:, 3] * stride
+
+        boxes_all.append(np.stack([x1, y1, x2, y2], axis=1))
+        scores_all.append(scores[keep])
+
+        if use_kps and kps_out is not None:
+            kps: np.ndarray[Any, np.dtype[Any]] = kps_out[keep]
+            decoded = np.zeros((kps.shape[0], 5, 2), dtype=np.float32)
+            for j in range(5):
+                decoded[:, j, 0] = centers_k[:, 0] + kps[:, j * 2] * stride
+                decoded[:, j, 1] = centers_k[:, 1] + kps[:, j * 2 + 1] * stride
+            kpss_all.append(decoded)
+
+    if not boxes_all:
+        return []
+
+    boxes: np.ndarray[Any, np.dtype[Any]] = np.concatenate(boxes_all)
+    scores_arr: np.ndarray[Any, np.dtype[Any]] = np.concatenate(scores_all)
+    kpss_arr: np.ndarray[Any, np.dtype[Any]] | None = (
+        np.concatenate(kpss_all) if use_kps and kpss_all else None
+    )
+
+    boxes /= det_scale
+    if kpss_arr is not None:
+        kpss_arr /= det_scale
+
+    boxes_xywh = [
+        [float(b[0]), float(b[1]), float(b[2] - b[0]), float(b[3] - b[1])] for b in boxes
+    ]
+    idxs: Any = cv2.dnn.NMSBoxes(boxes_xywh, scores_arr.tolist(), conf_thres, nms_thres)
+    if len(idxs) == 0:
+        return []
+
+    results: list[FaceWithEmbedding] = []
+    for i in idxs.flatten():
+        x1i = int(boxes[i, 0])
+        y1i = int(boxes[i, 1])
+        x2i = int(boxes[i, 2])
+        y2i = int(boxes[i, 3])
+        if (x2i - x1i) < min_face_px or (y2i - y1i) < min_face_px:
+            continue
+        kps_tuple: tuple[tuple[float, float], ...] = ()
+        if kpss_arr is not None:
+            kps_tuple = tuple(
+                (float(kpss_arr[i, j, 0]), float(kpss_arr[i, j, 1])) for j in range(5)
+            )
+        results.append(
+            FaceWithEmbedding(
+                bbox=(x1i, y1i, x2i, y2i),
+                confidence=float(scores_arr[i]),
+                embedding=(),
+                keypoints=kps_tuple,
+            )
+        )
+    return results
+
+
 def _try_load_insightface(conf_thres: float, min_face_px: int) -> _InsightFaceBackend | None:
     """Try to construct an InsightFace backend. Returns None if not installed."""
     try:
@@ -178,115 +295,10 @@ class SCRFDDetector:
     def _preprocess(
         self, img: np.ndarray[Any, np.dtype[Any]]
     ) -> tuple[np.ndarray[Any, np.dtype[Any]], float]:
-        """Letterbox-resize to _INPUT_SIZE x _INPUT_SIZE, preserving aspect ratio.
-
-        Returns (blob, det_scale) where det_scale converts model-space coords back to
-        original-frame coords via division: original_coord = model_coord / det_scale.
-        """
-        h0, w0 = img.shape[:2]
-        det_scale = min(_INPUT_SIZE / h0, _INPUT_SIZE / w0)
-        new_h, new_w = int(h0 * det_scale), int(w0 * det_scale)
-        resized = cv2.resize(img, (new_w, new_h))
-        canvas = np.zeros((_INPUT_SIZE, _INPUT_SIZE, 3), dtype=np.uint8)
-        canvas[:new_h, :new_w] = resized
-        rgb = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB).astype(np.float32)
-        rgb = (rgb - 127.5) / 128.0
-        return np.transpose(rgb, (2, 0, 1))[None], det_scale
+        return scrfd_preprocess(img)
 
     def _decode(self, outputs: list[Any], det_scale: float) -> list[FaceWithEmbedding]:
-        use_kps = len(outputs) == 9
-        cls_outputs = outputs[0:3]
-        bbox_outputs = outputs[3:6]
-        kps_outputs = outputs[6:9] if use_kps else [None, None, None]
-
-        boxes_all: list[np.ndarray[Any, np.dtype[Any]]] = []
-        scores_all: list[np.ndarray[Any, np.dtype[Any]]] = []
-        kpss_all: list[np.ndarray[Any, np.dtype[Any]]] = []
-
-        for cls_out, bbox_out, kps_out, stride in zip(
-            cls_outputs, bbox_outputs, kps_outputs, _STRIDES, strict=False
-        ):
-            n: int = cls_out.shape[0]
-            side = _INPUT_SIZE // stride
-            if n != side * side * _ANCHORS_PER_CELL:
-                continue
-
-            # scrfd_10g_bnkps.onnx has sigmoid baked into the graph — outputs are already in [0,1]
-            scores: np.ndarray[Any, np.dtype[Any]] = cls_out[:, 0]
-            keep: np.ndarray[Any, np.dtype[Any]] = scores > self._conf_thres
-            if not np.any(keep):
-                continue
-
-            # anchor centres: shape (side*side*anchors, 2), columns are [x, y]
-            # np.mgrid[:side, :side] gives [row_indices, col_indices]; [::-1] swaps to [col, row] = [x, y]
-            centers: np.ndarray[Any, np.dtype[Any]] = (
-                np.stack(np.mgrid[:side, :side][::-1], axis=-1).reshape(-1, 2).astype(np.float32)  # type: ignore[call-overload]
-            )
-            centers = np.repeat(centers, _ANCHORS_PER_CELL, axis=0) * stride
-
-            centers_k = centers[keep]
-            bbox: np.ndarray[Any, np.dtype[Any]] = bbox_out[keep]
-
-            x1 = centers_k[:, 0] - bbox[:, 0] * stride
-            y1 = centers_k[:, 1] - bbox[:, 1] * stride
-            x2 = centers_k[:, 0] + bbox[:, 2] * stride
-            y2 = centers_k[:, 1] + bbox[:, 3] * stride
-
-            boxes_all.append(np.stack([x1, y1, x2, y2], axis=1))
-            scores_all.append(scores[keep])
-
-            if use_kps and kps_out is not None:
-                kps: np.ndarray[Any, np.dtype[Any]] = kps_out[keep]  # (M, 10)
-                decoded = np.zeros((kps.shape[0], 5, 2), dtype=np.float32)
-                for j in range(5):
-                    decoded[:, j, 0] = centers_k[:, 0] + kps[:, j * 2] * stride
-                    decoded[:, j, 1] = centers_k[:, 1] + kps[:, j * 2 + 1] * stride
-                kpss_all.append(decoded)
-
-        if not boxes_all:
-            return []
-
-        boxes: np.ndarray[Any, np.dtype[Any]] = np.concatenate(boxes_all)
-        scores_arr: np.ndarray[Any, np.dtype[Any]] = np.concatenate(scores_all)
-        kpss_arr: np.ndarray[Any, np.dtype[Any]] | None = (
-            np.concatenate(kpss_all) if use_kps and kpss_all else None
-        )
-
-        boxes /= det_scale
-        if kpss_arr is not None:
-            kpss_arr /= det_scale
-
-        boxes_xywh = [
-            [float(b[0]), float(b[1]), float(b[2] - b[0]), float(b[3] - b[1])] for b in boxes
-        ]
-        idxs: Any = cv2.dnn.NMSBoxes(
-            boxes_xywh, scores_arr.tolist(), self._conf_thres, self._nms_thres
-        )
-        if len(idxs) == 0:
-            return []
-
-        results: list[FaceWithEmbedding] = []
-        for i in idxs.flatten():
-            x1i = int(boxes[i, 0])
-            y1i = int(boxes[i, 1])
-            x2i = int(boxes[i, 2])
-            y2i = int(boxes[i, 3])
-            if (x2i - x1i) < self._min_face_px or (y2i - y1i) < self._min_face_px:
-                continue
-            kps_tuple: tuple[tuple[float, float], ...] = ()
-            if kpss_arr is not None:
-                kps_tuple = tuple(
-                    (float(kpss_arr[i, j, 0]), float(kpss_arr[i, j, 1])) for j in range(5)
-                )
-            results.append(
-                FaceWithEmbedding(
-                    bbox=(x1i, y1i, x2i, y2i),
-                    confidence=float(scores_arr[i]),
-                    embedding=(),
-                    keypoints=kps_tuple,
-                )
-            )
-        return results
+        return scrfd_decode(outputs, det_scale, self._conf_thres, self._nms_thres, self._min_face_px)
 
 
 class _YoloFaceBackend:

@@ -66,6 +66,18 @@ logger = logging.getLogger(__name__)
 _EMBED_INPUT_SIZE = 112
 
 
+def adaface_preprocess(face_bgr: np.ndarray[Any, np.dtype[Any]]) -> np.ndarray[Any, np.dtype[Any]]:
+    """Resize, BGR→RGB, normalise for CVLFace IR101 AdaFace.
+
+    Returns (1, 3, 112, 112) float32 blob.
+    """
+    face = cv2.resize(face_bgr, (_EMBED_INPUT_SIZE, _EMBED_INPUT_SIZE), interpolation=cv2.INTER_LANCZOS4)
+    face = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
+    face_f = face.astype(np.float32)
+    face_f = (face_f - 127.5) / 127.5
+    return np.transpose(face_f, (2, 0, 1))[None]
+
+
 class _InsightFaceEmbedder:
     """Uses InsightFace ArcFace recognition model for 512-dim embeddings."""
 
@@ -238,13 +250,4 @@ class AdaFaceEmbedder:
     def _preprocess(
         self, face_bgr: np.ndarray[Any, np.dtype[Any]]
     ) -> np.ndarray[Any, np.dtype[Any]]:
-        # CVLFace models (IR101/WebFace12M) expect RGB input.
-        # OpenCV is BGR-native, so we convert before normalising.
-        # Normalisation: (pixel - 127.5) / 127.5  matches CVLFace to_input() exactly.
-        face = cv2.resize(
-            face_bgr, (_EMBED_INPUT_SIZE, _EMBED_INPUT_SIZE), interpolation=cv2.INTER_LANCZOS4
-        )
-        face = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
-        face = face.astype(np.float32)
-        face = (face - 127.5) / 127.5
-        return np.transpose(face, (2, 0, 1))[None]
+        return adaface_preprocess(face_bgr)
