@@ -50,7 +50,7 @@ module = ["vms.inference.violence", "vms.inference.detector"]
 warn_unused_ignores = false
 
 [[tool.mypy.overrides]]
-module = ["reportlab.*"]
+module = ["reportlab.*", "tritonclient.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
