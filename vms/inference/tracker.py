@@ -76,6 +76,7 @@ class PerCameraTracker:
         self._prev_frame_gray: np.ndarray[Any, Any] | None = None
         self._static_count: int = 0
         self._mog2: Any = None  # cv2.BackgroundSubtractorMOG2, created lazily
+        self._last_motion_mask: np.ndarray[Any, Any] | None = None
 
     @classmethod
     def from_path(cls, camera_id: int, model_path: str) -> PerCameraTracker:
@@ -103,23 +104,26 @@ class PerCameraTracker:
         """
         settings = get_settings()
         if not settings.motion_gate_enabled:
+            self._last_motion_mask = None
             return True
 
         if settings.motion_gate_method == "mog2":
             if self._mog2 is None:
                 self._mog2 = cv2.createBackgroundSubtractorMOG2(detectShadows=False)
             fg_mask: np.ndarray[Any, Any] = self._mog2.apply(frame_bgr)
+            self._last_motion_mask = fg_mask
             changed_pct = float(np.count_nonzero(fg_mask)) / fg_mask.size * 100.0
         else:  # "frame_diff" (default)
             gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
             if self._prev_frame_gray is None:
                 self._prev_frame_gray = gray
+                self._last_motion_mask = None
                 return True  # first frame: no baseline yet, always run
             diff = cv2.absdiff(gray, self._prev_frame_gray)
             self._prev_frame_gray = gray
-            changed_pct = (
-                float(np.count_nonzero(diff > _FRAME_DIFF_PIXEL_THRESHOLD)) / diff.size * 100.0
-            )
+            pixel_mask = diff > _FRAME_DIFF_PIXEL_THRESHOLD
+            self._last_motion_mask = (pixel_mask.astype(np.uint8)) * 255
+            changed_pct = float(np.count_nonzero(pixel_mask)) / diff.size * 100.0
 
         passes = changed_pct >= settings.motion_gate_min_pixel_diff_pct
 
@@ -176,6 +180,29 @@ class PerCameraTracker:
     # Main update
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _compute_roi_bbox(
+        mask: np.ndarray[Any, Any],
+        h: int,
+        w: int,
+        margin_px: int,
+    ) -> tuple[int, int, int, int] | None:
+        """Return (x1, y1, x2, y2) from motion mask, expanded by margin_px, clamped to frame.
+
+        Returns None when mask has no nonzero pixels or the resulting box is degenerate.
+        """
+        nz = cv2.findNonZero(mask)
+        if nz is None:
+            return None
+        rx, ry, rw, rh = cv2.boundingRect(nz)
+        x1 = max(0, rx - margin_px)
+        y1 = max(0, ry - margin_px)
+        x2 = min(w, rx + rw + margin_px)
+        y2 = min(h, ry + rh + margin_px)
+        if x2 <= x1 or y2 <= y1:
+            return None
+        return x1, y1, x2, y2
+
     def update(self, frame_bgr: np.ndarray[Any, Any], conf: float | None = None) -> list[Tracklet]:
         """Run pose detection + BoT-SORT tracking on one frame. Returns confirmed tracklets.
 
@@ -199,8 +226,32 @@ class PerCameraTracker:
             return self._last_tracklets
 
         settings = get_settings()
+
+        # ROI crop: when enabled, crop YOLO input to the bounding box of changed
+        # pixels (from the motion gate mask) and resize to a fixed 640x640.
+        # Fixed size is mandatory — variable resolutions would generate a new TRT
+        # engine plan per unique (H, W) pair, destroying the TRT cache benefit.
+        frame_to_run = frame_bgr
+        roi_offset_x = roi_offset_y = 0
+        roi_scale_x = roi_scale_y = 1.0
+        roi_crop_active = False
+        if settings.motion_gate_roi_crop_enabled and self._last_motion_mask is not None:
+            h_f, w_f = frame_bgr.shape[:2]
+            roi = self._compute_roi_bbox(
+                self._last_motion_mask, h_f, w_f, settings.motion_gate_roi_margin_px
+            )
+            if roi is not None:
+                rx1, ry1, rx2, ry2 = roi
+                crop = frame_bgr[ry1:ry2, rx1:rx2]
+                frame_to_run = cv2.resize(crop, (640, 640), interpolation=cv2.INTER_LINEAR)
+                roi_scale_x = (rx2 - rx1) / 640.0
+                roi_scale_y = (ry2 - ry1) / 640.0
+                roi_offset_x = rx1
+                roi_offset_y = ry1
+                roi_crop_active = True
+
         results = self._model.track(
-            frame_bgr,
+            frame_to_run,
             conf=conf if conf is not None else settings.yolo_person_conf,
             persist=True,
             tracker=resolve_tracker_config(),
@@ -226,14 +277,30 @@ class PerCameraTracker:
         ):
             x1, y1, x2, y2 = (int(v) for v in bbox_arr)
 
+            if roi_crop_active:
+                x1 = int(x1 * roi_scale_x) + roi_offset_x
+                y1 = int(y1 * roi_scale_y) + roi_offset_y
+                x2 = int(x2 * roi_scale_x) + roi_offset_x
+                y2 = int(y2 * roi_scale_y) + roi_offset_y
+
             kpts: tuple[tuple[float, float, float], ...] = ()
             fv = False
             if kpts_data is not None and i < len(kpts_data):
                 raw = kpts_data[i]  # (17, 3)
-                kpts = tuple(
-                    (float(raw[j, 0]), float(raw[j, 1]), float(raw[j, 2]))
-                    for j in range(min(KP_DIM, raw.shape[0]))
-                )
+                if roi_crop_active:
+                    kpts = tuple(
+                        (
+                            float(raw[j, 0]) * roi_scale_x + roi_offset_x,
+                            float(raw[j, 1]) * roi_scale_y + roi_offset_y,
+                            float(raw[j, 2]),
+                        )
+                        for j in range(min(KP_DIM, raw.shape[0]))
+                    )
+                else:
+                    kpts = tuple(
+                        (float(raw[j, 0]), float(raw[j, 1]), float(raw[j, 2]))
+                        for j in range(min(KP_DIM, raw.shape[0]))
+                    )
                 fv = face_visible(kpts, min_conf=settings.face_kpt_min_conf)
 
             tracklets.append(

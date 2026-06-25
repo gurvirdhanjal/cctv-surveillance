@@ -4,7 +4,7 @@
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status: IN PROGRESS — Task 6**
+**Status: IN PROGRESS — Task 7**
 
 **Goal:** Move GPU kernel execution for the ONNX model stack (SCRFD, AdaFace, TransReID body,
 PPE) out of in-process ONNX Runtime and behind a Triton Inference Server gRPC endpoint, so the
@@ -338,17 +338,17 @@ mask. Capture the `diff > threshold` mask when ROI is enabled (frame_diff mode) 
 `fg_mask`, derive its bounding box via `cv2.boundingRect` on nonzero pixels.
 
 **RED → GREEN:**
-- [ ] `test_roi_crop_disabled_passes_full_frame` — `motion_gate_roi_crop_enabled=False` → YOLO
+- [x] `test_roi_crop_disabled_passes_full_frame` — `motion_gate_roi_crop_enabled=False` → YOLO
       receives full frame (assert shape).
-- [ ] `test_roi_crop_enabled_resizes_to_640` — enabled + a localized motion patch → YOLO receives
+- [x] `test_roi_crop_enabled_resizes_to_640` — enabled + a localized motion patch → YOLO receives
       a 640×640 input.
-- [ ] `test_roi_crop_maps_bbox_back_to_full_frame` — a detection inside the crop maps to the
+- [x] `test_roi_crop_maps_bbox_back_to_full_frame` — a detection inside the crop maps to the
       correct full-frame coordinates.
-- [ ] `test_roi_crop_no_effect_on_coasting_frame` — interval-skipped frame returns cached
+- [x] `test_roi_crop_no_effect_on_coasting_frame` — interval-skipped frame returns cached
       tracklets unchanged regardless of ROI flag.
-- [ ] Run tests → confirm RED.
-- [ ] Implement ROI crop in `update()` (and capture the mask in `_motion_gate_passes` or a helper).
-- [ ] Run tests → confirm GREEN.
+- [x] Run tests → confirm RED.
+- [x] Implement ROI crop in `update()` (and capture the mask in `_motion_gate_passes` or a helper).
+- [x] Run tests → confirm GREEN.
 
 **Quality gate:** full gate + targeted test file.
 **Commit:** `feat: phase 6c — ROI crop in PerCameraTracker (§6.0.25), fixed 640x640 for TRT cache`
