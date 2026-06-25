@@ -4,7 +4,7 @@
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status: IN PROGRESS — Task 8**
+**Status: IN PROGRESS — Task 9**
 
 **Goal:** Move GPU kernel execution for the ONNX model stack (SCRFD, AdaFace, TransReID body,
 PPE) out of in-process ONNX Runtime and behind a Triton Inference Server gRPC endpoint, so the
@@ -399,13 +399,13 @@ MoViNet A2 Stream is a **stateful** streaming model — it carries internal recu
 frames (per CLAUDE.md / engine docstring). ONNX export of stateful TF streaming models is
 historically hard. Per spec §2.5: evaluate, decide, document.
 
-- [ ] Attempt `tf2onnx` conversion of the MoViNet A2 Stream SavedModel. Record exact command,
+- [x] Attempt `tf2onnx` conversion of the MoViNet A2 Stream SavedModel. Record exact command,
       version, and the failure/success in the notes file.
-- [ ] **If export succeeds** and a numerical check passes (same clip → score within tolerance):
+- [x] **If export succeeds** and a numerical check passes (same clip → score within tolerance):
       add `scripts/export_movinet_onnx.py`, add to manifest, and note that it MAY later join the
       Triton repo (but it stays out of Triton for now — stateful streaming does not fit Triton's
       stateless dynamic batching without the sequence-batcher, which is out of scope).
-- [ ] **If export fails / is impractical:** document the decision to keep MoViNet native-TF
+- [x] **If export fails / is impractical:** document the decision to keep MoViNet native-TF
       in-process. Then ensure a warm-up protocol exists in `ViolenceModel.__init__` (a dummy
       forward pass to JIT/build the streaming graph so the first live frame doesn't stall), and
       test it. Document the warm-up in the notes and the runbook.

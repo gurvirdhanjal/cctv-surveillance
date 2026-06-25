@@ -34,6 +34,21 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+
+def _warm_up_model(model: Any, device: str, clip_frames: int, h: int, w: int) -> None:
+    """Run a dummy forward pass to pre-compile CUDA kernels on load.
+
+    First inference on a fresh CUDA context triggers JIT compilation of kernels,
+    which can stall the first real production frame by several seconds. A warm-up
+    dummy call at startup amortises this cost before any live camera frames arrive.
+    """
+    import torch
+
+    dummy = torch.zeros(1, 3, clip_frames, h, w, device=device)
+    with torch.no_grad():
+        model(dummy)
+
+
 # Violence-adjacent class names from Kinetics-400.
 # Indices are resolved at load time from the weights metadata (name-based lookup)
 # so they remain correct across torchvision releases.
@@ -151,6 +166,7 @@ class ViolenceModel:
 
             self._device = "cuda" if torch.cuda.is_available() else "cpu"
             self._model = model.to(self._device).eval()
+            _warm_up_model(self._model, self._device, self._clip_frames, _INPUT_H, _INPUT_W)
             logger.info(
                 "R(2+1)D-18 violence detector ready on %s — %d-frame clip, stride=%d",
                 self._device,
