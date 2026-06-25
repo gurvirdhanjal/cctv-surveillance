@@ -4,7 +4,7 @@
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status: IN PROGRESS — Task 7**
+**Status: IN PROGRESS — Task 8**
 
 **Goal:** Move GPU kernel execution for the ONNX model stack (SCRFD, AdaFace, TransReID body,
 PPE) out of in-process ONNX Runtime and behind a Triton Inference Server gRPC endpoint, so the
@@ -372,15 +372,15 @@ Rewrite the stale stub to export the **actually deployed** `osnet_ain_x1_0` MSMT
   nonzero on failure.
 
 **RED → GREEN:**
-- [ ] `test_export_osnet_validation_helper_flags_drift` — unit-test the cosine-compare helper with
+- [x] `test_export_osnet_validation_helper_flags_drift` — unit-test the cosine-compare helper with
       a synthetic drifted pair → returns failure; identical pair → pass. (The full export needs
       torch + weights; gate the live export behind `@pytest.mark.integration`.)
-- [ ] `test_export_osnet_onnx_io_shapes` (integration) — when weights present, assert exported
+- [x] `test_export_osnet_onnx_io_shapes` (integration) — when weights present, assert exported
       graph input `(N,3,256,128)` / output `(N,512)`.
-- [ ] Run tests → confirm RED.
-- [ ] Rewrite `scripts/export_osnet_onnx.py`; add the ONNX to `models/manifest.json` (per §8 —
+- [x] Run tests → confirm RED.
+- [x] Rewrite `scripts/export_osnet_onnx.py`; add the ONNX to `models/manifest.json` (per §8 —
       never commit the file itself).
-- [ ] Run tests → confirm GREEN.
+- [x] Run tests → confirm GREEN.
 
 **Quality gate:** full gate + targeted test file. Integration export run logged in notes with the
 measured cosine.

@@ -16,6 +16,7 @@ env/
 
 # AI model files (large binaries — download separately)
 models/
+!models/manifest.json
 *.pt
 *.onnx
 *.engine

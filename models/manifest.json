@@ -1,0 +1,43 @@
+{
+  "_comment": "ML model manifest. Use vms-models download to fetch. Never commit .onnx/.pt/.pth files.",
+  "models": [
+    {
+      "name": "scrfd_10g_bnkps",
+      "filename": "scrfd_10g_bnkps.onnx",
+      "sha256": null,
+      "description": "SCRFD-10G face detector with keypoints (9-output, pre-sigmoid). Letterbox 640x640 input."
+    },
+    {
+      "name": "adaface_ir101_webface12m",
+      "filename": "adaface_ir101_webface12m.onnx",
+      "sha256": null,
+      "description": "AdaFace IR101/WebFace12M face embedder. 512-dim L2-normalised. RGB (112,112) input."
+    },
+    {
+      "name": "transreid_body_msmt17",
+      "filename": "transreid_body_msmt17.onnx",
+      "sha256": null,
+      "description": "TransReID ViT-B/16+ICS body Re-ID. 768-dim L2-normalised. (1,3,384,128) input. Calibrated 2026-06-16."
+    },
+    {
+      "name": "sh17_ppe_yolov8l",
+      "filename": "sh17_ppe_yolov8l.onnx",
+      "sha256": null,
+      "description": "YOLOv8l SH17 PPE detector. 17 classes (helmet=10, vest=16, gloves=9, mask=5). (1,3,640,640) input."
+    },
+    {
+      "name": "yolo26m_pose",
+      "filename": "yolo26m-pose.onnx",
+      "sha256": null,
+      "description": "YOLO v2.6m pose model for person detection + 17 COCO keypoints. Used by PerCameraTracker."
+    },
+    {
+      "name": "osnet_ain_x1_0_msmt17",
+      "filename": "osnet_ain_x1_0_msmt17.onnx",
+      "sha256": null,
+      "description": "OSNet AIN x1.0 body Re-ID trained on MSMT17. 512-dim. (N,3,256,128) input, dynamic batch. Export via scripts/export_osnet_onnx.py.",
+      "export_script": "scripts/export_osnet_onnx.py",
+      "weights_source": "scripts/download_osnet_ain_msmt17.py"
+    }
+  ]
+}
