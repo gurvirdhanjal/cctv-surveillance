@@ -102,19 +102,21 @@ describe('AdminCamerasPage', () => {
     expect(alerts.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('validates RTSP URL must be valid URL', async () => {
+  it('validates IP address format', async () => {
     vi.mocked(api.get).mockResolvedValue([])
     const user = userEvent.setup()
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: 'Add Camera' }))
     const dialog = await screen.findByRole('dialog', { name: 'Add camera' })
     await user.type(within(dialog).getByLabelText('Camera name'), 'Test Cam')
-    await user.type(within(dialog).getByLabelText('RTSP URL'), 'not-a-url')
+    await user.type(within(dialog).getByLabelText('IP address'), 'not-an-ip')
+    await user.type(within(dialog).getByLabelText('Username'), 'admin')
+    await user.type(within(dialog).getByLabelText('Password'), 'pass')
     fireEvent.submit(screen.getByLabelText('Add camera form'))
-    expect(await screen.findByText(/valid RTSP or HTTP URL/)).toBeInTheDocument()
+    expect(await screen.findByText(/valid IP/)).toBeInTheDocument()
   })
 
-  it('calls POST /api/cameras on valid form submit', async () => {
+  it('calls POST /api/cameras/from-credentials on valid form submit', async () => {
     vi.mocked(api.get).mockResolvedValue([])
     vi.mocked(api.post).mockResolvedValue({ camera_id: 99 })
     const user = userEvent.setup()
@@ -122,10 +124,15 @@ describe('AdminCamerasPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add Camera' }))
     const dialog = await screen.findByRole('dialog', { name: 'Add camera' })
     await user.type(within(dialog).getByLabelText('Camera name'), 'New Camera')
-    await user.type(within(dialog).getByLabelText('RTSP URL'), 'rtsp://192.168.1.50/stream')
+    await user.type(within(dialog).getByLabelText('IP address'), '192.168.1.50')
+    await user.type(within(dialog).getByLabelText('Username'), 'admin')
+    await user.type(within(dialog).getByLabelText('Password'), 'secret')
     await user.click(within(dialog).getByRole('button', { name: 'Add Camera' }))
     await waitFor(() => {
-      expect(vi.mocked(api.post)).toHaveBeenCalledWith('/api/cameras', expect.any(Object))
+      expect(vi.mocked(api.post)).toHaveBeenCalledWith(
+        '/api/cameras/from-credentials',
+        expect.objectContaining({ host: '192.168.1.50', username: 'admin' }),
+      )
     })
   })
 })

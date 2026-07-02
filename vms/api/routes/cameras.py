@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from vms.api.deps import get_api_redis, get_current_user, get_db, get_stream_user, require_role
 from vms.api.schemas import (
     CameraCreate,
+    CameraFromCredentials,
     CameraHardwareUpdate,
     CameraOverridesUpdate,
     CameraResponse,
@@ -63,6 +64,36 @@ def create_camera(
     cam = Camera(
         name=body.name,
         rtsp_url=body.rtsp_url,
+        capability_tier=body.capability_tier,
+        shutter_type=body.shutter_type,
+        worker_group=body.worker_group,
+    )
+    db.add(cam)
+    db.commit()
+    db.refresh(cam)
+    return cam
+
+
+@router.post(
+    "/cameras/from-credentials", response_model=CameraResponse, status_code=status.HTTP_201_CREATED
+)
+def create_camera_from_credentials(
+    body: CameraFromCredentials,
+    db: Session = Depends(get_db),  # noqa: B008
+    _user: dict[str, Any] = Depends(get_current_user),  # noqa: B008
+) -> Camera:
+    """Create a camera by providing IP/credentials; the RTSP URL is assembled server-side.
+
+    The password is never returned in the response — it is masked in CameraResponse.rtsp_url.
+    """
+    path = body.stream_path.lstrip("/")
+    rtsp_url = f"rtsp://{body.username}:{body.password}@{body.host}:{body.port}"
+    if path:
+        rtsp_url = f"{rtsp_url}/{path}"
+
+    cam = Camera(
+        name=body.name,
+        rtsp_url=rtsp_url,
         capability_tier=body.capability_tier,
         shutter_type=body.shutter_type,
         worker_group=body.worker_group,

@@ -172,6 +172,18 @@ export interface CameraCreate {
   worker_group?: number | null
 }
 
+export interface CameraFromCredentials {
+  name: string
+  host: string
+  port?: number
+  username: string
+  password: string
+  stream_path?: string
+  capability_tier?: CapabilityTier
+  shutter_type?: 'rolling' | 'global' | 'unknown'
+  worker_group?: number | null
+}
+
 export interface ProfileData {
   resolution_w: number | null
   resolution_h: number | null

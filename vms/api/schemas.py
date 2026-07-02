@@ -320,6 +320,43 @@ class CameraUpdate(BaseModel):
         return v
 
 
+class CameraFromCredentials(BaseModel):
+    """Create a camera by supplying connection credentials; the RTSP URL is built server-side."""
+
+    name: str = Field(..., max_length=200)
+    host: str = Field(..., max_length=253, description="IP address or hostname of the camera")
+    port: int = Field(554, ge=1, le=65535)
+    username: str = Field(..., max_length=200)
+    password: str = Field(..., max_length=200)
+    stream_path: str = Field(
+        "", max_length=300, description="Path component after host:port (no leading slash needed)"
+    )
+    capability_tier: str = Field("FULL")
+    shutter_type: str = Field("unknown")
+    worker_group: int | None = None
+
+    @field_validator("capability_tier")
+    @classmethod
+    def validate_tier(cls, v: str) -> str:
+        if v not in VALID_TIERS:
+            raise ValueError(f"capability_tier must be one of {sorted(VALID_TIERS)}")
+        return v
+
+    @field_validator("shutter_type")
+    @classmethod
+    def validate_shutter(cls, v: str) -> str:
+        if v not in VALID_SHUTTER_TYPES:
+            raise ValueError(f"shutter_type must be one of {sorted(VALID_SHUTTER_TYPES)}")
+        return v
+
+
+def _mask_rtsp_credentials(url: str) -> str:
+    """Replace the password in an rtsp://user:pass@host URL with ***."""
+    import re
+
+    return re.sub(r"(rtsp[s]?://)([^:@/]+):([^@/]+)@", r"\1\2:***@", url)
+
+
 class CameraResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -334,6 +371,11 @@ class CameraResponse(BaseModel):
     model_overrides: str | None
     worker_group: int | None
     recalibrate_required_at: datetime | None = None
+
+    @field_validator("rtsp_url")
+    @classmethod
+    def mask_credentials(cls, v: str) -> str:
+        return _mask_rtsp_credentials(v)
 
 
 class CameraHardwareUpdate(BaseModel):

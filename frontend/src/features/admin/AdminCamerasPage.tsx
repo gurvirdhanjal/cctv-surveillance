@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
@@ -6,27 +6,41 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link } from 'react-router-dom'
 import { api } from '@/shared/api/client'
-import type { CameraResponse, CapabilityTier, CameraCreate } from '@/shared/api/types'
+import type { CameraResponse, CapabilityTier, CameraFromCredentials } from '@/shared/api/types'
 
 const TIER_COLORS: Record<CapabilityTier, string> = {
   FULL: 'bg-brand-100 text-brand-700',
-  MID: 'bg-yellow-100 text-yellow-800',
+  MID: 'bg-warning/10 text-warning',
   LOW: 'bg-surface-sunken text-text-secondary',
 }
 
+// Manufacturer presets fill in the stream path automatically
+const MANUFACTURER_PRESETS: Record<string, string> = {
+  generic: '',
+  hikvision: 'Streaming/Channels/1',
+  dahua: 'cam/realmonitor?channel=1&subtype=0',
+  axis: 'axis-media/media.amp',
+  hanwha: 'profile1/media.smp',
+  uniview: 'unicast/c1/s0/live',
+}
+
 const addCameraSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters').max(200),
-  rtsp_url: z
+  name: z.string().min(2, 'At least 2 characters').max(200),
+  host: z
     .string()
-    .min(5, 'URL required')
-    .regex(/^(rtsp|rtsps|http|https):\/\/.+/, 'Must be a valid RTSP or HTTP URL'),
+    .min(1, 'IP address or hostname required')
+    .max(253)
+    .regex(
+      /^(\d{1,3}\.){3}\d{1,3}$|^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z]{2,})+$/,
+      'Enter a valid IP (192.168.1.100) or hostname',
+    ),
+  port: z.coerce.number().int().min(1).max(65535),
+  username: z.string().min(1, 'Username required').max(200),
+  password: z.string().min(1, 'Password required').max(200),
+  stream_path: z.string().max(300).optional(),
   capability_tier: z.preprocess(
     (v) => (v === '' ? undefined : v),
     z.enum(['FULL', 'MID', 'LOW']).optional(),
-  ),
-  shutter_type: z.preprocess(
-    (v) => (v === '' ? undefined : v),
-    z.enum(['rolling', 'global', 'unknown']).optional(),
   ),
 })
 
@@ -35,6 +49,7 @@ type AddCameraForm = z.infer<typeof addCameraSchema>
 export function AdminCamerasPage() {
   const queryClient = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
+  const [manufacturer, setManufacturer] = useState('generic')
 
   const { data: cameras = [], isLoading } = useQuery<CameraResponse[]>({
     queryKey: ['admin', 'cameras'],
@@ -45,20 +60,45 @@ export function AdminCamerasPage() {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
-  } = useForm<AddCameraForm>({ resolver: zodResolver(addCameraSchema) })
+  } = useForm<AddCameraForm>({
+    resolver: zodResolver(addCameraSchema),
+    defaultValues: { port: 554 },
+  })
 
   const addMutation = useMutation({
-    mutationFn: (data: CameraCreate) => api.post('/api/cameras', data),
+    mutationFn: (data: CameraFromCredentials) => api.post('/api/cameras/from-credentials', data),
     onSuccess: () => {
       reset()
+      setManufacturer('generic')
       setShowAdd(false)
       void queryClient.invalidateQueries({ queryKey: ['admin', 'cameras'] })
     },
   })
 
+  function onManufacturerChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const key = e.target.value
+    setManufacturer(key)
+    setValue('stream_path', MANUFACTURER_PRESETS[key] ?? '')
+  }
+
   function onSubmit(data: AddCameraForm) {
-    addMutation.mutate(data)
+    addMutation.mutate({
+      name: data.name,
+      host: data.host,
+      port: data.port,
+      username: data.username,
+      password: data.password,
+      stream_path: data.stream_path ?? '',
+      capability_tier: data.capability_tier,
+    })
+  }
+
+  function closeModal() {
+    reset()
+    setManufacturer('generic')
+    setShowAdd(false)
   }
 
   return (
@@ -70,7 +110,7 @@ export function AdminCamerasPage() {
           <button
             type="button"
             onClick={() => setShowAdd(true)}
-            className="px-4 py-2 text-[14px] rounded bg-brand-500 text-white hover:bg-brand-600"
+            className="px-4 py-2 text-[14px] rounded bg-brand-500 text-white hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
           >
             Add Camera
           </button>
@@ -91,6 +131,9 @@ export function AdminCamerasPage() {
                     Name
                   </th>
                   <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase tracking-wide">
+                    Host
+                  </th>
+                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase tracking-wide">
                     Tier
                   </th>
                   <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase tracking-wide">
@@ -103,6 +146,9 @@ export function AdminCamerasPage() {
                 {cameras.map((cam) => (
                   <tr key={cam.camera_id} className="hover:bg-surface-raised">
                     <td className="px-4 py-3 font-medium text-text-primary">{cam.name}</td>
+                    <td className="px-4 py-3 font-mono text-[13px] text-text-secondary">
+                      {cam.rtsp_url}
+                    </td>
                     <td className="px-4 py-3">
                       <span
                         data-testid={`tier-badge-${cam.camera_id}`}
@@ -119,7 +165,7 @@ export function AdminCamerasPage() {
                     <td className="px-4 py-3 text-right">
                       <Link
                         to={`/admin/cameras/${cam.camera_id}`}
-                        className="text-brand-600 hover:underline text-[13px]"
+                        className="text-brand-500 hover:underline text-[13px]"
                         aria-label={`Configure ${cam.name}`}
                       >
                         Configure
@@ -130,10 +176,10 @@ export function AdminCamerasPage() {
                 {cameras.length === 0 && (
                   <tr>
                     <td
-                      colSpan={4}
+                      colSpan={5}
                       className="px-4 py-6 text-center text-[14px] text-text-muted"
                     >
-                      No cameras configured.
+                      No cameras configured. Add your first camera to get started.
                     </td>
                   </tr>
                 )}
@@ -150,89 +196,168 @@ export function AdminCamerasPage() {
           aria-label="Add camera"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
         >
-          <div className="bg-surface-base rounded-lg shadow-lg w-full max-w-md p-6">
-            <h2 className="text-[17px] font-semibold text-text-primary mb-4">Add Camera</h2>
-            <form
-              aria-label="Add camera form"
-              onSubmit={handleSubmit(onSubmit)}
-              className="space-y-4"
-            >
+          <div className="bg-surface-base rounded-lg shadow-lg w-full max-w-lg p-6">
+            <h2 className="text-[17px] font-semibold text-text-primary mb-1">Add Camera</h2>
+            <p className="text-[13px] text-text-muted mb-5">
+              Enter the camera's network address and credentials. The RTSP stream URL is
+              assembled securely on the server.
+            </p>
+
+            <form aria-label="Add camera form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              {/* Camera name */}
               <div>
-                <label
-                  htmlFor="cam-name"
-                  className="block text-[13px] font-medium text-text-secondary mb-1"
-                >
+                <label htmlFor="cam-name" className="block text-[13px] font-medium text-text-secondary mb-1">
                   Camera name
                 </label>
                 <input
                   id="cam-name"
                   {...register('name')}
-                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary focus:outline-none focus:border-brand-500 transition-colors"
                   placeholder="Assembly Line 1"
                 />
                 {errors.name && (
-                  <p role="alert" className="mt-1 text-[12px] text-red-600">
-                    {errors.name.message}
-                  </p>
+                  <p role="alert" className="mt-1 text-[12px] text-error">{errors.name.message}</p>
                 )}
               </div>
+
+              {/* Manufacturer preset */}
               <div>
-                <label
-                  htmlFor="cam-rtsp"
-                  className="block text-[13px] font-medium text-text-secondary mb-1"
+                <label htmlFor="cam-manufacturer" className="block text-[13px] font-medium text-text-secondary mb-1">
+                  Manufacturer
+                </label>
+                <select
+                  id="cam-manufacturer"
+                  value={manufacturer}
+                  onChange={onManufacturerChange}
+                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary focus:outline-none focus:border-brand-500 transition-colors"
                 >
-                  RTSP URL
+                  <option value="generic">Generic / ONVIF</option>
+                  <option value="hikvision">Hikvision</option>
+                  <option value="dahua">Dahua</option>
+                  <option value="axis">Axis</option>
+                  <option value="hanwha">Hanwha / Samsung</option>
+                  <option value="uniview">Uniview</option>
+                </select>
+              </div>
+
+              {/* IP + Port row */}
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label htmlFor="cam-host" className="block text-[13px] font-medium text-text-secondary mb-1">
+                    IP address
+                  </label>
+                  <input
+                    id="cam-host"
+                    {...register('host')}
+                    className="w-full border border-border rounded px-3 py-2 text-[14px] font-mono bg-surface-base text-text-primary focus:outline-none focus:border-brand-500 transition-colors"
+                    placeholder="192.168.1.100"
+                    autoComplete="off"
+                  />
+                  {errors.host && (
+                    <p role="alert" className="mt-1 text-[12px] text-error">{errors.host.message}</p>
+                  )}
+                </div>
+                <div className="w-24">
+                  <label htmlFor="cam-port" className="block text-[13px] font-medium text-text-secondary mb-1">
+                    Port
+                  </label>
+                  <input
+                    id="cam-port"
+                    type="number"
+                    {...register('port')}
+                    className="w-full border border-border rounded px-3 py-2 text-[14px] font-mono bg-surface-base text-text-primary focus:outline-none focus:border-brand-500 transition-colors"
+                    placeholder="554"
+                  />
+                  {errors.port && (
+                    <p role="alert" className="mt-1 text-[12px] text-error">{errors.port.message}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Username + Password row */}
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label htmlFor="cam-username" className="block text-[13px] font-medium text-text-secondary mb-1">
+                    Username
+                  </label>
+                  <input
+                    id="cam-username"
+                    {...register('username')}
+                    className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary focus:outline-none focus:border-brand-500 transition-colors"
+                    placeholder="admin"
+                    autoComplete="username"
+                  />
+                  {errors.username && (
+                    <p role="alert" className="mt-1 text-[12px] text-error">{errors.username.message}</p>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <label htmlFor="cam-password" className="block text-[13px] font-medium text-text-secondary mb-1">
+                    Password
+                  </label>
+                  <input
+                    id="cam-password"
+                    type="password"
+                    {...register('password')}
+                    className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary focus:outline-none focus:border-brand-500 transition-colors"
+                    placeholder="••••••••"
+                    autoComplete="current-password"
+                  />
+                  {errors.password && (
+                    <p role="alert" className="mt-1 text-[12px] text-error">{errors.password.message}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Stream path */}
+              <div>
+                <label htmlFor="cam-path" className="block text-[13px] font-medium text-text-secondary mb-1">
+                  Stream path
+                  <span className="ml-1 text-text-muted font-normal">(auto-filled from manufacturer)</span>
                 </label>
                 <input
-                  id="cam-rtsp"
-                  {...register('rtsp_url')}
-                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  placeholder="rtsp://camera/stream"
+                  id="cam-path"
+                  {...register('stream_path')}
+                  className="w-full border border-border rounded px-3 py-2 text-[14px] font-mono bg-surface-base text-text-primary focus:outline-none focus:border-brand-500 transition-colors"
+                  placeholder="Streaming/Channels/1"
                 />
-                {errors.rtsp_url && (
-                  <p role="alert" className="mt-1 text-[12px] text-red-600">
-                    {errors.rtsp_url.message}
-                  </p>
-                )}
               </div>
+
+              {/* Capability tier */}
               <div>
-                <label
-                  htmlFor="cam-tier"
-                  className="block text-[13px] font-medium text-text-secondary mb-1"
-                >
+                <label htmlFor="cam-tier" className="block text-[13px] font-medium text-text-secondary mb-1">
                   Capability tier
                 </label>
                 <select
                   id="cam-tier"
                   {...register('capability_tier')}
-                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary focus:outline-none focus:border-brand-500 transition-colors"
                 >
                   <option value="">Auto-detect</option>
-                  <option value="FULL">FULL</option>
-                  <option value="MID">MID</option>
-                  <option value="LOW">LOW</option>
+                  <option value="FULL">FULL — face + body + anomaly</option>
+                  <option value="MID">MID — face + body only</option>
+                  <option value="LOW">LOW — body only</option>
                 </select>
               </div>
+
               {addMutation.isError && (
-                <p role="alert" className="text-[13px] text-red-600">
-                  Failed to add camera.
+                <p role="alert" className="text-[13px] text-error">
+                  Failed to add camera. Check the IP address and credentials.
                 </p>
               )}
+
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    reset()
-                    setShowAdd(false)
-                  }}
-                  className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary hover:text-text-primary"
+                  onClick={closeModal}
+                  className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={addMutation.isPending}
-                  className="px-4 py-2 text-[14px] rounded bg-brand-500 text-white hover:bg-brand-600 disabled:opacity-50"
+                  className="px-4 py-2 text-[14px] rounded bg-brand-500 text-white hover:bg-brand-700 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                 >
                   {addMutation.isPending ? 'Adding…' : 'Add Camera'}
                 </button>
