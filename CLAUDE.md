@@ -289,6 +289,33 @@ mypy vms/
 
 CI runs the same. Pre-commit hook recommended (Phase 1B may add this).
 
+### 5.1 Frontend coding standards (files under `frontend/`)
+
+Before touching any file in `frontend/`, open these two rulebooks and keep them open:
+
+| Rulebook | What it owns | When to consult |
+|---|---|---|
+| `docs/frontend/2026-06-24-vms-design-system.md` | Colors, tokens, typography, spacing, elevation, motion, component patterns (§7), a11y (§13) | Any className change, new component, theme/color decision |
+| `docs/frontend/2026-05-01-vms-frontend-spec.md` | Routes, file layout, state management, API error handling, forms, tables, perf budgets | New route, new hook, store slice, form, API call |
+
+**Token rule — never invent a token name.** Only the tokens defined in §6.1 of the design system may appear in Tailwind classNames. Non-exhaustive list of tokens that DO NOT exist and must NOT be used:
+- `surface-elevated` → use `surface-raised`
+- `border-subtle` / `border-muted` → use `border` (maps to `--border-default`)
+- `text-tertiary` → use `text-muted`
+- `surface-hover` → use `surface-raised` (nav hover) or `surface-sunken` (table row hover)
+
+**Element-level role checks:** use `hasPermission(user.role, resource, action)` from `src/shared/auth/permissions.ts` — never inline `user.role === 'admin'` comparisons in JSX (except in the `RoleGuard` wrapper itself).
+
+**Frontend quality gate** (run before every commit touching `frontend/`):
+```powershell
+cd frontend
+pnpm lint
+pnpm typecheck
+pnpm test:run
+```
+
+Coverage targets: `src/shared/` ≥ 80%, `src/features/` ≥ 70%.
+
 ---
 
 ## 6. Database conventions — these are sacred

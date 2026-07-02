@@ -127,6 +127,74 @@ The app is **one Single-Page Application** with role-gated routes. Same codebase
 
 Implemented via a `<RoleGuard allowed={[…]}>` wrapper on every protected route. JWT role decoded client-side for routing decisions; server still authorises every API call independently.
 
+### Element-level permission check — `hasPermission`
+
+Route guards control access to pages. For conditional rendering within a page (show/hide a button, enable/disable a form field), use `hasPermission`:
+
+```ts
+// src/shared/auth/permissions.ts
+type VmsRole     = 'guard' | 'manager' | 'admin'
+type VmsResource = 'persons' | 'cameras' | 'zones' | 'alerts' | 'users'
+                 | 'anomaly-detectors' | 'audit' | 'models' | 'maintenance' | 'alert-routing'
+type Action      = 'read' | 'create' | 'update' | 'delete'
+
+const ROLE_PERMISSIONS: Record<VmsRole, Partial<Record<VmsResource, Action[]>>> = {
+  guard: {
+    persons:  ['read'],
+    cameras:  ['read'],
+    zones:    ['read'],
+    alerts:   ['read', 'update'],  // update = ack / resolve
+    audit:    ['read'],
+    maintenance: ['read'],
+  },
+  manager: {
+    persons:  ['read'],
+    cameras:  ['read'],
+    zones:    ['read'],
+    alerts:   ['read', 'update'],
+    'anomaly-detectors': ['read'],
+    audit:    ['read'],
+    models:   ['read'],
+    maintenance: ['read'],
+    'alert-routing': ['read'],
+  },
+  admin: {
+    persons:  ['read', 'create', 'update', 'delete'],
+    cameras:  ['read', 'create', 'update', 'delete'],
+    zones:    ['read', 'create', 'update', 'delete'],
+    alerts:   ['read', 'update', 'delete'],
+    users:    ['read', 'create', 'update', 'delete'],
+    'anomaly-detectors': ['read', 'update'],
+    audit:    ['read'],
+    models:   ['read', 'update'],
+    maintenance: ['read', 'create', 'update', 'delete'],
+    'alert-routing': ['read', 'create', 'update', 'delete'],
+  },
+}
+
+export function hasPermission(role: VmsRole, resource: VmsResource, action: Action): boolean {
+  return ROLE_PERMISSIONS[role]?.[resource]?.includes(action) ?? false
+}
+```
+
+Usage in components:
+
+```tsx
+const { user } = useAuth()
+
+{hasPermission(user.role, 'cameras', 'update') && (
+  <Button onClick={openEditModal}>Edit camera</Button>
+)}
+
+// Hardware tab — read-only for manager, editable for admin:
+<input
+  disabled={!hasPermission(user.role, 'cameras', 'update')}
+  {...register('shutter_type')}
+/>
+```
+
+The server enforces the same boundaries independently — `hasPermission` is only for UI ergonomics, not security.
+
 ---
 
 ## §4. File layout
@@ -636,6 +704,34 @@ type ThemeState = {
 
 Stored in `localStorage` (theme, locale only — never JWT).
 
+### Generic admin store pattern
+
+When adding a feature store for an admin list page (persons, cameras, zones, alert-routing, etc.), follow this interface template so all stores behave consistently:
+
+```ts
+interface AdminListStore<T> {
+  // Data
+  items: T[]
+  current: T | null
+
+  // UI State
+  loading: boolean
+  error: string | null
+
+  // Pagination
+  page: number
+  pageSize: number   // default 25
+  total: number
+
+  // Actions
+  setPage:    (page: number) => void
+  setCurrent: (item: T | null) => void
+  reset:      () => void
+}
+```
+
+These stores hold **only selection + pagination state** — the actual data lives in TanStack Query caches. The store drives which page is visible and which item is selected; Query drives the fetch and caching. Don't duplicate server state in Zustand.
+
 ### Server state — TanStack Query
 
 Used for everything fetched from REST: persons, cameras, zones, alerts (historical), forensic results, audit log, etc. Stale times tuned per endpoint:
@@ -828,6 +924,46 @@ Top-level `useEffect` in `<App>` catches `UnauthorizedError` and redirects to `/
 | 422 | inline form errors mapped per-field |
 | 5xx | toast "Server error — please retry. If it persists, contact support."; retry button on data fetches; auto-retry on background refetches |
 | Network offline | persistent banner "No connection — retrying every 5s" |
+
+### Session timeout
+
+Guards run a single long-lived browser session. The JWT has a server-configured expiry (`VMS_JWT_EXPIRE_MINUTES`). The frontend must handle expiry gracefully rather than letting an API 401 appear mid-task:
+
+```ts
+// src/shared/auth/useSessionGuard.ts
+const WARNING_BEFORE_MS = 5 * 60 * 1000  // warn 5 min before expiry
+
+export function useSessionGuard() {
+  const { token, logout } = useAuthStore()
+
+  useEffect(() => {
+    if (!token) return
+
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    const expiresAt = payload.exp * 1000
+    const warnAt   = expiresAt - WARNING_BEFORE_MS
+    const now      = Date.now()
+
+    if (now >= expiresAt) { logout(); return }
+
+    const warnTimer   = setTimeout(() => showSessionWarning(expiresAt), Math.max(0, warnAt - now))
+    const expireTimer = setTimeout(() => logout(), expiresAt - now)
+
+    return () => { clearTimeout(warnTimer); clearTimeout(expireTimer) }
+  }, [token, logout])
+}
+
+function showSessionWarning(expiresAt: number) {
+  // Modal: "Your session expires in ~5 minutes. Stay logged in?"
+  // CTA: "Extend session" → POST /api/auth/refresh → updates token in authStore
+  // Secondary: "Log out now"
+  // Auto-dismisses and logs out when expiresAt is reached.
+}
+```
+
+Mount `useSessionGuard()` once in `<App>` or `<AuthProvider>`. On the Guard view specifically, the warning modal should be non-blocking (does not prevent alert acknowledgement) — render it in a portal outside the main layout.
+
+**Refresh endpoint:** `POST /api/auth/refresh` — returns a new JWT without re-entering credentials if the old token is still valid. If the old token is already expired, redirect to `/login?next=...`.
 
 ---
 

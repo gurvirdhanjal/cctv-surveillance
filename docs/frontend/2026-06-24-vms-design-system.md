@@ -24,6 +24,8 @@ Both themes are first-class and fully polished — dark is not a tinted aftertho
 - A single Zustand `themeStore` owns the active theme, persisted to `localStorage` under key `vms-theme`.
 - A `<ThemeToggle />` switch lives in the TopBar.
 - **Route-level overrides:** the Guard view forces dark on mount; Manager/Admin pages force light on mount. These overrides are *applied, not stored* — they set `data-theme` without writing to `localStorage`, so a user's explicit toggle is preserved across navigation away from the forced route.
+- **System preference fallback:** on first load with no persisted preference, the theme is inferred from `prefers-color-scheme` — dark system → dark theme, light system → light theme. A `useThemeInitialization` hook (§6.6) can optionally watch the system preference and follow it in real time while no explicit choice is saved.
+- **Mobile browser chrome:** `ThemeProvider` (§6.3) updates `<meta name="theme-color">` on every theme switch so the browser chrome matches the app surface.
 
 ### 1.3 Accessibility target
 
@@ -352,6 +354,20 @@ The single source of runtime truth. Tailwind reads these via `theme.extend.color
   --severity-medium:   #d97706;
   --severity-low:      #65a30d;
 }
+
+/* Global theme transition — fires only when data-theme changes on :root.
+   Scoped to [data-theme] so the transition is skipped on cold page load
+   (before ThemeProvider sets the attribute). */
+:root[data-theme] *, :root[data-theme] *::before, :root[data-theme] *::after {
+  transition: background-color 300ms ease, border-color 300ms ease, color 300ms ease;
+}
+/* Inputs and active buttons skip the transition — keyboard/click response must feel instant. */
+:root[data-theme] input,
+:root[data-theme] textarea,
+:root[data-theme] select,
+:root[data-theme] button:active {
+  transition: none;
+}
 ```
 
 ```ts
@@ -384,8 +400,10 @@ interface ThemeState {
   applyTheme: (t: Theme) => void; // route override — does NOT persist
 }
 
+const systemPreference: Theme =
+  window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 const initial: Theme =
-  (localStorage.getItem(STORAGE_KEY) as Theme | null) ?? 'light';
+  (localStorage.getItem(STORAGE_KEY) as Theme | null) ?? systemPreference;
 
 export const useThemeStore = create<ThemeState>((set) => ({
   theme: initial,
@@ -406,14 +424,30 @@ export const useThemeStore = create<ThemeState>((set) => ({
 import { useEffect, type PropsWithChildren } from 'react';
 import { useThemeStore } from '@/stores/themeStore';
 
+const META_THEME_COLOR: Record<'light' | 'dark', string> = {
+  light: '#ffffff',   // matches --surface-base light
+  dark:  '#0a0e1a',   // matches --surface-base dark
+};
+
 export function ThemeProvider({ children }: PropsWithChildren) {
   const theme = useThemeStore((s) => s.theme);
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    // Update mobile browser chrome color
+    let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.name = 'theme-color';
+      document.head.appendChild(meta);
+    }
+    meta.content = META_THEME_COLOR[theme];
   }, [theme]);
   return <>{children}</>;
 }
 ```
+
+> **HTML prerequisite:** add `<meta name="theme-color" content="#ffffff">` to `index.html` so browsers pick up the correct color before React hydrates. `ThemeProvider` takes over from there.
+
 
 ### 6.4 Route-level auto-theme
 
@@ -447,10 +481,60 @@ interface ThemeToggleProps {
   /** Hide on routes that force a theme (Guard) so users aren't confused. */
   disabled?: boolean;
 }
-// Renders a shadcn Switch + Sun/Moon Lucide icons.
+// Renders a shadcn Switch + Sun/Moon Lucide icons (Moon for dark, Sun for light).
 // aria-label="Toggle color theme"; aria-pressed reflects dark state.
 // On change → useThemeStore.getState().toggleTheme()
 ```
+
+### 6.6 System preference + `useThemeInitialization`
+
+The store's `initial` value (§6.2) already performs a one-shot read of `prefers-color-scheme`. This hook adds the optional live-watch so the app follows system changes made after load — but only while no explicit user preference is stored.
+
+```tsx
+// hooks/useThemeInitialization.ts
+import { useEffect } from 'react';
+import { useThemeStore } from '@/stores/themeStore';
+
+/**
+ * Call once in App.tsx.
+ * watchSystem = true → follow OS theme changes in real-time when the user
+ *   hasn't stored an explicit preference. watchSystem = false (default) →
+ *   system preference is read once at store init (§6.2) and never re-checked.
+ */
+export function useThemeInitialization(watchSystem = false) {
+  const apply = useThemeStore((s) => s.applyTheme);
+  useEffect(() => {
+    if (!watchSystem) return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => {
+      if (!localStorage.getItem('vms-theme')) {
+        apply(e.matches ? 'dark' : 'light');
+      }
+    };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [watchSystem, apply]);
+}
+```
+
+```tsx
+// App.tsx
+import { useThemeInitialization } from '@/hooks/useThemeInitialization';
+
+function App() {
+  useThemeInitialization(true); // watch system; user's explicit toggle always wins
+  return <ThemeProvider>...</ThemeProvider>;
+}
+```
+
+**Behavior matrix:**
+
+| Saved preference | OS changes | Result |
+|---|---|---|
+| None | dark → light | Follows OS → light |
+| None | light → dark | Follows OS → dark |
+| `'dark'` | light | Ignores OS — shows dark |
+| `'light'` | dark | Ignores OS — shows light |
 
 ---
 
@@ -661,6 +745,43 @@ low:      rgba(101, 163, 13, 1)  /* #65a30d */
 ```tsx
 <div style={{ borderLeft: `4px solid ${SEVERITY_RGBA[severity]}` }} />
 ```
+
+### 7.17 Loading skeleton
+
+Use skeleton in place of a spinner when the loaded content has predictable structure — it reduces layout shift and signals progress without an ambiguous indicator. All skeletons use `bg-surface-raised animate-pulse rounded`.
+
+```tsx
+// Person list row — matches real row height (h-11) and layout:
+<div className="flex items-center gap-3 px-3 py-2">
+  <div className="h-10 w-10 flex-shrink-0 rounded-full bg-surface-raised animate-pulse" />
+  <div className="flex-1 space-y-2">
+    <div className="h-4 w-2/3 rounded bg-surface-raised animate-pulse" />
+    <div className="h-3 w-1/3 rounded bg-surface-raised animate-pulse" />
+  </div>
+</div>
+
+// Camera list row — fixed height matches real row:
+<div className="h-11 w-full rounded bg-surface-raised animate-pulse" />
+
+// Metric card (Analytics KPI):
+<div className="flex flex-col gap-2 p-3">
+  <div className="h-8 w-20 rounded bg-surface-raised animate-pulse" /> {/* big number */}
+  <div className="h-3 w-28 rounded bg-surface-raised animate-pulse" /> {/* label */}
+</div>
+
+// Audit log row:
+<div className="flex items-center gap-4 px-3 py-2">
+  <div className="h-3 w-32 rounded bg-surface-raised animate-pulse" /> {/* timestamp */}
+  <div className="h-3 w-24 rounded bg-surface-raised animate-pulse" /> {/* event type */}
+  <div className="h-3 flex-1 rounded bg-surface-raised animate-pulse" /> {/* detail */}
+</div>
+```
+
+**Rules:**
+- Repeat N skeleton rows equal to the expected page size (e.g. 10 for a paginated admin list). A single spinner doesn't communicate list structure.
+- `prefers-reduced-motion`: replace `animate-pulse` with a static `bg-surface-raised opacity-60` — no motion.
+- Never combine a spinner *and* skeleton in the same loading context — pick one per component.
+- Once data arrives, transition from skeleton → content without an explicit fade; the React state swap is fast enough.
 
 ---
 
