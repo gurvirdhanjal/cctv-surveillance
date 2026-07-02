@@ -130,6 +130,49 @@ async def test_get_camera_404_for_missing(db_session: Session) -> None:
 
 
 # ---------------------------------------------------------------------------
+# DELETE /api/cameras/{id}
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_delete_camera_returns_204(db_session: Session) -> None:
+    from vms.api.deps import get_db
+
+    cam = Camera(name="Temp Cam", rtsp_url="rtsp://temp", capability_tier="LOW")
+    db_session.add(cam)
+    db_session.flush()
+    cam_id = cam.camera_id
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            r = await c.delete(f"/api/cameras/{cam_id}", headers=_auth("admin"))
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+    assert r.status_code == 204
+    assert db_session.get(Camera, cam_id) is None
+
+
+@pytest.mark.asyncio
+async def test_delete_camera_404_for_missing(db_session: Session) -> None:
+    from vms.api.deps import get_db
+
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            r = await c.delete("/api/cameras/99999", headers=_auth("admin"))
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_camera_requires_admin() -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        r = await c.delete("/api/cameras/1", headers=_auth("guard"))
+    assert r.status_code == 403
+
+
+# ---------------------------------------------------------------------------
 # PATCH /api/cameras/{id}
 # ---------------------------------------------------------------------------
 

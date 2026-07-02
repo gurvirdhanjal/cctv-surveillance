@@ -50,10 +50,19 @@ export function AdminCamerasPage() {
   const queryClient = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
   const [manufacturer, setManufacturer] = useState('generic')
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
 
   const { data: cameras = [], isLoading } = useQuery<CameraResponse[]>({
     queryKey: ['admin', 'cameras'],
     queryFn: () => api.get('/api/cameras'),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (cameraId: number) => api.delete(`/api/cameras/${cameraId}`),
+    onSuccess: () => {
+      setConfirmDeleteId(null)
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'cameras'] })
+    },
   })
 
   const {
@@ -105,6 +114,14 @@ export function AdminCamerasPage() {
     <>
       <Helmet title="Cameras — Admin" />
       <div className="p-6">
+        {deleteMutation.isError && (
+          <p role="alert" className="mb-3 text-[13px] text-error">
+            {(deleteMutation.error as { status?: number })?.status === 409
+              ? 'Camera has associated records. Deactivate it instead of deleting.'
+              : 'Failed to delete camera. Please try again.'}
+          </p>
+        )}
+
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-[22px] font-semibold text-text-primary">Cameras</h1>
           <button
@@ -163,13 +180,43 @@ export function AdminCamerasPage() {
                       {cam.is_active ? 'Active' : 'Inactive'}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Link
-                        to={`/admin/cameras/${cam.camera_id}`}
-                        className="text-brand-500 hover:underline text-[13px]"
-                        aria-label={`Configure ${cam.name}`}
-                      >
-                        Configure
-                      </Link>
+                      {confirmDeleteId === cam.camera_id ? (
+                        <span className="flex items-center justify-end gap-3">
+                          <button
+                            type="button"
+                            onClick={() => deleteMutation.mutate(cam.camera_id)}
+                            disabled={deleteMutation.isPending}
+                            className="text-[13px] text-error hover:underline disabled:opacity-50"
+                          >
+                            {deleteMutation.isPending ? 'Deleting…' : 'Confirm delete'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteId(null)}
+                            className="text-[13px] text-text-muted hover:text-text-primary"
+                          >
+                            Cancel
+                          </button>
+                        </span>
+                      ) : (
+                        <span className="flex items-center justify-end gap-4">
+                          <Link
+                            to={`/admin/cameras/${cam.camera_id}`}
+                            className="text-brand-500 hover:underline text-[13px]"
+                            aria-label={`Configure ${cam.name}`}
+                          >
+                            Configure
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteId(cam.camera_id)}
+                            className="text-[13px] text-error hover:underline"
+                            aria-label={`Delete ${cam.name}`}
+                          >
+                            Delete
+                          </button>
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}

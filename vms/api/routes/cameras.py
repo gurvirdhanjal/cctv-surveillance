@@ -118,6 +118,40 @@ def get_camera(
     return _get_camera_or_404(camera_id, db)
 
 
+@router.delete("/cameras/{camera_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
+def delete_camera(
+    camera_id: int,
+    db: Session = Depends(get_db),  # noqa: B008
+    _user: dict[str, Any] = require_role("admin"),  # noqa: B008
+) -> None:
+    from sqlalchemy.exc import IntegrityError
+
+    cam = _get_camera_or_404(camera_id, db)
+    cam_name = cam.name
+    try:
+        db.delete(cam)
+        db.flush()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Camera has associated tracking events or alerts; deactivate it (PATCH is_active=false) instead.",
+        ) from exc
+    try:
+        actor_id: int | None = int(_user["sub"])
+    except (ValueError, KeyError):
+        actor_id = None
+    if actor_id is not None and db.get(DBUser, actor_id) is None:
+        actor_id = None
+    write_audit_event(
+        db,
+        event_type="CAMERA_DELETED",
+        actor_user_id=actor_id,
+        payload=json.dumps({"camera_id": camera_id, "name": cam_name}),
+    )
+    db.commit()
+
+
 @router.patch("/cameras/{camera_id}", response_model=CameraResponse)
 def update_camera(
     camera_id: int,
