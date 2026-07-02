@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/shared/api/client'
 import type { PersonResponse } from '@/shared/api/types'
+import { useAuth } from '@/hooks/useAuth'
 import { useLiveStore } from '../store/liveStore'
 import { HeadCountBanner } from './HeadCountBanner'
 
@@ -11,6 +12,7 @@ export function TopBar() {
   const [searchQuery, setSearchQuery] = useState('')
   const searchInputRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
+  const { user } = useAuth()
 
   const alerts = useLiveStore((s) => s.alerts)
   const activeAlertCount = alerts.filter((a) => a.state === 'OPEN').length
@@ -73,6 +75,15 @@ export function TopBar() {
         <div className="flex-1" />
 
         <HeadCountBanner />
+
+        {(user?.role === 'admin' || user?.role === 'manager') && (
+          <Link
+            to="/admin"
+            className="rounded-md px-3 py-1.5 text-[13px] text-text-secondary hover:bg-surface-raised hover:text-text-primary"
+          >
+            Admin
+          </Link>
+        )}
 
         {activeAlertCount > 0 && (
           <Link

@@ -69,11 +69,8 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
   login: async (username, password) => {
     set({ isLoading: true, error: null })
     try {
-      const body = new URLSearchParams({ username, password }).toString()
-      const res = await api.post<TokenResponse>('/api/auth/token', undefined, {
+      const res = await api.post<TokenResponse>('/api/auth/token', { username, password }, {
         skipAuth: true,
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: body as unknown,
       })
       const payload = decodeJwt(res.access_token)
       if (!payload) throw new Error('Invalid token received')

@@ -35,7 +35,7 @@ describe('socket client', () => {
   })
 
   it('attaches JWT token from localStorage in auth', () => {
-    localStorage.setItem('vms_token', 'test-jwt-abc')
+    localStorage.setItem('vms-auth', JSON.stringify({ token: 'test-jwt-abc' }))
     getSocket()
     expect(io).toHaveBeenCalledWith(
       '',

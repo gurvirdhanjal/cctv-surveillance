@@ -15,9 +15,15 @@ const severityOrder: Record<string, number> = {
 
 export function AlertSidebar() {
   const alerts = useLiveStore((s) => s.alerts)
+  const cameras = useLiveStore((s) => s.cameras)
   const degraded = useLiveStore((s) => s.degraded)
   const setFocusedCamera = useLiveStore((s) => s.setFocusedCamera)
   const { acknowledge, resolve } = useLiveAlerts()
+
+  const cameraNameById = useMemo(
+    () => new Map(cameras.map((c) => [c.camera_id, c.name])),
+    [cameras],
+  )
 
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>('')
 
@@ -102,6 +108,7 @@ export function AlertSidebar() {
                 >
                   <AlertCard
                     alert={primary}
+                    cameraName={primary.camera_id !== null ? cameraNameById.get(primary.camera_id) : undefined}
                     onAcknowledge={acknowledge}
                     onResolve={resolve}
                   />

@@ -4,6 +4,7 @@ import type { LiveAlert } from '../types'
 
 interface AlertCardProps {
   alert: LiveAlert
+  cameraName?: string
   onAcknowledge?: (id: number) => void
   onResolve?: (id: number) => void
 }
@@ -22,11 +23,13 @@ const severityText: Record<string, string> = {
   LOW: 'text-severity-low',
 }
 
+const ACRONYMS = new Set(['PPE', 'ID'])
+
 function formatAlertType(t: string): string {
   return t
-    .toLowerCase()
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .split('_')
+    .map((word) => ACRONYMS.has(word) ? word : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
 }
 
 function timeSince(iso: string): string {
@@ -40,11 +43,13 @@ function timeSince(iso: string): string {
 
 export const AlertCard = memo(function AlertCard({
   alert,
+  cameraName,
   onAcknowledge,
   onResolve,
 }: AlertCardProps) {
+  const camLabel = cameraName ?? (alert.camera_id !== null ? `Cam #${alert.camera_id}` : null)
   const location = [
-    alert.camera_id !== null && `Cam #${alert.camera_id}`,
+    camLabel,
     alert.zone_id !== null && `Zone #${alert.zone_id}`,
   ]
     .filter(Boolean)
