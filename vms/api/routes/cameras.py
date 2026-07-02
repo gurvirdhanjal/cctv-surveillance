@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import os
+import threading
 import time
 from datetime import datetime, timezone
 from typing import Any
@@ -391,20 +392,104 @@ def get_site_readiness_report(
 
 _MJPEG_BOUNDARY = b"vmsframe"
 _MJPEG_JPEG_QUALITY = 60  # percent — reduces bandwidth; fine for browser display
-_MJPEG_TARGET_FPS = 15  # cap at 15fps to keep bandwidth reasonable
+_MJPEG_TARGET_FPS = 15  # MJPEG delivery rate cap
+_RTSP_DRAIN_FPS = 30  # reader thread drains and stores frames at up to this rate
+_RTSP_MAX_FAILS = 8  # consecutive read failures before reconnect
+_RTSP_RECONNECT_DELAY_S = 5.0
 _SNAPSHOT_JPEG_QUALITY = 80
 
 
-def _open_capture(rtsp_url: str) -> Any:
-    """Open an RTSP VideoCapture; raises RuntimeError on failure. Runs in a thread."""
-    import cv2  # local import — cv2 optional for deployments without streaming
+class _RtspFrameBuffer:
+    """Drains RTSP in a background thread; latest JPEG frame always available.
 
-    os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
-    cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
-    cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)
-    if not cap.isOpened():
-        raise RuntimeError("Cannot open RTSP stream for camera")
-    return cap
+    A dedicated reader thread calls cap.read() continuously at full camera
+    speed, eliminating H.265 keyframe-interval stalls (up to 2 s) that blocked
+    the previous await-cap.read() approach. Same two-thread split used in
+    scripts/multi_cam_pipeline_test.py.
+    """
+
+    def __init__(self, rtsp_url: str, camera_id: int) -> None:
+        self._url = rtsp_url
+        self._camera_id = camera_id
+        self._lock = threading.Lock()
+        self._jpeg: bytes | None = None
+        self._seq: int = 0
+        self._stop = threading.Event()
+        self._thread = threading.Thread(
+            target=self._read_loop,
+            daemon=True,
+            name=f"rtsp-{camera_id}",
+        )
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+        self._thread.join(timeout=5.0)
+
+    def latest(self) -> tuple[bytes | None, int]:
+        with self._lock:
+            return self._jpeg, self._seq
+
+    def _read_loop(self) -> None:
+        import cv2  # local — cv2 is optional dep
+
+        os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
+        cap: Any = None  # cv2.VideoCapture; Any because cv2 is a local import
+        consecutive_fails = 0
+        _min_store_interval = 1.0 / _RTSP_DRAIN_FPS
+        _last_store = 0.0
+
+        while not self._stop.is_set():
+            if cap is None:
+                cap = cv2.VideoCapture(self._url, cv2.CAP_FFMPEG)
+                cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                if not cap.isOpened():
+                    cap.release()
+                    cap = None
+                    logger.warning(
+                        "cam %d: RTSP open failed — retry in %.0fs",
+                        self._camera_id,
+                        _RTSP_RECONNECT_DELAY_S,
+                    )
+                    self._stop.wait(timeout=_RTSP_RECONNECT_DELAY_S)
+                    continue
+                consecutive_fails = 0
+                logger.info("cam %d: RTSP reader connected", self._camera_id)
+
+            ret, frame = cap.read()
+            if not ret or frame is None:
+                consecutive_fails += 1
+                if consecutive_fails >= _RTSP_MAX_FAILS:
+                    cap.release()
+                    cap = None
+                    consecutive_fails = 0
+                    logger.warning(
+                        "cam %d: %d consecutive read failures — reconnecting",
+                        self._camera_id,
+                        _RTSP_MAX_FAILS,
+                    )
+                    self._stop.wait(timeout=2.0)
+                continue
+
+            consecutive_fails = 0
+
+            # Drain buffer at full camera speed; encode/store only up to _RTSP_DRAIN_FPS
+            now = time.monotonic()
+            if now - _last_store < _min_store_interval:
+                continue
+            _last_store = now
+
+            success, encoded = cv2.imencode(
+                ".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, _MJPEG_JPEG_QUALITY]
+            )
+            if success:
+                with self._lock:
+                    self._jpeg = encoded.tobytes()
+                    self._seq += 1
+
+        if cap is not None:
+            cap.release()
+        logger.info("cam %d: RTSP reader stopped", self._camera_id)
 
 
 @router.get("/cameras/{camera_id}/snapshot")
@@ -413,7 +498,7 @@ async def camera_snapshot(
     db: Session = Depends(get_db),  # noqa: B008
     _user: dict[str, Any] = Depends(get_stream_user),  # noqa: B008
 ) -> Response:
-    """Return a single JPEG frame from the camera. Cached by the ?t= query param."""
+    """Return a single JPEG frame from the camera."""
     import cv2  # local import
 
     cam = _get_camera_or_404(camera_id, db)
@@ -427,7 +512,7 @@ async def camera_snapshot(
 
     def _grab_frame() -> bytes:
         cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         try:
             ret, frame = cap.read()
             if not ret or frame is None:
@@ -460,8 +545,6 @@ async def camera_mjpeg_stream(
     _user: dict[str, Any] = Depends(get_stream_user),  # noqa: B008
 ) -> StreamingResponse:
     """Stream MJPEG from the camera. Display with <img src="/api/cameras/{id}/mjpeg?token=…">."""
-    import cv2  # local import
-
     cam = _get_camera_or_404(camera_id, db)
     if not cam.rtsp_url:
         raise HTTPException(
@@ -469,48 +552,34 @@ async def camera_mjpeg_stream(
         )
 
     rtsp_url: str = cam.rtsp_url
-    loop = asyncio.get_event_loop()
-    min_frame_interval = 1.0 / _MJPEG_TARGET_FPS
+    _min_frame_interval = 1.0 / _MJPEG_TARGET_FPS
 
     async def generate() -> Any:
-        cap = None
-        try:
-            cap = await loop.run_in_executor(None, lambda: _open_capture(rtsp_url))
-        except RuntimeError:
-            return
-
-        consecutive_failures = 0
+        buf = _RtspFrameBuffer(rtsp_url, camera_id)
+        last_seq = -1
         last_frame_t = 0.0
         try:
-            while consecutive_failures < 30:
-                ret, frame = await loop.run_in_executor(None, cap.read)
-                if not ret or frame is None:
-                    consecutive_failures += 1
-                    await asyncio.sleep(0.2)
+            while True:
+                jpeg, seq = buf.latest()
+                if jpeg is None or seq == last_seq:
+                    await asyncio.sleep(0.01)
                     continue
-                consecutive_failures = 0
+                last_seq = seq
 
                 now = time.monotonic()
-                gap = min_frame_interval - (now - last_frame_t)
+                gap = _min_frame_interval - (now - last_frame_t)
                 if gap > 0:
                     await asyncio.sleep(gap)
                 last_frame_t = time.monotonic()
 
-                success, jpeg = cv2.imencode(
-                    ".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, _MJPEG_JPEG_QUALITY]
-                )
-                if not success:
-                    continue
-
                 yield (
                     b"--" + _MJPEG_BOUNDARY + b"\r\n"
-                    b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n"
+                    b"Content-Type: image/jpeg\r\n\r\n" + jpeg + b"\r\n"
                 )
         except (GeneratorExit, asyncio.CancelledError):
             pass
         finally:
-            if cap is not None:
-                await loop.run_in_executor(None, cap.release)
+            buf.stop()
 
     return StreamingResponse(
         generate(),
