@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import MagicMock, patch
 
 import cv2
@@ -51,6 +52,71 @@ def test_camera_config_analytics_url_defaults_none() -> None:
 def test_camera_config_analytics_url_set() -> None:
     cam = _make_camera(analytics_rtsp_url="rtsp://cam/sub")
     assert cam.analytics_rtsp_url == "rtsp://cam/sub"
+
+
+@pytest.mark.asyncio
+async def test_capture_loop_sets_buffersize_1_on_open() -> None:
+    """CAP_PROP_BUFFERSIZE=1 must be set immediately after VideoCapture() to prevent lag."""
+    cam = _make_camera(rtsp_url="rtsp://cam/main")
+    worker = IngestionWorker(camera=cam, redis_client=MagicMock())
+    worker._running = False
+
+    caps: list[MagicMock] = []
+
+    def _capturing_factory(url: str) -> MagicMock:
+        cap = MagicMock()
+        cap.read.return_value = (False, None)
+        cap.get.return_value = 0.0
+        caps.append(cap)
+        return cap
+
+    with patch("vms.ingestion.worker.cv2.VideoCapture", side_effect=_capturing_factory):
+        await worker._capture_loop()
+
+    assert len(caps) == 1
+    caps[0].set.assert_called_once_with(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+
+@pytest.mark.asyncio
+async def test_capture_loop_sets_buffersize_1_on_fallback_cap() -> None:
+    """Fallback VideoCapture (after analytics resolution rejection) must also get BUFFERSIZE=1."""
+    cam = _make_camera(rtsp_url="rtsp://cam/main", analytics_rtsp_url="rtsp://cam/sub")
+    worker = IngestionWorker(camera=cam, redis_client=MagicMock())
+    worker._running = False
+
+    caps: list[MagicMock] = []
+
+    def _capturing_factory(url: str) -> MagicMock:
+        cap = MagicMock()
+        cap.read.return_value = (False, None)
+        # Report sub-640 resolution to trigger analytics fallback
+        cap.get.side_effect = lambda prop: (320.0 if prop == cv2.CAP_PROP_FRAME_WIDTH else 240.0)
+        caps.append(cap)
+        return cap
+
+    with patch("vms.ingestion.worker.cv2.VideoCapture", side_effect=_capturing_factory):
+        await worker._capture_loop()
+
+    # Both caps (analytics + fallback) must have BUFFERSIZE=1
+    assert len(caps) == 2
+    for cap in caps:
+        cap.set.assert_called_once_with(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+
+def test_worker_accepts_custom_executor() -> None:
+    """IngestionWorker must store a caller-supplied executor (for 20+ camera deployments)."""
+    cam = _make_camera()
+    executor = ThreadPoolExecutor(max_workers=4)
+    worker = IngestionWorker(camera=cam, redis_client=MagicMock(), executor=executor)
+    assert worker._executor is executor
+    executor.shutdown(wait=False)
+
+
+def test_worker_defaults_executor_to_none() -> None:
+    """executor=None (default pool) is valid for small deployments."""
+    cam = _make_camera()
+    worker = IngestionWorker(camera=cam, redis_client=MagicMock())
+    assert worker._executor is None
 
 
 @pytest.mark.asyncio

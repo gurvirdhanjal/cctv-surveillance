@@ -49,14 +49,10 @@ def _make_stub_onnx(
 
     if dynamic_batch:
         # Symbolic batch dim — Triton can batch across requests
-        batch_dim = onnx.helper.make_tensor_value_info(
-            input_name, fp32, ["N", 3, 64, 64]
-        )
+        batch_dim = onnx.helper.make_tensor_value_info(input_name, fp32, ["N", 3, 64, 64])
     else:
         # Fixed batch=1 — must be served with max_batch_size=0
-        batch_dim = onnx.helper.make_tensor_value_info(
-            input_name, fp32, [1, 3, 64, 64]
-        )
+        batch_dim = onnx.helper.make_tensor_value_info(input_name, fp32, [1, 3, 64, 64])
 
     outputs = [onnx.helper.make_tensor_value_info(name, fp32, [1, 10]) for name in output_names]
     node = onnx.helper.make_node("Identity", inputs=[input_name], outputs=[output_names[0]])
@@ -157,12 +153,12 @@ def test_build_triton_repo_fixed_batch_sets_max_batch_zero(
 
     for model_name in _EXPECTED_MODEL_DIRS:
         config_text = (out_dir / model_name / "config.pbtxt").read_text()
-        assert "max_batch_size: 0" in config_text, (
-            f"{model_name}: expected max_batch_size: 0 for fixed-batch model"
-        )
-        assert "dynamic_batching" not in config_text, (
-            f"{model_name}: dynamic_batching must not appear for fixed-batch model"
-        )
+        assert (
+            "max_batch_size: 0" in config_text
+        ), f"{model_name}: expected max_batch_size: 0 for fixed-batch model"
+        assert (
+            "dynamic_batching" not in config_text
+        ), f"{model_name}: dynamic_batching must not appear for fixed-batch model"
 
 
 def test_build_triton_repo_dynamic_batch_uses_requested_max_batch(
@@ -176,15 +172,15 @@ def test_build_triton_repo_dynamic_batch_uses_requested_max_batch(
 
     for model_name in _EXPECTED_MODEL_DIRS:
         config_text = (out_dir / model_name / "config.pbtxt").read_text()
-        assert "max_batch_size: 16" in config_text, (
-            f"{model_name}: expected max_batch_size: 16 for dynamic-batch model"
-        )
-        assert "dynamic_batching" in config_text, (
-            f"{model_name}: dynamic_batching block missing for dynamic-batch model"
-        )
-        assert "max_queue_delay_microseconds: 1000" in config_text, (
-            f"{model_name}: max_queue_delay_microseconds: 1000 missing"
-        )
+        assert (
+            "max_batch_size: 16" in config_text
+        ), f"{model_name}: expected max_batch_size: 16 for dynamic-batch model"
+        assert (
+            "dynamic_batching" in config_text
+        ), f"{model_name}: dynamic_batching block missing for dynamic-batch model"
+        assert (
+            "max_queue_delay_microseconds: 1000" in config_text
+        ), f"{model_name}: max_queue_delay_microseconds: 1000 missing"
 
 
 def test_build_triton_repo_config_specifies_onnxruntime_platform(
