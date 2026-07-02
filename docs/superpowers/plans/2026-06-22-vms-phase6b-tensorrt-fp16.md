@@ -219,6 +219,14 @@ in per-camera deployment decisions. Specifically:
 
 **Characterization run procedure:**
 
+- [ ] **FIRST STEP — FP16 cosine-drift gate (blocks everything below).** Before any
+  characterization, collect ≥50 face crops + ≥50 body crops from the live multi-camera run
+  and run `scripts/trt_fp16_drift_check.py`. HARD STOP if any crop scores < 0.99 cosine
+  FP32-vs-FP16 on AdaFace or TransReID → mandatory /advisor per CLAUDE.md §0.5. This is the
+  §6.1 identity-correctness gate and blocks GA sign-off on TRT FP16. Do NOT proceed to
+  per-camera characterization until this passes. (Note: Task 3 ran this on synthetic crops;
+  this step re-runs it on live plant-floor crops — different lighting, occlusion, distance.)
+
 For each production camera in the 10-12 camera set:
 
 - [ ] Run `scripts/multi_cam_pipeline_test.py` for ≥ 5 minutes per camera, covering:
@@ -256,6 +264,13 @@ For each production camera in the 10-12 camera set:
   - Face-embed rate on Face+Body cameras (CAM141/CAM144 class) unchanged
   - No increase in `reid_body_confirmed_sim` hits (no threshold change — if similarity
     distribution shifts, raise a mandatory /advisor call per CLAUDE.md §0.5)
+
+- [ ] **Per-camera similarity threshold calibration note.** Record the per-camera face/body
+  cosine similarity distributions from the characterization run (mean, p5, p95). These
+  distributions are the input dataset for the Bayesian threshold calibration described in
+  v2 spec §P.3 (`scripts/calibrate_thresholds.py`). Do NOT set per-camera `adaface_min_sim`
+  or `reid_body_*_sim` overrides in `cameras.model_overrides` inline in this task — collect
+  the distribution here, then follow the §P.3 path with mandatory /advisor sign-off.
 
 **Ramp to 12 cameras:**
 

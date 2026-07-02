@@ -832,8 +832,14 @@ For models marked `fine_tunable: true`:
 2. **Train (offline)** — operator (or APL Techno's services team) runs the reference recipe:
    - `scripts/finetune/adaface.py` — fine-tunes the AdaFace head on customer's employee distribution.
    - `scripts/finetune/yolov8.py` — fine-tunes person detector for customer-specific clothing (uniforms, PPE) using Ultralytics CLI.
-   - `scripts/finetune/violence.py` — fine-tunes MoViNet on customer-flagged false positives + true positives.
+   - `scripts/finetune/violence.py` — fine-tunes the action recognition model on customer-flagged false positives + true positives.
    - Each recipe is a documented Markdown + Python pair; the recipe is the contract, not the code.
+   - **Class-imbalance handling (mandatory for anomaly recipes).** Anomaly training data is
+     severely imbalanced (normal frames vastly outnumber anomalous ones). Any anomaly-detector
+     fine-tuning recipe (`violence.py`, and future loitering/intrusion recipes) MUST apply
+     class-weighted loss or SMOTE oversampling and report F1 (not accuracy) in `vms.eval_metrics`
+     — accuracy is misleading at 99/1 class ratios. A recipe that reports only accuracy is
+     rejected at upload (step 4 metadata verification).
 
 3. **Export to ONNX with embedded metadata** (via `onnx.helper.set_model_props`):
 
@@ -1109,9 +1115,9 @@ Cross-camera re-identification now uses body appearance as the **primary** signa
 | Model | OSNet AIN x1.0 msmt17 |
 |---|---|
 | Output | 512-dim L2-normalised body embedding |
-| Training data | MSMT17 (15 diverse datasets, 1,041 identities) |
-| Rank-1 accuracy | 73% on DukeMTMC-reID (8 cameras, calibrated 2026-06-01) |
-| Thresholds | `reid_body_confirmed_sim=0.51` (95% recall), `reid_body_cross_cam_sim=0.56` |
+| Training data | MSMT17 (15 diverse datasets, 4,101 identities) |
+| Rank-1 accuracy | 89.6% R1 / 75.1 mAP on MSMT17 (TransReID-SSL ViT-B/16+ICS, deployed Phase 3) |
+| Thresholds | `reid_body_confirmed_sim=0.65`, `reid_body_cross_cam_sim=0.70` (calibrated 2026-06-16 on webcam footage; re-calibrate on real plant-floor cameras — mandatory /advisor before changing, see §P.3) |
 
 ### §O.3 FusionResolver — multi-modal identity
 
@@ -1208,6 +1214,60 @@ VMS_AUTO_REFRESH_SCRFD_MIN=0.85 # minimum face confidence for auto-refresh
 - If the body sim against the existing body gallery is below 0.51 but face confirmed ≥ 0.72: **accept the body match as "face-assisted confirmed"** and add the new body embedding to the gallery.
 - Effectively: face identity acts as a trusted label to update the body gallery, re-anchoring it to the new appearance.
 - Do NOT lower the global `reid_body_confirmed_sim` threshold — that increases false-positive body matches across all cameras.
+
+---
+
+### §P.3 Bayesian Threshold Calibration on Plant-Floor Footage
+
+**Problem.** The identity thresholds `adaface_min_sim` (0.72), `reid_body_confirmed_sim` (0.65),
+and `reid_body_cross_cam_sim` (0.70) were set from academic operating points and a single
+webcam session. They are uncalibrated for the deployed IR101/WebFace12M + affine-alignment
+distribution and for real plant-floor cameras. This is the operational accuracy gap tracked in
+CLAUDE.md §3.
+
+**Trigger condition.** ≥100 labelled sighting pairs (same-person / different-person) collected
+from actual plant-floor cameras with ground-truth identity labels. Until those labels exist,
+this cannot run.
+
+**Proposed approach (design session + mandatory /advisor before applying any result):**
+- New script `scripts/calibrate_thresholds.py` runs an Optuna Bayesian search over the joint
+  space `(adaface_min_sim, reid_body_confirmed_sim, reid_body_cross_cam_sim)` against the
+  labelled validation set, optimising F1 (or a cost-weighted objective that penalises false
+  merges more heavily — identity correctness is operational priority #2, CLAUDE.md §4.4).
+- Bayesian search over grid search: ~50–100 evaluations vs 10³+ for a full grid.
+- Output is a recommended threshold triple + the precision/recall/F1 curve. Applying it is a
+  mandatory /advisor trigger per CLAUDE.md §0.5 — the search proposes, /advisor + user approve.
+- Phase 6b Task 3 (FP16 drift gate) must pass first — FP16 numerics must be locked before
+  thresholds are calibrated on top of them.
+
+**Spec refs when designing:** CLAUDE.md §0.5 (mandatory /advisor on `reid_*`/`adaface_*`),
+§4.4 (operational priority order), Phase 6b Task 3 (FP16 drift gate prerequisite).
+
+---
+
+### §P.4 Learned Identity Fusion (replace rule-based Face ≻ Body ≻ BLE)
+
+**Current design.** `FusionResolver` (§O.3) uses rule-based priority: Face ≻ Body ≻ BLE, with
+per-modality threshold + quality-floor gates. This is interpretable, auditable, and provably
+correct at the boundaries — the right foundation.
+
+**Proposed upgrade.** Replace the priority logic with a logistic-regression classifier trained
+on the feature vector `[face_sim, body_sim, ble_proximity, face_quality_norm, body_quality_norm]`,
+outputting a calibrated same-person probability. A learned model can weight body evidence when
+face is borderline instead of discarding it, improving recall on face-poor cameras.
+
+**Trigger condition.** Labelled identity pairs from real deployment (same source dataset as
+§P.3). Without ground-truth labels the classifier overfits any small hand-built set.
+
+**Constraints (mandatory before implementation):**
+- This is a spec change to `FusionResolver` and a change to identity resolution order — a
+  CLAUDE.md §0.5 mandatory /advisor trigger and a §17 architectural-invariant change
+  (Identity resolution order is owned by FusionResolver; don't shortcut).
+- `resolved_via` audit semantics must be preserved — a learned model still records which
+  modality dominated (`'face'|'body'|'ble'|'learned'`) to `tracking_events.resolved_via`.
+- Must remain explainable for GDPR/audit: log the input feature vector + output probability.
+
+**Spec refs when designing:** §O.3 (current FusionResolver), CLAUDE.md §0.5, §4.4, §17.
 
 ---
 

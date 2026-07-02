@@ -165,7 +165,9 @@ a plan checkbox before Phase 4 starts. No implementation without an approved pla
 | `GET /api/forensic/search` | §F.2 | Returns 501; blocked on CLIP-ViT-B/32 ONNX text encoder pipeline (`VMS_CLIP_MODEL`). Needs recording/analytics spec Phase 3. |
 | ~~`GET /api/audit/verify` + `GET /api/audit/export`~~ | §F.3 | **DONE** — fully implemented in `audit.py`; PDF export, hash-chain re-verify, role gates. Only deferred item: digital signature on PDF (needs crypto signing spec). |
 | ~~Body Re-ID upgrade: TransReID-SSL ViT-B/16+ICS MSMT17~~ | Phase 6 | **DONE** — `transreid_body_msmt17.onnx` deployed; `TransReIDBodyEmbedder` in `body_embedder.py`; thresholds calibrated 2026-06-16 (`confirmed=0.65`, `cross_cam=0.70`). DukeMTMC retracted — do not use. |
-| `adaface_min_sim=0.72` re-calibration | — | Threshold set for old IR50/MS1MV2 embeddings. IR101/WebFace12M + affine alignment shifts distribution. Re-run on real footage before tightening; mandatory `/advisor` before changing. |
+| `adaface_min_sim=0.72` re-calibration | v2 §P.3 | Threshold set for old IR50/MS1MV2 embeddings. IR101/WebFace12M + affine alignment shifts distribution. Re-run on real footage before tightening; mandatory `/advisor` before changing. Bayesian calibration path documented in v2 spec §P.3. |
+| Bayesian threshold calibration (`scripts/calibrate_thresholds.py`) | v2 §P.3 | Optuna search over `adaface_min_sim` + `reid_body_*_sim`; blocked on ≥100 labelled plant-floor sighting pairs. Mandatory `/advisor` before applying any result. Phase 6b Task 5 collects the input distributions. |
+| Learned identity fusion (logistic regression in `FusionResolver`) | v2 §P.4 | Replace rule-based Face ≻ Body ≻ BLE with trained classifier on `[face_sim, body_sim, ble_proximity, face_quality_norm, body_quality_norm]`. Requires labelled pairs from real deployment. Mandatory `/advisor` + spec change before any implementation. |
 | ~~`POST /api/cameras/{id}/recalibrate-required`~~ | §H.3 | **DONE** — `recalibrate_required_at` column + migration `a1b2c3d4e5f7` + route |
 | `GET /api/sites/readiness-report.pdf` | §B | **IN PLAN** — `2026-06-13-vms-phase3-camera-profiler.md` Task 7 |
 | ~~`alert_dispatcher_retry_delays_s` + `alert_dispatcher_max_attempts` in `config.py`~~ | §17 invariants | **DONE** — in `config.py`; hardened plan `2026-06-13-vms-phase3-hardening.md` |
@@ -183,9 +185,11 @@ a plan checkbox before Phase 4 starts. No implementation without an approved pla
 
 **Last major milestone:** Phase 3 TransReID Pose-Normalized Crops — COMPLETE (678 tests, commit `b341d03`). Plan: `docs/superpowers/plans/2026-06-17-vms-phase3-transreid-pose-normalized-crops.md`.
 
+**Phase 6c — Triton + ONNX Scalability:** Plan written `docs/superpowers/plans/2026-06-25-vms-phase6c-triton-onnx-scalability.md`. **NOT STARTED — awaiting user review.** Covers: `TritonModelClient` gRPC wrapper, Triton model-repo generator, `InferenceBackend` protocol, Triton backend, engine factory, ROI crop completion, OSNet ONNX export, MoViNet evaluation, WSL2 runbook, 5-camera smoke test. After this plan lands, scaling from 12 → 52 → 100+ cameras requires only `.env` + `cameras` table changes — zero Python code changes.
+
 **Next parallel work (while Task 5 is hardware-blocked):** Phase 4 frontend plan written (`2026-06-24-vms-phase4-frontend.md`); 96 tasks, 7 sub-plans (4A–4G) + 3 backend pre-work items (persons list, zones CRUD, Socket.io). Begin pre-work P0–P2, then sub-plans in order. Write Phase 5 security plan after Phase 4 implementation is underway (`2026-06-24-vms-phase5-security.md` — at-rest thumbnail cipher, JWT hardening, audit-log immutability DB trigger, sensitive-log filter). Phase 5 is a GA exit criterion per `2026-05-27-vms-production-readiness.md`; must land before any customer deployment.
 
-**Defer:** Phase 6c INT8/NVDEC (only needed past 12 cameras).
+**Defer:** Phase 6d INT8/NVDEC (only needed past 52 cameras; §6.3 spec note: only build if §6.0 harness shows CPU decode ≥10ms/frame after motion-gate savings).
 
 **Rule:** Never start a phase without an approved plan file in `docs/superpowers/plans/`. Each phase gets exactly one plan file; do not start implementation before the plan is reviewed.
 
