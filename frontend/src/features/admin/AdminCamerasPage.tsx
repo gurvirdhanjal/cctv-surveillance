@@ -52,7 +52,7 @@ export function AdminCamerasPage() {
   const [manufacturer, setManufacturer] = useState('generic')
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
 
-  const { data: cameras = [], isLoading } = useQuery<CameraResponse[]>({
+  const { data: cameras = [], isLoading, isError } = useQuery<CameraResponse[]>({
     queryKey: ['admin', 'cameras'],
     queryFn: () => api.get('/api/cameras'),
   })
@@ -134,12 +134,20 @@ export function AdminCamerasPage() {
         </div>
 
         {isLoading && (
-          <p role="status" aria-label="Loading cameras">
-            Loading…
+          <div className="space-y-2" role="status" aria-label="Loading cameras">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-12 animate-pulse rounded border border-border bg-surface-raised" />
+            ))}
+          </div>
+        )}
+
+        {isError && (
+          <p role="alert" className="text-[14px] text-error">
+            Failed to load cameras. Check that the API server is running.
           </p>
         )}
 
-        {!isLoading && (
+        {!isLoading && !isError && (
           <div className="rounded border border-border overflow-hidden">
             <table className="w-full text-[14px]">
               <thead className="bg-surface-sunken border-b border-border">

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { BboxOverlay } from './BboxOverlay'
 
 interface FocusedCameraProps {
@@ -6,12 +6,46 @@ interface FocusedCameraProps {
   mjpegUrl: string | null
 }
 
+// How long to wait for the first frame before declaring stream unavailable
+const STREAM_CONNECT_TIMEOUT_MS = 8000
+
 export function FocusedCamera({ cameraId, mjpegUrl }: FocusedCameraProps) {
   const [streamError, setStreamError] = useState(false)
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     setStreamError(false)
+
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+      timeoutRef.current = null
+    }
+
+    if (!mjpegUrl) return
+
+    // If the first frame doesn't arrive within the timeout, show error state.
+    // onLoad fires for each frame of the MJPEG stream, so this clears once
+    // any frame arrives.
+    timeoutRef.current = setTimeout(() => {
+      setStreamError(true)
+    }, STREAM_CONNECT_TIMEOUT_MS)
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+        timeoutRef.current = null
+      }
+    }
   }, [mjpegUrl])
+
+  function handleLoad() {
+    // First frame arrived — clear the connection timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+      timeoutRef.current = null
+    }
+    setStreamError(false)
+  }
 
   if (!mjpegUrl) {
     return (
@@ -62,13 +96,12 @@ export function FocusedCamera({ cameraId, mjpegUrl }: FocusedCameraProps) {
 
   return (
     <div className="relative h-full w-full bg-black">
-      {/* MJPEG stream — browser renders multipart/x-mixed-replace natively */}
       <img
         src={mjpegUrl}
         className="h-full w-full object-contain"
         alt="Camera live feed"
         onError={() => setStreamError(true)}
-        onLoad={() => setStreamError(false)}
+        onLoad={handleLoad}
       />
       {cameraId !== null && <BboxOverlay cameraId={cameraId} />}
     </div>
