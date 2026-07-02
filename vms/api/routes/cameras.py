@@ -86,8 +86,13 @@ def create_camera_from_credentials(
 
     The password is never returned in the response — it is masked in CameraResponse.rtsp_url.
     """
+    from urllib.parse import quote
+
     path = body.stream_path.lstrip("/")
-    rtsp_url = f"rtsp://{body.username}:{body.password}@{body.host}:{body.port}"
+    # Percent-encode credentials so special chars (@ # :) don't break URL parsing
+    enc_user = quote(body.username, safe="")
+    enc_pass = quote(body.password, safe="")
+    rtsp_url = f"rtsp://{enc_user}:{enc_pass}@{body.host}:{body.port}"
     if path:
         rtsp_url = f"{rtsp_url}/{path}"
 

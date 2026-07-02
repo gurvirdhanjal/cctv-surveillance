@@ -123,26 +123,19 @@ async def add_embedding(
 
 @router.get("/persons", response_model=PersonListResponse)
 def list_persons(
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    q: str | None = Query(default=None),
     db: Session = Depends(get_db),  # noqa: B008
     user: dict[str, Any] = Depends(get_current_user),  # noqa: B008
 ) -> PersonListResponse:
     _require_manager(user)
-    total: int = db.execute(
-        select(func.count()).select_from(Person).where(Person.is_active.is_(True))
-    ).scalar_one()
-    rows = (
-        db.execute(
-            select(Person)
-            .where(Person.is_active.is_(True))
-            .order_by(Person.name)
-            .limit(limit)
-            .offset(offset)
-        )
-        .scalars()
-        .all()
-    )
+    base = select(Person).where(Person.is_active.is_(True))
+    if q:
+        pattern = f"%{q}%"
+        base = base.where(Person.name.ilike(pattern) | Person.employee_id.ilike(pattern))
+    total: int = db.execute(select(func.count()).select_from(base.subquery())).scalar_one()
+    rows = db.execute(base.order_by(Person.name).limit(limit).offset(offset)).scalars().all()
     return PersonListResponse(
         items=[PersonResponse.model_validate(p) for p in rows],
         total=total,

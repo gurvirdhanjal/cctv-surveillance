@@ -24,7 +24,10 @@ export function AdminPersonsPage() {
 
   const { data, isLoading, isError } = useQuery<PersonResponse[]>({
     queryKey: ['admin', 'persons', search],
-    queryFn: () => api.get(`/api/persons?search=${encodeURIComponent(search)}&limit=500`),
+    queryFn: () =>
+      api.get(
+        `/api/persons?limit=500${search.trim() ? `&q=${encodeURIComponent(search.trim())}` : ''}`,
+      ),
   })
 
   const persons = data ?? []
