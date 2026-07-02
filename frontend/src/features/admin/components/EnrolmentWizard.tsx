@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -83,7 +83,7 @@ export function EnrolmentWizard({ onDone, onCancel }: Props) {
             type="button"
             aria-label="Cancel enrolment"
             onClick={handleCancelClick}
-            className="text-text-tertiary hover:text-text-primary text-[20px] leading-none"
+            className="text-text-muted hover:text-text-primary text-[20px] leading-none"
           >
             ×
           </button>
@@ -99,7 +99,7 @@ export function EnrolmentWizard({ onDone, onCancel }: Props) {
                   ? 'bg-brand-500 text-white font-medium'
                   : i < step
                     ? 'bg-brand-100 text-brand-700'
-                    : 'bg-surface-sunken text-text-tertiary'
+                    : 'bg-surface-sunken text-text-muted'
               }`}
               aria-current={i === step ? 'step' : undefined}
             >
@@ -125,7 +125,7 @@ export function EnrolmentWizard({ onDone, onCancel }: Props) {
               <input
                 id="enrol-name"
                 {...register('name')}
-                className="w-full border border-border-subtle rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-500"
                 placeholder="Ranjeet Kumar"
               />
               {errors.name && (
@@ -144,7 +144,7 @@ export function EnrolmentWizard({ onDone, onCancel }: Props) {
               <input
                 id="enrol-emp-id"
                 {...register('employee_id')}
-                className="w-full border border-border-subtle rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"
                 placeholder="EMP-001234"
               />
               {errors.employee_id && (
@@ -157,7 +157,7 @@ export function EnrolmentWizard({ onDone, onCancel }: Props) {
               <button
                 type="button"
                 onClick={handleCancelClick}
-                className="px-4 py-2 text-[14px] rounded border border-border-subtle text-text-secondary hover:text-text-primary"
+                className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary hover:text-text-primary"
               >
                 Cancel
               </button>
@@ -178,16 +178,16 @@ export function EnrolmentWizard({ onDone, onCancel }: Props) {
               at least one clear frontal face image.
             </p>
             <div
-              className="h-40 bg-surface-sunken rounded flex items-center justify-center border border-border-subtle"
+              className="h-40 bg-surface-sunken rounded flex items-center justify-center border border-border"
               aria-label="Camera capture area"
             >
-              <p className="text-[13px] text-text-tertiary">Camera capture (simulated)</p>
+              <p className="text-[13px] text-text-muted">Camera capture (simulated)</p>
             </div>
             <div className="flex justify-between pt-2">
               <button
                 type="button"
                 onClick={handleBack}
-                className="px-4 py-2 text-[14px] rounded border border-border-subtle text-text-secondary hover:text-text-primary"
+                className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary hover:text-text-primary"
               >
                 Back
               </button>
@@ -214,7 +214,7 @@ export function EnrolmentWizard({ onDone, onCancel }: Props) {
               <button
                 type="button"
                 onClick={handleBack}
-                className="px-4 py-2 text-[14px] rounded border border-border-subtle text-text-secondary hover:text-text-primary"
+                className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary hover:text-text-primary"
               >
                 Back
               </button>
@@ -233,11 +233,11 @@ export function EnrolmentWizard({ onDone, onCancel }: Props) {
           <div className="space-y-4">
             <dl className="space-y-2 text-[14px]">
               <div className="flex gap-4">
-                <dt className="w-28 text-text-tertiary">Name</dt>
+                <dt className="w-28 text-text-muted">Name</dt>
                 <dd className="text-text-primary font-medium">{step1Data?.name ?? '—'}</dd>
               </div>
               <div className="flex gap-4">
-                <dt className="w-28 text-text-tertiary">Employee ID</dt>
+                <dt className="w-28 text-text-muted">Employee ID</dt>
                 <dd className="text-text-primary font-mono">{step1Data?.employee_id ?? '—'}</dd>
               </div>
             </dl>
@@ -250,7 +250,7 @@ export function EnrolmentWizard({ onDone, onCancel }: Props) {
               <button
                 type="button"
                 onClick={handleBack}
-                className="px-4 py-2 text-[14px] rounded border border-border-subtle text-text-secondary hover:text-text-primary"
+                className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary hover:text-text-primary"
               >
                 Back
               </button>
@@ -283,7 +283,7 @@ export function EnrolmentWizard({ onDone, onCancel }: Props) {
               <button
                 type="button"
                 onClick={() => setConfirmCancel(false)}
-                className="px-4 py-2 text-[14px] rounded border border-border-subtle text-text-secondary"
+                className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary"
               >
                 Keep editing
               </button>

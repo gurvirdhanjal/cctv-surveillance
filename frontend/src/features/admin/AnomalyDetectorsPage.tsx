@@ -1,4 +1,4 @@
-import { Helmet } from 'react-helmet-async'
+﻿import { Helmet } from 'react-helmet-async'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/shared/api/client'
 import type { AnomalyDetector } from '@/shared/api/types'
@@ -32,27 +32,27 @@ export function AnomalyDetectorsPage() {
         )}
 
         {!isLoading && (
-          <div className="rounded border border-border-subtle overflow-hidden">
+          <div className="rounded border border-border overflow-hidden">
             <table className="w-full text-[14px]">
-              <thead className="bg-surface-sunken border-b border-border-subtle">
+              <thead className="bg-surface-sunken border-b border-border">
                 <tr>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-tertiary uppercase">
+                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase">
                     Alert Type
                   </th>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-tertiary uppercase">
+                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase">
                     Class
                   </th>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-tertiary uppercase">
+                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase">
                     Model Version
                   </th>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-tertiary uppercase">
+                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase">
                     Enabled
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border-subtle">
+              <tbody className="divide-y divide-border">
                 {detectors.map((d) => (
-                  <tr key={d.detector_id} className="hover:bg-surface-hover">
+                  <tr key={d.detector_id} className="hover:bg-surface-raised">
                     <td className="px-4 py-3 font-medium text-text-primary">{d.alert_type}</td>
                     <td className="px-4 py-3 font-mono text-[12px] text-text-secondary">
                       {d.class_path.split('.').pop()}
@@ -74,7 +74,7 @@ export function AnomalyDetectorsPage() {
                         }
                         disabled={toggleMutation.isPending}
                         className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 disabled:opacity-50 ${
-                          d.is_enabled ? 'bg-brand-500' : 'bg-surface-sunken border border-border-subtle'
+                          d.is_enabled ? 'bg-brand-500' : 'bg-surface-sunken border border-border'
                         }`}
                       >
                         <span
@@ -90,7 +90,7 @@ export function AnomalyDetectorsPage() {
                   <tr>
                     <td
                       colSpan={4}
-                      className="px-4 py-6 text-center text-[14px] text-text-tertiary"
+                      className="px-4 py-6 text-center text-[14px] text-text-muted"
                     >
                       No anomaly detectors configured.
                     </td>

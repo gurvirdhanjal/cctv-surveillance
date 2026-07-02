@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from vms.api.deps import get_current_user, get_db
+from vms.api.schemas import AlertResponse
 from vms.config import get_settings
 from vms.db.models import Alert, Camera
 from vms.identity.head_count import HeadCountAggregator
@@ -47,20 +48,7 @@ def snapshot(
         "ts": now,
         "schema_version": "1",
         "head_count": head,
-        "active_alerts": [
-            {
-                "alert_id": a.alert_id,
-                "alert_type": a.alert_type,
-                "severity": a.severity,
-                "state": a.state,
-                "camera_id": a.camera_id,
-                "zone_id": a.zone_id,
-                "global_track_id": str(a.global_track_id) if a.global_track_id else None,
-                "person_id": a.person_id,
-                "triggered_at": a.triggered_at.isoformat() + "Z",
-            }
-            for a in active
-        ],
+        "active_alerts": [AlertResponse.model_validate(a).model_dump(mode="json") for a in active],
         "cameras": [
             {
                 "camera_id": c.camera_id,

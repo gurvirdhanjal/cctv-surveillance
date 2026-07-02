@@ -9,9 +9,9 @@ export function DegradedBanner() {
       role="status"
       aria-label="Connection degraded"
       aria-live="polite"
-      className="flex items-center gap-2 bg-amber-100 border-b border-amber-300 px-4 py-2 text-[13px] text-amber-900"
+      className="flex items-center gap-2 bg-warning/10 border-b border-warning/40 px-4 py-2 text-[13px] text-warning"
     >
-      <span className="inline-block h-2 w-2 rounded-full bg-amber-500 animate-pulse" aria-hidden="true" />
+      <span className="inline-block h-2 w-2 rounded-full bg-warning animate-pulse" aria-hidden="true" />
       Reconnecting&hellip; Some live data may be stale.
     </div>
   )

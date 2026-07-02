@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
@@ -83,25 +83,25 @@ export function AdminCamerasPage() {
         )}
 
         {!isLoading && (
-          <div className="rounded border border-border-subtle overflow-hidden">
+          <div className="rounded border border-border overflow-hidden">
             <table className="w-full text-[14px]">
-              <thead className="bg-surface-sunken border-b border-border-subtle">
+              <thead className="bg-surface-sunken border-b border-border">
                 <tr>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-tertiary uppercase tracking-wide">
+                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase tracking-wide">
                     Name
                   </th>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-tertiary uppercase tracking-wide">
+                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase tracking-wide">
                     Tier
                   </th>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-tertiary uppercase tracking-wide">
+                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase tracking-wide">
                     Status
                   </th>
                   <th className="px-4 py-2" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border-subtle">
+              <tbody className="divide-y divide-border">
                 {cameras.map((cam) => (
-                  <tr key={cam.camera_id} className="hover:bg-surface-hover">
+                  <tr key={cam.camera_id} className="hover:bg-surface-raised">
                     <td className="px-4 py-3 font-medium text-text-primary">{cam.name}</td>
                     <td className="px-4 py-3">
                       <span
@@ -131,7 +131,7 @@ export function AdminCamerasPage() {
                   <tr>
                     <td
                       colSpan={4}
-                      className="px-4 py-6 text-center text-[14px] text-text-tertiary"
+                      className="px-4 py-6 text-center text-[14px] text-text-muted"
                     >
                       No cameras configured.
                     </td>
@@ -167,7 +167,7 @@ export function AdminCamerasPage() {
                 <input
                   id="cam-name"
                   {...register('name')}
-                  className="w-full border border-border-subtle rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-500"
                   placeholder="Assembly Line 1"
                 />
                 {errors.name && (
@@ -186,7 +186,7 @@ export function AdminCamerasPage() {
                 <input
                   id="cam-rtsp"
                   {...register('rtsp_url')}
-                  className="w-full border border-border-subtle rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"
                   placeholder="rtsp://camera/stream"
                 />
                 {errors.rtsp_url && (
@@ -205,7 +205,7 @@ export function AdminCamerasPage() {
                 <select
                   id="cam-tier"
                   {...register('capability_tier')}
-                  className="w-full border border-border-subtle rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-500"
                 >
                   <option value="">Auto-detect</option>
                   <option value="FULL">FULL</option>
@@ -225,7 +225,7 @@ export function AdminCamerasPage() {
                     reset()
                     setShowAdd(false)
                   }}
-                  className="px-4 py-2 text-[14px] rounded border border-border-subtle text-text-secondary hover:text-text-primary"
+                  className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary hover:text-text-primary"
                 >
                   Cancel
                 </button>

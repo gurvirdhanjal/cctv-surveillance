@@ -2,11 +2,16 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useCameraSnapshot } from './useCameraSnapshot'
 import { useLiveStore } from '../store/liveStore'
+import { useAuthStore } from '@/stores/authStore'
 
-const initialState = useLiveStore.getState()
+const FAKE_TOKEN = 'eyJ.test.token'
+
+const initialLiveState = useLiveStore.getState()
+const initialAuthState = useAuthStore.getState()
 
 beforeEach(() => {
-  useLiveStore.setState(initialState, true)
+  useLiveStore.setState(initialLiveState, true)
+  useAuthStore.setState({ ...initialAuthState, token: FAKE_TOKEN }, true)
   vi.useFakeTimers()
 })
 
@@ -20,6 +25,12 @@ describe('useCameraSnapshot', () => {
     expect(result.current).toBeNull()
   })
 
+  it('returns null when there is no auth token', () => {
+    useAuthStore.setState({ ...initialAuthState, token: null }, true)
+    const { result } = renderHook(() => useCameraSnapshot(7))
+    expect(result.current).toBeNull()
+  })
+
   it('returns a URL containing the camera ID', () => {
     const { result } = renderHook(() => useCameraSnapshot(7))
     expect(result.current).toMatch(/\/api\/cameras\/7\/snapshot/)
@@ -28,6 +39,11 @@ describe('useCameraSnapshot', () => {
   it('includes a timestamp query param', () => {
     const { result } = renderHook(() => useCameraSnapshot(7))
     expect(result.current).toMatch(/\?t=\d+/)
+  })
+
+  it('includes the auth token as a query param', () => {
+    const { result } = renderHook(() => useCameraSnapshot(7))
+    expect(result.current).toContain(`token=${encodeURIComponent(FAKE_TOKEN)}`)
   })
 
   it('updates the URL after each 2 s interval', () => {
@@ -50,13 +66,11 @@ describe('useCameraSnapshot', () => {
     act(() => {
       vi.advanceTimersByTime(2000)
     })
-    // Should NOT have changed yet at 2s in degraded mode
     expect(result.current).toBe(first)
 
     act(() => {
       vi.advanceTimersByTime(3000)
     })
-    // Now 5s have passed — should have updated
     expect(result.current).not.toBe(first)
   })
 })

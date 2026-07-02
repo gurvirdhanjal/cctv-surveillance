@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import redis.asyncio as aioredis
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt  # type: ignore[import-untyped]
 from passlib.context import CryptContext  # type: ignore[import-untyped]
@@ -113,6 +113,33 @@ def get_current_user(
         raise _UNAUTHORIZED
     try:
         return decode_access_token(credentials.credentials)
+    except JWTError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
+
+
+def get_stream_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),  # noqa: B008
+    token: str | None = Query(default=None),
+) -> dict[str, Any]:
+    """Auth for streaming endpoints (<img src> / EventSource that can't send headers).
+
+    Accepts the JWT via the standard Authorization header OR as a ``?token=`` query
+    parameter. The query-param form is only used for browser-native media elements
+    (MJPEG img tags, snapshot img tags) where setting headers is not possible.
+    """
+    token_str: str | None = None
+    if credentials is not None:
+        token_str = credentials.credentials
+    elif token is not None:
+        token_str = token
+    if not token_str:
+        raise _UNAUTHORIZED
+    try:
+        return decode_access_token(token_str)
     except JWTError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

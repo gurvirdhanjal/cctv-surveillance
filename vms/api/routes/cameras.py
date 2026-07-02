@@ -1,18 +1,21 @@
-"""Camera CRUD and configuration endpoints."""
+"""Camera CRUD, configuration, and live-stream endpoints."""
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import os
+import time
 from datetime import datetime, timezone
 from typing import Any
 
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 from sqlalchemy.orm import Session
 
-from vms.api.deps import get_api_redis, get_current_user, get_db, require_role
+from vms.api.deps import get_api_redis, get_current_user, get_db, get_stream_user, require_role
 from vms.api.schemas import (
     CameraCreate,
     CameraHardwareUpdate,
@@ -309,4 +312,138 @@ def get_site_readiness_report(
         content=pdf_bytes,
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="vms-site-readiness-{site}.pdf"'},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Live streaming helpers (MJPEG + snapshot)
+# ---------------------------------------------------------------------------
+
+_MJPEG_BOUNDARY = b"vmsframe"
+_MJPEG_JPEG_QUALITY = 60  # percent — reduces bandwidth; fine for browser display
+_MJPEG_TARGET_FPS = 15  # cap at 15fps to keep bandwidth reasonable
+_SNAPSHOT_JPEG_QUALITY = 80
+
+
+def _open_capture(rtsp_url: str) -> Any:
+    """Open an RTSP VideoCapture; raises RuntimeError on failure. Runs in a thread."""
+    import cv2  # local import — cv2 optional for deployments without streaming
+
+    os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
+    cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)
+    if not cap.isOpened():
+        raise RuntimeError("Cannot open RTSP stream for camera")
+    return cap
+
+
+@router.get("/cameras/{camera_id}/snapshot")
+async def camera_snapshot(
+    camera_id: int,
+    db: Session = Depends(get_db),  # noqa: B008
+    _user: dict[str, Any] = Depends(get_stream_user),  # noqa: B008
+) -> Response:
+    """Return a single JPEG frame from the camera. Cached by the ?t= query param."""
+    import cv2  # local import
+
+    cam = _get_camera_or_404(camera_id, db)
+    if not cam.rtsp_url:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="No stream URL configured"
+        )
+
+    rtsp_url: str = cam.rtsp_url
+    loop = asyncio.get_event_loop()
+
+    def _grab_frame() -> bytes:
+        cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)
+        try:
+            ret, frame = cap.read()
+            if not ret or frame is None:
+                raise RuntimeError("Empty frame")
+            _, jpeg = cv2.imencode(
+                ".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, _SNAPSHOT_JPEG_QUALITY]
+            )
+            return jpeg.tobytes()
+        finally:
+            cap.release()
+
+    try:
+        jpeg_bytes = await loop.run_in_executor(None, _grab_frame)
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+        ) from exc
+
+    return Response(
+        content=jpeg_bytes,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
+
+
+@router.get("/cameras/{camera_id}/mjpeg")
+async def camera_mjpeg_stream(
+    camera_id: int,
+    db: Session = Depends(get_db),  # noqa: B008
+    _user: dict[str, Any] = Depends(get_stream_user),  # noqa: B008
+) -> StreamingResponse:
+    """Stream MJPEG from the camera. Display with <img src="/api/cameras/{id}/mjpeg?token=…">."""
+    import cv2  # local import
+
+    cam = _get_camera_or_404(camera_id, db)
+    if not cam.rtsp_url:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="No stream URL configured"
+        )
+
+    rtsp_url: str = cam.rtsp_url
+    loop = asyncio.get_event_loop()
+    min_frame_interval = 1.0 / _MJPEG_TARGET_FPS
+
+    async def generate() -> Any:
+        cap = None
+        try:
+            cap = await loop.run_in_executor(None, lambda: _open_capture(rtsp_url))
+        except RuntimeError:
+            return
+
+        consecutive_failures = 0
+        last_frame_t = 0.0
+        try:
+            while consecutive_failures < 30:
+                ret, frame = await loop.run_in_executor(None, cap.read)
+                if not ret or frame is None:
+                    consecutive_failures += 1
+                    await asyncio.sleep(0.2)
+                    continue
+                consecutive_failures = 0
+
+                now = time.monotonic()
+                gap = min_frame_interval - (now - last_frame_t)
+                if gap > 0:
+                    await asyncio.sleep(gap)
+                last_frame_t = time.monotonic()
+
+                success, jpeg = cv2.imencode(
+                    ".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, _MJPEG_JPEG_QUALITY]
+                )
+                if not success:
+                    continue
+
+                yield (
+                    b"--" + _MJPEG_BOUNDARY + b"\r\n"
+                    b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n"
+                )
+        except (GeneratorExit, asyncio.CancelledError):
+            pass
+        finally:
+            if cap is not None:
+                await loop.run_in_executor(None, cap.release)
+
+    return StreamingResponse(
+        generate(),
+        media_type=f"multipart/x-mixed-replace; boundary={_MJPEG_BOUNDARY.decode()}",
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
     )

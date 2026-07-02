@@ -56,7 +56,7 @@ export function TopBar() {
       <header className="flex h-14 flex-shrink-0 items-center gap-4 border-b border-border bg-surface-raised px-4">
         <Link
           to="/live"
-          className="font-display text-[18px] font-bold text-brand-500 hover:text-brand-700"
+          className="font-display text-[18px] font-bold text-brand-500 hover:text-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] rounded-sm"
           aria-label="VMS — home"
         >
           VMS
@@ -64,7 +64,7 @@ export function TopBar() {
 
         <button
           type="button"
-          className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-[13px] text-text-muted hover:border-border-strong"
+          className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-[13px] text-text-muted hover:border-border-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
           onClick={() => setSearchOpen(true)}
           aria-label="Search persons"
         >
@@ -117,7 +117,7 @@ export function TopBar() {
             <input
               ref={searchInputRef}
               type="text"
-              className="w-full border-b border-border bg-transparent px-4 py-3 text-[15px] text-text-primary outline-none placeholder:text-text-muted"
+              className="w-full border-b border-border bg-transparent px-4 py-3 text-[15px] text-text-primary outline-none focus:border-brand-500 placeholder:text-text-muted transition-colors"
               placeholder="Search by name or employee ID…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -129,7 +129,7 @@ export function TopBar() {
                   <li key={person.person_id}>
                     <button
                       type="button"
-                      className="flex w-full items-center gap-3 px-4 py-2.5 text-[14px] text-text-primary hover:bg-surface-sunken"
+                      className="flex w-full items-center gap-3 px-4 py-2.5 text-[14px] text-text-primary hover:bg-surface-sunken focus-visible:outline-none focus-visible:bg-surface-sunken"
                       onClick={() => handlePersonSelect(person)}
                     >
                       <span className="font-medium">{person.name}</span>

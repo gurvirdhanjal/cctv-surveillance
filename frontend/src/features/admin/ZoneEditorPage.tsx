@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
@@ -113,25 +113,25 @@ export function ZoneEditorPage() {
         )}
 
         {!isLoading && (
-          <div className="rounded border border-border-subtle overflow-hidden">
+          <div className="rounded border border-border overflow-hidden">
             <table className="w-full text-[14px]">
-              <thead className="bg-surface-sunken border-b border-border-subtle">
+              <thead className="bg-surface-sunken border-b border-border">
                 <tr>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-tertiary uppercase">
+                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase">
                     Name
                   </th>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-tertiary uppercase">
+                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase">
                     Loiter Threshold
                   </th>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-tertiary uppercase">
+                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase">
                     Max Capacity
                   </th>
                   <th className="px-4 py-2" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border-subtle">
+              <tbody className="divide-y divide-border">
                 {zones.map((zone) => (
-                  <tr key={zone.zone_id} className="hover:bg-surface-hover">
+                  <tr key={zone.zone_id} className="hover:bg-surface-raised">
                     <td className="px-4 py-3 font-medium text-text-primary">{zone.name}</td>
                     <td className="px-4 py-3 text-text-secondary">{zone.loiter_threshold_s}s</td>
                     <td className="px-4 py-3 text-text-secondary">
@@ -161,7 +161,7 @@ export function ZoneEditorPage() {
                   <tr>
                     <td
                       colSpan={4}
-                      className="px-4 py-6 text-center text-[14px] text-text-tertiary"
+                      className="px-4 py-6 text-center text-[14px] text-text-muted"
                     >
                       No zones defined.
                     </td>
@@ -198,7 +198,7 @@ export function ZoneEditorPage() {
                 <input
                   id="zone-name"
                   {...registerAdd('name')}
-                  className="w-full border border-border-subtle rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none focus:ring-2 focus:ring-brand-500"
                   placeholder="Assembly Line"
                 />
                 {addErrors.name && (
@@ -218,7 +218,7 @@ export function ZoneEditorPage() {
                   id="zone-loiter"
                   type="number"
                   {...registerAdd('loiter_threshold_s')}
-                  className="w-full border border-border-subtle rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
                 {addErrors.loiter_threshold_s && (
                   <p role="alert" className="mt-1 text-[12px] text-red-600">
@@ -230,7 +230,7 @@ export function ZoneEditorPage() {
                 <button
                   type="button"
                   onClick={() => { resetAdd(); setShowAdd(false) }}
-                  className="px-4 py-2 text-[14px] rounded border border-border-subtle text-text-secondary"
+                  className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary"
                 >
                   Cancel
                 </button>
@@ -276,7 +276,7 @@ export function ZoneEditorPage() {
                 <input
                   id="edit-zone-name"
                   {...registerEdit('name')}
-                  className="w-full border border-border-subtle rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
                 {editErrors.name && (
                   <p role="alert" className="mt-1 text-[12px] text-red-600">
@@ -288,7 +288,7 @@ export function ZoneEditorPage() {
                 <button
                   type="button"
                   onClick={() => setEditingZone(null)}
-                  className="px-4 py-2 text-[14px] rounded border border-border-subtle text-text-secondary"
+                  className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary"
                 >
                   Cancel
                 </button>
@@ -326,13 +326,13 @@ export function ZoneEditorPage() {
               value={deleteConfirm}
               onChange={(e) => setDeleteConfirm(e.target.value)}
               placeholder={deleteTarget.name}
-              className="w-full border border-border-subtle rounded px-3 py-2 text-[14px] bg-surface-base mb-4 focus:outline-none"
+              className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base mb-4 focus:outline-none"
             />
             <div className="flex gap-2 justify-end">
               <button
                 type="button"
                 onClick={() => { setDeleteTarget(null); setDeleteConfirm('') }}
-                className="px-4 py-2 text-[14px] rounded border border-border-subtle text-text-secondary"
+                className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary"
               >
                 Cancel
               </button>

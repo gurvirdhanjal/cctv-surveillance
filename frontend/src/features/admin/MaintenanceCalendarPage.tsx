@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
@@ -123,28 +123,28 @@ export function MaintenanceCalendarPage() {
         )}
 
         {!isLoading && (
-          <div className="rounded border border-border-subtle overflow-hidden">
+          <div className="rounded border border-border overflow-hidden">
             <table className="w-full text-[14px]">
-              <thead className="bg-surface-sunken border-b border-border-subtle">
+              <thead className="bg-surface-sunken border-b border-border">
                 <tr>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-tertiary uppercase">
+                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase">
                     Name
                   </th>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-tertiary uppercase">
+                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase">
                     Scope
                   </th>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-tertiary uppercase">
+                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase">
                     Schedule
                   </th>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-tertiary uppercase">
+                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase">
                     Status
                   </th>
                   <th className="px-4 py-2" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border-subtle">
+              <tbody className="divide-y divide-border">
                 {windows.map((w) => (
-                  <tr key={w.window_id} className="hover:bg-surface-hover">
+                  <tr key={w.window_id} className="hover:bg-surface-raised">
                     <td className="px-4 py-3 font-medium text-text-primary">{w.name}</td>
                     <td className="px-4 py-3 text-text-secondary">
                       {w.scope_type} #{w.scope_id}
@@ -157,7 +157,7 @@ export function MaintenanceCalendarPage() {
                         className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${
                           w.is_active
                             ? 'bg-brand-100 text-brand-700'
-                            : 'bg-surface-sunken text-text-tertiary'
+                            : 'bg-surface-sunken text-text-muted'
                         }`}
                       >
                         {w.is_active ? 'Active' : 'Inactive'}
@@ -180,7 +180,7 @@ export function MaintenanceCalendarPage() {
                   <tr>
                     <td
                       colSpan={5}
-                      className="px-4 py-6 text-center text-[14px] text-text-tertiary"
+                      className="px-4 py-6 text-center text-[14px] text-text-muted"
                     >
                       No maintenance windows scheduled.
                     </td>
@@ -218,7 +218,7 @@ export function MaintenanceCalendarPage() {
                 <input
                   id="maint-name"
                   {...register('name')}
-                  className="w-full border border-border-subtle rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none focus:ring-2 focus:ring-brand-500"
                   placeholder="Nightly backup window"
                 />
                 {errors.name && (
@@ -239,7 +239,7 @@ export function MaintenanceCalendarPage() {
                   <select
                     id="maint-scope-type"
                     {...register('scope_type')}
-                    className="w-full border border-border-subtle rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none"
+                    className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none"
                   >
                     <option value="CAMERA">CAMERA</option>
                     <option value="ZONE">ZONE</option>
@@ -256,7 +256,7 @@ export function MaintenanceCalendarPage() {
                     id="maint-scope-id"
                     type="number"
                     {...register('scope_id')}
-                    className="w-full border border-border-subtle rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none"
+                    className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none"
                     placeholder="1"
                   />
                 </div>
@@ -280,7 +280,7 @@ export function MaintenanceCalendarPage() {
                           className={`px-4 py-2 text-[13px] rounded border transition-colors ${
                             field.value === 'ONE_TIME'
                               ? 'bg-brand-500 text-white border-brand-500'
-                              : 'border-border-subtle text-text-secondary hover:text-text-primary'
+                              : 'border-border text-text-secondary hover:text-text-primary'
                           }`}
                         >
                           One-time
@@ -292,7 +292,7 @@ export function MaintenanceCalendarPage() {
                           className={`px-4 py-2 text-[13px] rounded border transition-colors ${
                             field.value === 'RECURRING'
                               ? 'bg-brand-500 text-white border-brand-500'
-                              : 'border-border-subtle text-text-secondary hover:text-text-primary'
+                              : 'border-border text-text-secondary hover:text-text-primary'
                           }`}
                         >
                           Recurring
@@ -316,7 +316,7 @@ export function MaintenanceCalendarPage() {
                       id="maint-starts-at"
                       type="datetime-local"
                       {...register('starts_at')}
-                      className="w-full border border-border-subtle rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none"
+                      className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none"
                     />
                     {errors.starts_at && (
                       <p role="alert" className="mt-1 text-[12px] text-red-600">
@@ -335,7 +335,7 @@ export function MaintenanceCalendarPage() {
                       id="maint-ends-at"
                       type="datetime-local"
                       {...register('ends_at')}
-                      className="w-full border border-border-subtle rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none"
+                      className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none"
                     />
                     {errors.ends_at && (
                       <p role="alert" className="mt-1 text-[12px] text-red-600">
@@ -358,7 +358,7 @@ export function MaintenanceCalendarPage() {
                     <input
                       id="maint-cron"
                       {...register('cron_expr')}
-                      className="w-full border border-border-subtle rounded px-3 py-2 text-[14px] font-mono bg-surface-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      className="w-full border border-border rounded px-3 py-2 text-[14px] font-mono bg-surface-base focus:outline-none focus:ring-2 focus:ring-brand-500"
                       placeholder="0 2 * * *"
                     />
                     {errors.cron_expr && (
@@ -372,7 +372,7 @@ export function MaintenanceCalendarPage() {
                         className="mt-2 space-y-1"
                       >
                         {cronFirings.map((firing, i) => (
-                          <li key={i} className="text-[12px] font-mono text-text-tertiary">
+                          <li key={i} className="text-[12px] font-mono text-text-muted">
                             {i + 1}. {firing}
                           </li>
                         ))}
@@ -390,7 +390,7 @@ export function MaintenanceCalendarPage() {
                       id="maint-duration"
                       type="number"
                       {...register('duration_minutes')}
-                      className="w-full border border-border-subtle rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none"
+                      className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none"
                       placeholder="60"
                     />
                     {errors.duration_minutes && (
@@ -412,7 +412,7 @@ export function MaintenanceCalendarPage() {
                 <button
                   type="button"
                   onClick={() => { reset(); setShowCreate(false) }}
-                  className="px-4 py-2 text-[14px] rounded border border-border-subtle text-text-secondary"
+                  className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary"
                 >
                   Cancel
                 </button>

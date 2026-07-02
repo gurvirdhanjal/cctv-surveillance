@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/shared/api/client'
 import type { ProfileResponse } from '@/shared/api/types'
@@ -50,7 +50,7 @@ export function HardwareTab({ cameraId }: Props) {
       {!isLoading && pd && (
         <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-[14px]">
           <div>
-            <dt className="text-[12px] text-text-tertiary mb-0.5">Resolution</dt>
+            <dt className="text-[12px] text-text-muted mb-0.5">Resolution</dt>
             <dd className="font-medium text-text-primary">
               {pd.resolution_w && pd.resolution_h
                 ? `${pd.resolution_w}×${pd.resolution_h}`
@@ -58,36 +58,36 @@ export function HardwareTab({ cameraId }: Props) {
             </dd>
           </div>
           <div>
-            <dt className="text-[12px] text-text-tertiary mb-0.5">Measured FPS</dt>
+            <dt className="text-[12px] text-text-muted mb-0.5">Measured FPS</dt>
             <dd className="font-medium text-text-primary">
               {pd.fps_measured != null ? `${pd.fps_measured} fps` : '—'}
             </dd>
           </div>
           <div>
-            <dt className="text-[12px] text-text-tertiary mb-0.5">Focus Score</dt>
+            <dt className="text-[12px] text-text-muted mb-0.5">Focus Score</dt>
             <dd className="font-medium text-text-primary">
               {pd.focus_score != null ? pd.focus_score.toFixed(2) : '—'}
             </dd>
           </div>
           <div>
-            <dt className="text-[12px] text-text-tertiary mb-0.5">Frame Drop Rate</dt>
+            <dt className="text-[12px] text-text-muted mb-0.5">Frame Drop Rate</dt>
             <dd className="font-medium text-text-primary">
               {pd.frame_drop_rate != null ? `${(pd.frame_drop_rate * 100).toFixed(1)}%` : '—'}
             </dd>
           </div>
           <div>
-            <dt className="text-[12px] text-text-tertiary mb-0.5">Suggested Tier</dt>
+            <dt className="text-[12px] text-text-muted mb-0.5">Suggested Tier</dt>
             <dd className="font-medium text-text-primary">{pd.suggested_tier ?? '—'}</dd>
           </div>
           <div>
-            <dt className="text-[12px] text-text-tertiary mb-0.5">Shutter Suggestion</dt>
+            <dt className="text-[12px] text-text-muted mb-0.5">Shutter Suggestion</dt>
             <dd className="font-medium text-text-primary">{pd.shutter_suggestion ?? '—'}</dd>
           </div>
         </dl>
       )}
 
       {!isLoading && !pd && (
-        <p className="text-[14px] text-text-tertiary">
+        <p className="text-[14px] text-text-muted">
           No profile data yet. Run the profiler to characterise this camera.
         </p>
       )}
@@ -115,7 +115,7 @@ export function HardwareTab({ cameraId }: Props) {
                 type="button"
                 onClick={() => setShowConfirm(false)}
                 disabled={profileMutation.isPending}
-                className="px-4 py-2 text-[14px] rounded border border-border-subtle text-text-secondary hover:text-text-primary disabled:opacity-50"
+                className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary hover:text-text-primary disabled:opacity-50"
               >
                 Cancel
               </button>

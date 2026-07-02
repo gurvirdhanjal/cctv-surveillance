@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useLiveStore } from './store/liveStore'
 import { useSocketConnection } from './hooks/useSocketConnection'
+import { useAuthStore } from '@/stores/authStore'
 import { CameraGrid } from './components/CameraGrid'
 import { FocusedCamera } from './components/FocusedCamera'
 import { AlertSidebar } from './components/AlertSidebar'
@@ -12,6 +13,7 @@ export function LivePage() {
   const cameras = useLiveStore((s) => s.cameras)
   const focusedCameraId = useLiveStore((s) => s.focusedCameraId)
   const setFocusedCamera = useLiveStore((s) => s.setFocusedCamera)
+  const token = useAuthStore((s) => s.token)
 
   useSocketConnection()
 
@@ -22,8 +24,10 @@ export function LivePage() {
     }
   }, [cameras, focusedCameraId, setFocusedCamera])
 
-  // HLS URL placeholder — Phase 6 will provide RTSP→HLS URLs per camera
-  const focusedHlsUrl: string | null = null
+  const focusedMjpegUrl =
+    focusedCameraId !== null && token
+      ? `/api/cameras/${focusedCameraId}/mjpeg?token=${encodeURIComponent(token)}`
+      : null
 
   return (
     <>
@@ -46,7 +50,7 @@ export function LivePage() {
 
           {/* Focused camera — fills remaining space */}
           <div className="relative min-w-0 flex-1">
-            <FocusedCamera cameraId={focusedCameraId} hlsUrl={focusedHlsUrl} />
+            <FocusedCamera cameraId={focusedCameraId} mjpegUrl={focusedMjpegUrl} />
           </div>
 
           {/* Alert sidebar — 380px fixed */}

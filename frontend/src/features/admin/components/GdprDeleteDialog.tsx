@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { api } from '@/shared/api/client'
 
@@ -54,9 +54,9 @@ export function GdprDeleteDialog({ personId, personName, onConfirmed, onCancel }
               onChange={(e) => setConfirmationName(e.target.value)}
               placeholder={personName}
               aria-describedby="gdpr-name-hint"
-              className="w-full border border-border-subtle rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary focus:outline-none focus:ring-2 focus:ring-red-500"
+              className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary focus:outline-none focus:ring-2 focus:ring-red-500"
             />
-            <p id="gdpr-name-hint" className="mt-1 text-[12px] text-text-tertiary">
+            <p id="gdpr-name-hint" className="mt-1 text-[12px] text-text-muted">
               Must match exactly: {personName}
             </p>
           </div>
@@ -73,10 +73,10 @@ export function GdprDeleteDialog({ personId, personName, onConfirmed, onCancel }
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
-              className="w-full border border-border-subtle rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary resize-none focus:outline-none focus:ring-2 focus:ring-red-500"
+              className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary resize-none focus:outline-none focus:ring-2 focus:ring-red-500"
               placeholder="GDPR erasure request received on…"
             />
-            <p className="mt-1 text-[12px] text-text-tertiary">
+            <p className="mt-1 text-[12px] text-text-muted">
               {reason.trim().length}/10 minimum characters
             </p>
           </div>
@@ -92,7 +92,7 @@ export function GdprDeleteDialog({ personId, personName, onConfirmed, onCancel }
               type="button"
               onClick={onCancel}
               disabled={deleteMutation.isPending}
-              className="px-4 py-2 text-[14px] rounded border border-border-subtle text-text-secondary hover:text-text-primary disabled:opacity-50"
+              className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary hover:text-text-primary disabled:opacity-50"
             >
               Cancel
             </button>

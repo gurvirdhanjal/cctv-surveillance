@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
@@ -101,28 +101,28 @@ export function AlertRoutingPage() {
         )}
 
         {!isLoading && (
-          <div className="rounded border border-border-subtle overflow-hidden">
+          <div className="rounded border border-border overflow-hidden">
             <table className="w-full text-[14px]">
-              <thead className="bg-surface-sunken border-b border-border-subtle">
+              <thead className="bg-surface-sunken border-b border-border">
                 <tr>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-tertiary uppercase">
+                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase">
                     Channel
                   </th>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-tertiary uppercase">
+                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase">
                     Target
                   </th>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-tertiary uppercase">
+                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase">
                     Alert Type
                   </th>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-tertiary uppercase">
+                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase">
                     Active
                   </th>
                   <th className="px-4 py-2" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border-subtle">
+              <tbody className="divide-y divide-border">
                 {rules.map((r) => (
-                  <tr key={r.routing_id} className="hover:bg-surface-hover">
+                  <tr key={r.routing_id} className="hover:bg-surface-raised">
                     <td className="px-4 py-3 font-medium text-text-primary capitalize">
                       {r.channel}
                     </td>
@@ -141,7 +141,7 @@ export function AlertRoutingPage() {
                         }
                         disabled={toggleMutation.isPending}
                         className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${
-                          r.is_active ? 'bg-brand-500' : 'bg-surface-sunken border border-border-subtle'
+                          r.is_active ? 'bg-brand-500' : 'bg-surface-sunken border border-border'
                         }`}
                       >
                         <span
@@ -167,7 +167,7 @@ export function AlertRoutingPage() {
                   <tr>
                     <td
                       colSpan={5}
-                      className="px-4 py-6 text-center text-[14px] text-text-tertiary"
+                      className="px-4 py-6 text-center text-[14px] text-text-muted"
                     >
                       No routing rules configured.
                     </td>
@@ -203,7 +203,7 @@ export function AlertRoutingPage() {
                 <select
                   id="rule-channel"
                   {...register('channel')}
-                  className="w-full border border-border-subtle rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none focus:ring-2 focus:ring-brand-500"
                 >
                   <option value="">Select channel…</option>
                   <option value="email">Email</option>
@@ -224,13 +224,13 @@ export function AlertRoutingPage() {
                 >
                   Target
                   {channel === 'webhook' && (
-                    <span className="ml-1 text-[11px] text-text-tertiary">(must be https://)</span>
+                    <span className="ml-1 text-[11px] text-text-muted">(must be https://)</span>
                   )}
                 </label>
                 <input
                   id="rule-target"
                   {...register('target')}
-                  className="w-full border border-border-subtle rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none focus:ring-2 focus:ring-brand-500"
                   placeholder={
                     channel === 'email'
                       ? 'security@company.com'
@@ -255,7 +255,7 @@ export function AlertRoutingPage() {
                 <select
                   id="rule-alert-type"
                   {...register('alert_type')}
-                  className="w-full border border-border-subtle rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none"
+                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none"
                 >
                   <option value="">All types</option>
                   <option value="UNKNOWN_PERSON">UNKNOWN_PERSON</option>
@@ -275,7 +275,7 @@ export function AlertRoutingPage() {
                 <button
                   type="button"
                   onClick={() => { reset(); setShowAdd(false) }}
-                  className="px-4 py-2 text-[14px] rounded border border-border-subtle text-text-secondary"
+                  className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary"
                 >
                   Cancel
                 </button>

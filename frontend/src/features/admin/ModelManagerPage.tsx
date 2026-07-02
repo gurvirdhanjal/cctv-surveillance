@@ -1,4 +1,4 @@
-import { Helmet } from 'react-helmet-async'
+﻿import { Helmet } from 'react-helmet-async'
 
 /**
  * Model management is blocked on the P4 pre-work sub-task: implement
@@ -16,7 +16,7 @@ export function ModelManagerPage() {
         <div
           role="status"
           aria-label="Models API unavailable"
-          className="bg-surface-elevated border border-border-subtle rounded p-6 text-center"
+          className="bg-surface-raised border border-border rounded p-6 text-center"
         >
           <p className="text-[15px] font-medium text-text-primary mb-2">
             Model management is not yet available
@@ -29,7 +29,7 @@ export function ModelManagerPage() {
             <code className="font-mono bg-surface-sunken px-1 rounded">models/manifest.json</code>{' '}
             file.
           </p>
-          <p className="text-[12px] text-text-tertiary font-mono">
+          <p className="text-[12px] text-text-muted font-mono">
             Tracked: plan 2026-06-24-vms-phase4-frontend.md — pre-work P4
           </p>
         </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 
 interface Props {
   cameraId: number
@@ -77,7 +77,7 @@ export function HomographyCalibrator({ cameraId: _cameraId, initialStep = 'start
     <div className="space-y-4" aria-label={`Homography calibrator — ${STEP_LABELS[step]}`}>
       <div className="flex items-center gap-2">
         <h2 className="text-[15px] font-medium text-text-primary">Homography Calibration</h2>
-        <span className="px-2 py-0.5 rounded bg-surface-sunken text-[12px] text-text-tertiary">
+        <span className="px-2 py-0.5 rounded bg-surface-sunken text-[12px] text-text-muted">
           {STEP_LABELS[step]}
         </span>
       </div>
@@ -107,9 +107,9 @@ export function HomographyCalibrator({ cameraId: _cameraId, initialStep = 'start
             role="img"
             aria-label="Frame point picker"
             onClick={handleFrameClick}
-            className="h-40 bg-surface-sunken rounded border border-border-subtle flex items-center justify-center cursor-crosshair relative"
+            className="h-40 bg-surface-sunken rounded border border-border flex items-center justify-center cursor-crosshair relative"
           >
-            <span className="text-[13px] text-text-tertiary">Live frame (click to add point)</span>
+            <span className="text-[13px] text-text-muted">Live frame (click to add point)</span>
             {framePoints.map(([x, y], i) => (
               <div
                 key={i}
@@ -139,9 +139,9 @@ export function HomographyCalibrator({ cameraId: _cameraId, initialStep = 'start
             role="img"
             aria-label="Floor plan point picker"
             onClick={handleFloorClick}
-            className="h-40 bg-surface-sunken rounded border border-border-subtle flex items-center justify-center cursor-crosshair relative"
+            className="h-40 bg-surface-sunken rounded border border-border flex items-center justify-center cursor-crosshair relative"
           >
-            <span className="text-[13px] text-text-tertiary">Floor plan (click to add point)</span>
+            <span className="text-[13px] text-text-muted">Floor plan (click to add point)</span>
             {floorPoints.map(([x, y], i) => (
               <div
                 key={i}
@@ -175,7 +175,7 @@ export function HomographyCalibrator({ cameraId: _cameraId, initialStep = 'start
                 {reprErr !== null ? `${reprErr.toFixed(2)} px` : '—'}
               </span>
             </p>
-            <p className="text-[12px] text-text-tertiary mt-1">
+            <p className="text-[12px] text-text-muted mt-1">
               {canSave ? 'Error within tolerance — safe to save.' : 'Error exceeds 2 px limit — recalibrate.'}
             </p>
           </div>
@@ -183,7 +183,7 @@ export function HomographyCalibrator({ cameraId: _cameraId, initialStep = 'start
             <button
               type="button"
               onClick={handleReset}
-              className="px-4 py-2 text-[14px] rounded border border-border-subtle text-text-secondary hover:text-text-primary"
+              className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary hover:text-text-primary"
             >
               Recalibrate
             </button>

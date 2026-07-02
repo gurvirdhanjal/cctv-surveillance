@@ -64,7 +64,7 @@ export function CameraGrid({ cameras, focusedCameraId, onCameraSelect }: CameraG
         <div className="flex items-center justify-center gap-2 pt-1">
           <button
             type="button"
-            className="rounded p-1 text-text-muted hover:text-text-primary disabled:opacity-30"
+            className="rounded p-1 text-text-muted hover:text-text-primary disabled:opacity-30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={page === 0}
             aria-label="Previous page"
@@ -76,7 +76,7 @@ export function CameraGrid({ cameras, focusedCameraId, onCameraSelect }: CameraG
           </span>
           <button
             type="button"
-            className="rounded p-1 text-text-muted hover:text-text-primary disabled:opacity-30"
+            className="rounded p-1 text-text-muted hover:text-text-primary disabled:opacity-30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
             onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
             disabled={page === totalPages - 1}
             aria-label="Next page"
