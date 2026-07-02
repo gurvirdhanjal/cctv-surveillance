@@ -68,22 +68,42 @@ class ReadinessResponse(BaseModel):
     redis: str
 
 
+_DB_TO_FE_STATE: dict[str, str] = {
+    "active": "OPEN",
+    "acknowledged": "ACKNOWLEDGED",
+    "resolved": "RESOLVED",
+    "suppressed": "RESOLVED",
+}
+
+
 class AlertResponse(BaseModel):
     alert_id: int
     alert_type: str
     severity: str
     state: str
-    # camera_id is None for SYSTEM_CRITICAL alerts
     camera_id: int | None
     zone_id: int | None
     person_id: int | None
+    global_track_id: str | None = None
     triggered_at: datetime
     acknowledged_at: datetime | None
     resolved_at: datetime | None
     suppressed_by_window_id: int | None
     dedup_key: str | None
+    snapshot_url: str | None = None
 
     model_config = {"from_attributes": True}
+
+    @field_validator("state", mode="before")
+    @classmethod
+    def translate_state(cls, v: object) -> str:
+        s = str(v)
+        return _DB_TO_FE_STATE.get(s, s.upper())
+
+    @field_validator("global_track_id", mode="before")
+    @classmethod
+    def coerce_uuid(cls, v: object) -> str | None:
+        return str(v) if v is not None else None
 
 
 class AnomalyDetectorResponse(BaseModel):
