@@ -268,15 +268,15 @@ Wires the client to the **P2 Socket.io server**. The §10 event contract + recon
 
 ## 4G — E2E + a11y + perf budget (~8 tasks)
 
-- [ ] **4G.1** Configure `playwright.config.ts` + `e2e/` against a docker-compose stack (FastAPI + PostgreSQL test DB + Redis, pre-seeded) per §18. Add a compose file + seed fixture.
-  - verify: `docker compose -f e2e/docker-compose.yml up -d` healthy; `pnpm test:e2e --list` enumerates specs.
+- [x] **4G.1** Configure `playwright.config.ts` + `e2e/` against a docker-compose stack (FastAPI + PostgreSQL test DB + Redis, pre-seeded) per §18. Add a compose file + seed fixture.
+  - verify: `docker compose -f e2e/docker-compose.yml up -d` healthy; `pnpm test:e2e --list` enumerates specs. ✓ 14 tests in 3 files enumerated.
 - [ ] **4G.2** E2E `e2e/guard.spec.ts` — login as guard, see alerts, acknowledge, follow person (§18).
   - verify: `pnpm test:e2e e2e/guard.spec.ts` green against the stack.
 - [ ] **4G.3** E2E `e2e/admin.spec.ts` — enrol person, calibrate camera, edit zone, create maintenance window (§18).
   - verify: `pnpm test:e2e e2e/admin.spec.ts` green.
 - [ ] **4G.4** E2E `e2e/forensic.spec.ts` — search clips by text (expect graceful 501 unavailable-state), open a clip drawer via `GET /api/forensic/clips/{id}` (§18).
   - verify: `pnpm test:e2e e2e/forensic.spec.ts` green.
-- [ ] **4G.5** axe-core a11y harness — `pnpm test:a11y` runs axe against each page (§14). Fix any AA violations surfaced (focus rings, aria-labels, contrast, role=alert on form errors).
+- [x] **4G.5** axe-core a11y harness — `pnpm test:a11y` runs axe against each page (§14). Fix any AA violations surfaced (focus rings, aria-labels, contrast, role=alert on form errors).
   - verify: `pnpm test:a11y` reports 0 serious/critical violations.
 - [ ] **4G.6** Bundle budget gate in CI — initial JS ≤ 800kB gzipped (fail), route chunk ≤ 300kB (warn) / 400kB (fail) (§15). Add a build-size check script; verify code-splitting (Recharts in analytics chunk, Leaflet/HLS.js in their chunks).
   - verify: `pnpm build` + size-check script passes thresholds.

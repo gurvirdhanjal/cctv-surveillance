@@ -90,7 +90,7 @@ export const AlertCard = memo(function AlertCard({
             {onAcknowledge && (
               <button
                 type="button"
-                className="text-[12px] font-medium text-brand-500 hover:text-brand-700 focus-visible:outline-none"
+                className="text-[12px] font-medium text-brand-500 hover:text-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
                 onClick={() => onAcknowledge(alert.alert_id)}
               >
                 Acknowledge
@@ -99,7 +99,7 @@ export const AlertCard = memo(function AlertCard({
             {onResolve && (
               <button
                 type="button"
-                className="text-[12px] font-medium text-text-muted hover:text-text-secondary focus-visible:outline-none"
+                className="text-[12px] font-medium text-text-muted hover:text-text-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
                 onClick={() => onResolve(alert.alert_id)}
               >
                 Resolve

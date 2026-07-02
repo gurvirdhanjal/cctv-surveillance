@@ -94,13 +94,12 @@ export function AlertSidebar() {
         {grouped.length === 0 ? (
           <p className="py-8 text-center text-[13px] text-text-muted">No active alerts</p>
         ) : (
-          <div className="flex flex-col gap-2">
+          <ul className="flex flex-col gap-2 list-none p-0 m-0">
             {grouped.map((group) => {
               const primary = group[0]
               return (
-                <div
+                <li
                   key={primary.global_track_id ?? primary.alert_id}
-                  role="listitem"
                   onClick={() => {
                     if (primary.camera_id !== null) setFocusedCamera(primary.camera_id)
                   }}
@@ -117,10 +116,10 @@ export function AlertSidebar() {
                       +{group.length - 1} similar
                     </p>
                   )}
-                </div>
+                </li>
               )
             })}
-          </div>
+          </ul>
         )}
       </div>
     </div>
