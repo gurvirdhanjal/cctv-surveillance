@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/shared/api/client'
 import type { PersonResponse } from '@/shared/api/types'
 import { useAuth } from '@/hooks/useAuth'
+import { useAuthStore } from '@/stores/authStore'
 import { useLiveStore } from '../store/liveStore'
 import { HeadCountBanner } from './HeadCountBanner'
 
@@ -13,6 +14,7 @@ export function TopBar() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
   const { user } = useAuth()
+  const logout = useAuthStore((s) => s.logout)
 
   const alerts = useLiveStore((s) => s.alerts)
   const activeAlertCount = alerts.filter((a) => a.state === 'OPEN').length
@@ -94,6 +96,19 @@ export function TopBar() {
             {activeAlertCount} alerts
           </Link>
         )}
+
+        <button
+          type="button"
+          onClick={() => {
+            logout()
+            navigate('/login', { replace: true })
+          }}
+          className="rounded-md px-3 py-1.5 text-[13px] text-text-muted hover:text-text-primary hover:bg-surface-sunken focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+          aria-label="Sign out"
+        >
+          {user?.role && <span className="mr-1.5 text-text-muted">{user.role}</span>}
+          Sign out
+        </button>
       </header>
 
       {/* Search modal */}

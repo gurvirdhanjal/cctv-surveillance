@@ -1,4 +1,4 @@
-import { Helmet } from 'react-helmet-async'
+﻿import { Helmet } from 'react-helmet-async'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/shared/api/client'
@@ -32,7 +32,7 @@ export function HeatmapPage() {
                   'rounded-md px-3 py-1.5 text-[12px] capitalize transition-colors',
                   timeWindow === w
                     ? 'bg-brand-500 text-white'
-                    : 'border border-border-DEFAULT text-text-secondary hover:bg-surface-sunken',
+                    : 'border border text-text-secondary hover:bg-surface-sunken',
                 ].join(' ')}
               >
                 {w}
@@ -42,7 +42,7 @@ export function HeatmapPage() {
         </div>
 
         <div
-          className="relative overflow-hidden rounded-lg border border-border-DEFAULT bg-surface-sunken"
+          className="relative overflow-hidden rounded-lg border border bg-surface-sunken"
           style={{ height: 400 }}
         >
           {zones.length > 0 ? (

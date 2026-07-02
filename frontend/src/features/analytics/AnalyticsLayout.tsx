@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom'
+﻿import { NavLink, Outlet } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 
 const NAV = [
@@ -13,7 +13,7 @@ export function AnalyticsLayout() {
       <Helmet titleTemplate="%s — Analytics" />
       <nav
         aria-label="Analytics navigation"
-        className="w-56 shrink-0 border-r border-border-DEFAULT bg-surface-raised p-4"
+        className="w-56 shrink-0 border-r border bg-surface-raised p-4"
       >
         <p className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
           Analytics
@@ -38,7 +38,7 @@ export function AnalyticsLayout() {
             </li>
           ))}
         </ul>
-        <div className="mt-6 border-t border-border-DEFAULT pt-4">
+        <div className="mt-6 border-t border pt-4">
           <NavLink
             to="/forensic"
             className="block rounded-md px-3 py-2 text-[14px] text-text-secondary transition-colors hover:bg-surface-sunken"

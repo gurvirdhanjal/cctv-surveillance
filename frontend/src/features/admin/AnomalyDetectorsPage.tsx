@@ -25,6 +25,12 @@ export function AnomalyDetectorsPage() {
       <div className="p-6">
         <h1 className="text-[22px] font-semibold text-text-primary mb-4">Anomaly Detectors</h1>
 
+        {toggleMutation.isError && (
+          <p role="alert" className="mb-3 text-[13px] text-error">
+            Failed to update detector. Please try again.
+          </p>
+        )}
+
         {isLoading && (
           <p role="status" aria-label="Loading detectors">
             Loading…

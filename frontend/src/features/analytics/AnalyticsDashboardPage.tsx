@@ -1,4 +1,4 @@
-import { Helmet } from 'react-helmet-async'
+﻿import { Helmet } from 'react-helmet-async'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { api } from '@/shared/api/client'
@@ -101,19 +101,19 @@ export function AnalyticsDashboardPage() {
         <section aria-label="Quick actions" className="flex flex-wrap gap-3">
           <Link
             to="/analytics/timeline"
-            className="rounded-md border border-border-DEFAULT px-4 py-2 text-[13px] text-text-secondary transition-colors hover:bg-surface-sunken"
+            className="rounded-md border border px-4 py-2 text-[13px] text-text-secondary transition-colors hover:bg-surface-sunken"
           >
             Open Timeline
           </Link>
           <Link
             to="/analytics/heatmap"
-            className="rounded-md border border-border-DEFAULT px-4 py-2 text-[13px] text-text-secondary transition-colors hover:bg-surface-sunken"
+            className="rounded-md border border px-4 py-2 text-[13px] text-text-secondary transition-colors hover:bg-surface-sunken"
           >
             View Heatmap
           </Link>
           <Link
             to="/forensic"
-            className="rounded-md border border-border-DEFAULT px-4 py-2 text-[13px] text-text-secondary transition-colors hover:bg-surface-sunken"
+            className="rounded-md border border px-4 py-2 text-[13px] text-text-secondary transition-colors hover:bg-surface-sunken"
           >
             Forensic Search
           </Link>

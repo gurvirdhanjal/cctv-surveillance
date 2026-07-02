@@ -94,6 +94,12 @@ export function AlertRoutingPage() {
           </button>
         </div>
 
+        {(deleteMutation.isError || toggleMutation.isError) && (
+          <p role="alert" className="mb-3 text-[13px] text-error">
+            {deleteMutation.isError ? 'Failed to delete rule.' : 'Failed to update rule.'} Please try again.
+          </p>
+        )}
+
         {isLoading && (
           <p role="status" aria-label="Loading routing rules">
             Loading…
@@ -156,7 +162,7 @@ export function AlertRoutingPage() {
                         type="button"
                         aria-label={`Delete rule ${r.routing_id}`}
                         onClick={() => deleteMutation.mutate(r.routing_id)}
-                        className="text-[13px] text-red-600 hover:underline"
+                        className="text-[13px] text-error hover:underline"
                       >
                         Delete
                       </button>
@@ -212,7 +218,7 @@ export function AlertRoutingPage() {
                   <option value="webhook">Webhook</option>
                 </select>
                 {errors.channel && (
-                  <p role="alert" className="mt-1 text-[12px] text-red-600">
+                  <p role="alert" className="mt-1 text-[12px] text-error">
                     {errors.channel.message}
                   </p>
                 )}
@@ -240,7 +246,7 @@ export function AlertRoutingPage() {
                   }
                 />
                 {errors.target && (
-                  <p role="alert" className="mt-1 text-[12px] text-red-600">
+                  <p role="alert" className="mt-1 text-[12px] text-error">
                     {errors.target.message}
                   </p>
                 )}
@@ -267,7 +273,7 @@ export function AlertRoutingPage() {
                 </select>
               </div>
               {createMutation.isError && (
-                <p role="alert" className="text-[13px] text-red-600">
+                <p role="alert" className="text-[13px] text-error">
                   Failed to add rule.
                 </p>
               )}

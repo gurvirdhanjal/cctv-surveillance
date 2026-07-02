@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 
 type PlaybackSpeed = 0.5 | 1 | 2 | 5 | 10
 
@@ -40,7 +40,7 @@ export function TimeScrubber({ disabled = false }: TimeScrubberProps) {
   return (
     <div
       aria-label="Timeline scrubber"
-      className="space-y-4 rounded-lg border border-border-DEFAULT bg-surface-base p-4"
+      className="space-y-4 rounded-lg border border bg-surface-base p-4"
     >
       {disabled && (
         <div role="status" className="rounded-md bg-surface-sunken px-4 py-3 text-[13px] text-text-secondary">
@@ -53,7 +53,7 @@ export function TimeScrubber({ disabled = false }: TimeScrubberProps) {
           aria-label="Step back"
           onClick={stepBack}
           disabled={disabled}
-          className="rounded-md border border-border-DEFAULT px-2 py-1 text-[13px] hover:bg-surface-sunken disabled:opacity-40"
+          className="rounded-md border border px-2 py-1 text-[13px] hover:bg-surface-sunken disabled:opacity-40"
         >
           &laquo;
         </button>
@@ -61,7 +61,7 @@ export function TimeScrubber({ disabled = false }: TimeScrubberProps) {
           aria-label={state.playing ? 'Pause' : 'Play'}
           onClick={togglePlay}
           disabled={disabled}
-          className="rounded-md border border-border-DEFAULT px-3 py-1 text-[13px] hover:bg-surface-sunken disabled:opacity-40"
+          className="rounded-md border border px-3 py-1 text-[13px] hover:bg-surface-sunken disabled:opacity-40"
         >
           {state.playing ? 'Pause' : 'Play'}
         </button>
@@ -69,7 +69,7 @@ export function TimeScrubber({ disabled = false }: TimeScrubberProps) {
           aria-label="Step forward"
           onClick={stepForward}
           disabled={disabled}
-          className="rounded-md border border-border-DEFAULT px-2 py-1 text-[13px] hover:bg-surface-sunken disabled:opacity-40"
+          className="rounded-md border border px-2 py-1 text-[13px] hover:bg-surface-sunken disabled:opacity-40"
         >
           &raquo;
         </button>
@@ -86,7 +86,7 @@ export function TimeScrubber({ disabled = false }: TimeScrubberProps) {
               'rounded-md px-2 py-1 text-[12px] transition-colors disabled:opacity-40',
               state.speed === s
                 ? 'bg-brand-500 text-text-inverse'
-                : 'border border-border-DEFAULT hover:bg-surface-sunken',
+                : 'border border hover:bg-surface-sunken',
             ].join(' ')}
           >
             {s}&times;

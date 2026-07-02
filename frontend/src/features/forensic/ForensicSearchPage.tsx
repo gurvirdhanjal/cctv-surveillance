@@ -1,4 +1,4 @@
-import { Helmet } from 'react-helmet-async'
+﻿import { Helmet } from 'react-helmet-async'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/shared/api/client'
@@ -70,7 +70,7 @@ export function ForensicSearchPage() {
               placeholder="Describe what you're looking for…"
               disabled={isClipBlocked}
               aria-label="Search query"
-              className="flex-1 rounded-md border border-border-DEFAULT bg-surface-base px-3 py-2 text-[14px] placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex-1 rounded-md border border bg-surface-base px-3 py-2 text-[14px] placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50"
             />
             <button
               type="submit"
@@ -88,7 +88,7 @@ export function ForensicSearchPage() {
               onChange={(e) => setFilters((f) => ({ ...f, time_from: e.target.value }))}
               disabled={isClipBlocked}
               aria-label="From date"
-              className="rounded-md border border-border-DEFAULT px-2 py-1 text-[13px] disabled:opacity-50"
+              className="rounded-md border border px-2 py-1 text-[13px] disabled:opacity-50"
             />
             <input
               type="datetime-local"
@@ -96,7 +96,7 @@ export function ForensicSearchPage() {
               onChange={(e) => setFilters((f) => ({ ...f, time_to: e.target.value }))}
               disabled={isClipBlocked}
               aria-label="To date"
-              className="rounded-md border border-border-DEFAULT px-2 py-1 text-[13px] disabled:opacity-50"
+              className="rounded-md border border px-2 py-1 text-[13px] disabled:opacity-50"
             />
           </div>
         </form>

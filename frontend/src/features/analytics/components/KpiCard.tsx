@@ -1,4 +1,4 @@
-interface KpiCardProps {
+﻿interface KpiCardProps {
   label: string
   value: string | number | null
   unit?: string
@@ -9,7 +9,7 @@ interface KpiCardProps {
 export function KpiCard({ label, value, unit, loading = false, error = false }: KpiCardProps) {
   return (
     <div
-      className="rounded-lg border border-border-DEFAULT bg-surface-base p-4 shadow-1"
+      className="rounded-lg border border bg-surface-base p-4 shadow-1"
       aria-label={label}
     >
       <p className="text-[12px] font-medium uppercase tracking-wider text-text-muted">{label}</p>

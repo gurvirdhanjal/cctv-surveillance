@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { BboxOverlay } from './BboxOverlay'
 
 interface FocusedCameraProps {
@@ -6,6 +7,12 @@ interface FocusedCameraProps {
 }
 
 export function FocusedCamera({ cameraId, mjpegUrl }: FocusedCameraProps) {
+  const [streamError, setStreamError] = useState(false)
+
+  useEffect(() => {
+    setStreamError(false)
+  }, [mjpegUrl])
+
   if (!mjpegUrl) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-surface-sunken">
@@ -30,14 +37,38 @@ export function FocusedCamera({ cameraId, mjpegUrl }: FocusedCameraProps) {
     )
   }
 
+  if (streamError) {
+    return (
+      <div className="flex h-full w-full flex-col items-center justify-center bg-surface-sunken">
+        <svg
+          className="mb-3 h-10 w-10 text-text-muted"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          aria-hidden="true"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.5}
+            d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
+          />
+        </svg>
+        <p className="text-[13px] font-medium text-text-secondary">Stream unavailable</p>
+        <p className="mt-1 text-[12px] text-text-muted">Check camera connection and status</p>
+      </div>
+    )
+  }
+
   return (
     <div className="relative h-full w-full bg-black">
       {/* MJPEG stream — browser renders multipart/x-mixed-replace natively */}
       <img
-        key={mjpegUrl}
         src={mjpegUrl}
         className="h-full w-full object-contain"
         alt="Camera live feed"
+        onError={() => setStreamError(true)}
+        onLoad={() => setStreamError(false)}
       />
       {cameraId !== null && <BboxOverlay cameraId={cameraId} />}
     </div>

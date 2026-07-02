@@ -150,7 +150,7 @@ export function ZoneEditorPage() {
                         type="button"
                         aria-label={`Delete ${zone.name}`}
                         onClick={() => setDeleteTarget(zone)}
-                        className="text-[13px] text-red-600 hover:underline"
+                        className="text-[13px] text-error hover:underline"
                       >
                         Delete
                       </button>
@@ -202,7 +202,7 @@ export function ZoneEditorPage() {
                   placeholder="Assembly Line"
                 />
                 {addErrors.name && (
-                  <p role="alert" className="mt-1 text-[12px] text-red-600">
+                  <p role="alert" className="mt-1 text-[12px] text-error">
                     {addErrors.name.message}
                   </p>
                 )}
@@ -221,7 +221,7 @@ export function ZoneEditorPage() {
                   className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
                 {addErrors.loiter_threshold_s && (
-                  <p role="alert" className="mt-1 text-[12px] text-red-600">
+                  <p role="alert" className="mt-1 text-[12px] text-error">
                     {addErrors.loiter_threshold_s.message}
                   </p>
                 )}
@@ -279,11 +279,16 @@ export function ZoneEditorPage() {
                   className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
                 {editErrors.name && (
-                  <p role="alert" className="mt-1 text-[12px] text-red-600">
+                  <p role="alert" className="mt-1 text-[12px] text-error">
                     {editErrors.name.message}
                   </p>
                 )}
               </div>
+              {updateMutation.isError && (
+                <p role="alert" className="text-[13px] text-error">
+                  Failed to save zone. Please try again.
+                </p>
+              )}
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
@@ -328,6 +333,11 @@ export function ZoneEditorPage() {
               placeholder={deleteTarget.name}
               className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base mb-4 focus:outline-none"
             />
+            {deleteMutation.isError && (
+              <p role="alert" className="mb-3 text-[13px] text-error">
+                Failed to delete zone. Please try again.
+              </p>
+            )}
             <div className="flex gap-2 justify-end">
               <button
                 type="button"
@@ -340,7 +350,7 @@ export function ZoneEditorPage() {
                 type="button"
                 onClick={() => deleteMutation.mutate(deleteTarget.zone_id)}
                 disabled={deleteConfirm !== deleteTarget.name || deleteMutation.isPending}
-                className="px-4 py-2 text-[14px] rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-4 py-2 text-[14px] rounded bg-destructive text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Delete
               </button>

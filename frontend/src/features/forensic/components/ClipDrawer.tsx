@@ -1,4 +1,4 @@
-import * as Dialog from '@radix-ui/react-dialog'
+﻿import * as Dialog from '@radix-ui/react-dialog'
 import { useEffect, useRef } from 'react'
 import Hls from 'hls.js'
 import { Link } from 'react-router-dom'
@@ -42,7 +42,7 @@ export function ClipDrawer({ clip, onClose }: ClipDrawerProps) {
           className="fixed inset-y-0 right-0 z-50 flex w-[480px] flex-col bg-surface-base shadow-3 focus:outline-none"
           aria-label="Clip details"
         >
-          <div className="flex items-center justify-between border-b border-border-DEFAULT px-4 py-3">
+          <div className="flex items-center justify-between border-b border px-4 py-3">
             <Dialog.Title className="text-[15px] font-semibold text-text-primary">
               Clip — Camera {clip.camera_id}
             </Dialog.Title>
@@ -110,7 +110,7 @@ export function ClipDrawer({ clip, onClose }: ClipDrawerProps) {
 
             <Link
               to={`/analytics?open_scrubber=track_${clip.global_track_id}`}
-              className="block rounded-md border border-border-DEFAULT px-3 py-2 text-center text-[13px] text-text-secondary hover:bg-surface-sunken"
+              className="block rounded-md border border px-3 py-2 text-center text-[13px] text-text-secondary hover:bg-surface-sunken"
               onClick={onClose}
             >
               Open in timeline scrubber

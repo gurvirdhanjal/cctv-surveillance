@@ -69,7 +69,7 @@ export function AdminPersonsPage() {
           </p>
         )}
         {isError && (
-          <p role="alert" className="text-red-600 text-[14px]">
+          <p role="alert" className="text-error text-[14px]">
             Failed to load persons.
           </p>
         )}
@@ -131,7 +131,7 @@ export function AdminPersonsPage() {
                         type="button"
                         aria-label={`Delete ${p.name}`}
                         onClick={() => setDeleteTarget(p)}
-                        className="px-3 py-1 text-[12px] text-red-600 hover:text-red-700 hover:bg-red-50 rounded"
+                        className="px-3 py-1 text-[12px] text-error hover:text-red-700 hover:bg-red-50 rounded"
                       >
                         Delete
                       </button>

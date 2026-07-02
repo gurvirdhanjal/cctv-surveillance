@@ -1,4 +1,4 @@
-interface ZonePresence {
+﻿interface ZonePresence {
   zone_name: string
   start_hour: number
   end_hour: number
@@ -18,7 +18,7 @@ export function PersonTimeline({ presences, hours = 24 }: PersonTimelineProps) {
   return (
     <div aria-label="Person zone timeline" className="overflow-x-auto">
       <div className="relative min-w-[480px]">
-        <div className="flex border-b border-border-DEFAULT pb-1">
+        <div className="flex border-b border pb-1">
           <div className="w-20 shrink-0" />
           <div className="flex flex-1">
             {Array.from({ length: hours + 1 }, (_, i) => (

@@ -116,6 +116,12 @@ export function MaintenanceCalendarPage() {
           </button>
         </div>
 
+        {deleteMutation.isError && (
+          <p role="alert" className="mb-3 text-[13px] text-error">
+            Failed to delete maintenance window. Please try again.
+          </p>
+        )}
+
         {isLoading && (
           <p role="status" aria-label="Loading maintenance windows">
             Loading…
@@ -169,7 +175,7 @@ export function MaintenanceCalendarPage() {
                         aria-label={`Delete ${w.name}`}
                         onClick={() => deleteMutation.mutate(w.window_id)}
                         disabled={deleteMutation.isPending}
-                        className="text-[13px] text-red-600 hover:underline"
+                        className="text-[13px] text-error hover:underline"
                       >
                         Delete
                       </button>
@@ -222,7 +228,7 @@ export function MaintenanceCalendarPage() {
                   placeholder="Nightly backup window"
                 />
                 {errors.name && (
-                  <p role="alert" className="mt-1 text-[12px] text-red-600">
+                  <p role="alert" className="mt-1 text-[12px] text-error">
                     {errors.name.message}
                   </p>
                 )}
@@ -319,7 +325,7 @@ export function MaintenanceCalendarPage() {
                       className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none"
                     />
                     {errors.starts_at && (
-                      <p role="alert" className="mt-1 text-[12px] text-red-600">
+                      <p role="alert" className="mt-1 text-[12px] text-error">
                         {errors.starts_at.message}
                       </p>
                     )}
@@ -338,7 +344,7 @@ export function MaintenanceCalendarPage() {
                       className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none"
                     />
                     {errors.ends_at && (
-                      <p role="alert" className="mt-1 text-[12px] text-red-600">
+                      <p role="alert" className="mt-1 text-[12px] text-error">
                         {errors.ends_at.message}
                       </p>
                     )}
@@ -362,7 +368,7 @@ export function MaintenanceCalendarPage() {
                       placeholder="0 2 * * *"
                     />
                     {errors.cron_expr && (
-                      <p role="alert" className="mt-1 text-[12px] text-red-600">
+                      <p role="alert" className="mt-1 text-[12px] text-error">
                         {errors.cron_expr.message}
                       </p>
                     )}
@@ -394,7 +400,7 @@ export function MaintenanceCalendarPage() {
                       placeholder="60"
                     />
                     {errors.duration_minutes && (
-                      <p role="alert" className="mt-1 text-[12px] text-red-600">
+                      <p role="alert" className="mt-1 text-[12px] text-error">
                         {errors.duration_minutes.message}
                       </p>
                     )}
@@ -403,7 +409,7 @@ export function MaintenanceCalendarPage() {
               )}
 
               {createMutation.isError && (
-                <p role="alert" className="text-[13px] text-red-600">
+                <p role="alert" className="text-[13px] text-error">
                   Failed to schedule maintenance window.
                 </p>
               )}

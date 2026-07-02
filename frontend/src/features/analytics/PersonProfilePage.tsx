@@ -1,4 +1,4 @@
-import { Helmet } from 'react-helmet-async'
+﻿import { Helmet } from 'react-helmet-async'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/shared/api/client'
@@ -77,7 +77,7 @@ export function PersonProfilePage() {
           <div className="ml-auto">
             <Link
               to={`/analytics?open_scrubber=person_${personId}`}
-              className="rounded-md border border-border-DEFAULT px-3 py-1.5 text-[13px] text-text-secondary hover:bg-surface-sunken"
+              className="rounded-md border border px-3 py-1.5 text-[13px] text-text-secondary hover:bg-surface-sunken"
             >
               Open in timeline scrubber
             </Link>
@@ -101,7 +101,7 @@ export function PersonProfilePage() {
               {alertsResponse.items.map((alert) => (
                 <li
                   key={alert.alert_id}
-                  className="flex items-center gap-3 rounded-md border border-border-DEFAULT px-3 py-2 text-[13px]"
+                  className="flex items-center gap-3 rounded-md border border px-3 py-2 text-[13px]"
                 >
                   <span className="text-text-secondary">{alert.alert_type}</span>
                   <span className="text-text-muted">

@@ -1,5 +1,6 @@
-import { Link, NavLink, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
+import { useAuthStore } from '@/stores/authStore'
 
 const NAV_ITEMS = [
   { to: '/admin', label: 'Dashboard', end: true },
@@ -15,6 +16,10 @@ const NAV_ITEMS = [
 ]
 
 export function AdminLayout() {
+  const navigate = useNavigate()
+  const logout = useAuthStore((s) => s.logout)
+  const user = useAuthStore((s) => s.user)
+
   return (
     <>
       <Helmet title="Admin" />
@@ -51,6 +56,24 @@ export function AdminLayout() {
               {label}
             </NavLink>
           ))}
+
+          <div className="mt-auto pt-4 border-t border-border mx-4">
+            {user && (
+              <p className="text-[11px] text-text-muted mb-2 truncate">
+                {user.role} · {user.userId}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                logout()
+                navigate('/login', { replace: true })
+              }}
+              className="w-full text-left px-0 py-1 text-[13px] text-text-muted hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+            >
+              Sign out
+            </button>
+          </div>
         </nav>
         <main className="flex-1 min-w-0 overflow-auto">
           <Outlet />

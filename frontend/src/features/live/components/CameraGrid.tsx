@@ -47,6 +47,17 @@ export function CameraGrid({ cameras, focusedCameraId, onCameraSelect }: CameraG
     return () => window.removeEventListener('keydown', handleKey)
   }, [totalPages, goToFocusedPage])
 
+  if (cameras.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10 text-center">
+        <p className="text-[13px] text-text-muted">No cameras configured.</p>
+        <p className="mt-1 text-[12px] text-text-muted">
+          Add cameras in Admin &rarr; Cameras.
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-2">
       <div className="grid grid-cols-4 gap-1.5">
