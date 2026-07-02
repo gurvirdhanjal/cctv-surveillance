@@ -475,6 +475,18 @@ class AlertRoutingResponse(BaseModel):
 # ── Audit schemas ────────────────────────────────────────────────────────────
 
 
+class AuditLogEntryResponse(BaseModel):
+    log_id: int
+    event_type: str
+    actor_user_id: int | None
+    actor_role: str | None = None
+    subject_table: str | None
+    subject_id: str | None
+    detail: str | None
+    created_at: datetime
+    row_hash: str
+
+
 class AuditVerifyResponse(BaseModel):
     rows_checked: int
     broken_chain_at: datetime | None

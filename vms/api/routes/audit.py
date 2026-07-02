@@ -1,17 +1,17 @@
-"""GET /api/audit/verify and GET /api/audit/export."""
+"""GET /api/audit, GET /api/audit/verify and GET /api/audit/export."""
 
 from __future__ import annotations
 
 import io
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from vms.api.deps import get_db, require_role
-from vms.api.schemas import AuditVerifyResponse
+from vms.api.schemas import AuditLogEntryResponse, AuditVerifyResponse
 from vms.config import get_settings
 from vms.db.audit import compute_row_hash
 from vms.db.models import AuditLog
@@ -20,14 +20,46 @@ _log = logging.getLogger(__name__)
 
 router = APIRouter()
 
+_EPOCH = datetime(2000, 1, 1)
+
+
+def _now_naive() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+@router.get("/audit", response_model=list[AuditLogEntryResponse])
+def list_audit_log(
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),  # noqa: B008
+    _user: dict[str, Any] = require_role("admin", "manager"),  # noqa: B008
+) -> list[AuditLogEntryResponse]:
+    rows: list[AuditLog] = db.query(AuditLog).order_by(AuditLog.audit_id.desc()).limit(limit).all()
+    return [
+        AuditLogEntryResponse(
+            log_id=r.audit_id,
+            event_type=r.event_type,
+            actor_user_id=r.actor_user_id,
+            subject_table=r.target_type,
+            subject_id=r.target_id,
+            detail=r.payload,
+            created_at=r.event_ts,
+            row_hash=r.row_hash,
+        )
+        for r in rows
+    ]
+
 
 @router.get("/audit/verify", response_model=AuditVerifyResponse)
 def verify_audit_chain(
-    from_dt: datetime = Query(..., alias="from"),  # noqa: B008
-    to_dt: datetime = Query(..., alias="to"),  # noqa: B008
+    from_dt: datetime = Query(default=None, alias="from"),  # noqa: B008
+    to_dt: datetime = Query(default=None, alias="to"),  # noqa: B008
     db: Session = Depends(get_db),  # noqa: B008
     _user: dict[str, Any] = require_role("admin", "manager"),  # noqa: B008
 ) -> AuditVerifyResponse:
+    if from_dt is None:
+        from_dt = _EPOCH
+    if to_dt is None:
+        to_dt = _now_naive()
     if to_dt <= from_dt:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -131,12 +163,16 @@ def _build_audit_pdf(rows: list[AuditLog], from_dt: datetime, to_dt: datetime) -
 
 @router.get("/audit/export")
 def export_audit_log(
-    from_dt: datetime = Query(..., alias="from"),  # noqa: B008
-    to_dt: datetime = Query(..., alias="to"),  # noqa: B008
+    from_dt: datetime = Query(default=None, alias="from"),  # noqa: B008
+    to_dt: datetime = Query(default=None, alias="to"),  # noqa: B008
     fmt: str = Query("pdf", alias="format"),
     db: Session = Depends(get_db),  # noqa: B008
     _user: dict[str, Any] = require_role("admin"),  # noqa: B008
 ) -> Response:
+    if from_dt is None:
+        from_dt = _EPOCH
+    if to_dt is None:
+        to_dt = _now_naive()
     if to_dt <= from_dt:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

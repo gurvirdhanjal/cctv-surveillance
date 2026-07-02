@@ -1,4 +1,4 @@
-"""Tests for GET /api/audit/verify and GET /api/audit/export."""
+"""Tests for GET /api/audit, GET /api/audit/verify and GET /api/audit/export."""
 
 from __future__ import annotations
 
@@ -46,6 +46,66 @@ def test_schemas_importable() -> None:
     resp = AuditVerifyResponse(rows_checked=0, broken_chain_at=None)
     assert resp.rows_checked == 0
     assert resp.broken_chain_at is None
+
+
+# ── GET /api/audit ────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_audit_list_returns_entries(db_session: Session) -> None:
+    _seed_events(db_session, 3)
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get("/api/audit?limit=10", headers=_auth())
+    finally:
+        app.dependency_overrides.clear()
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    assert len(data) >= 3
+    entry = data[0]
+    assert "log_id" in entry
+    assert "event_type" in entry
+    assert "created_at" in entry
+    assert "row_hash" in entry
+
+
+@pytest.mark.asyncio
+async def test_audit_list_respects_limit(db_session: Session) -> None:
+    _seed_events(db_session, 10)
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get("/api/audit?limit=5", headers=_auth())
+    finally:
+        app.dependency_overrides.clear()
+
+    assert resp.status_code == 200
+    assert len(resp.json()) <= 5
+
+
+@pytest.mark.asyncio
+async def test_audit_list_requires_auth(db_session: Session) -> None:
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get("/api/audit")
+    finally:
+        app.dependency_overrides.clear()
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_audit_list_guard_role_forbidden(db_session: Session) -> None:
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get("/api/audit", headers=_auth("guard"))
+    finally:
+        app.dependency_overrides.clear()
+    assert resp.status_code == 403
 
 
 # ── audit/verify ──────────────────────────────────────────────────────────────
@@ -128,6 +188,22 @@ async def test_audit_verify_detects_broken_chain_link(db_session: Session) -> No
     data = resp.json()
     assert data["broken_chain_at"] is not None
     assert data["rows_checked"] == 2
+
+
+@pytest.mark.asyncio
+async def test_audit_verify_no_date_params_uses_defaults(db_session: Session) -> None:
+    _seed_events(db_session, 3)
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get("/api/audit/verify", headers=_auth())
+    finally:
+        app.dependency_overrides.clear()
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["rows_checked"] >= 3
+    assert data["broken_chain_at"] is None
 
 
 @pytest.mark.asyncio
