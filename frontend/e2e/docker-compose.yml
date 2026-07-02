@@ -1,0 +1,52 @@
+# E2E test stack — isolated from the dev database.
+#
+# Ports deliberately different from dev (5432/6379) and pytest integration (5434):
+#   PostgreSQL e2e: 5435 -> container 5432
+#   Redis e2e:      6381 -> container 6379
+#
+# Usage:
+#   docker compose -f e2e/docker-compose.yml up -d
+#   docker compose -f e2e/docker-compose.yml down -v   (purge volumes after run)
+#
+# After the DB is healthy, run migrations + seed from the repo root:
+#   VMS_DB_URL=postgresql://vms:vms@localhost:5435/vms_e2e alembic upgrade head
+#   VMS_DB_URL=postgresql://vms:vms@localhost:5435/vms_e2e python scripts/seed_admin_user.py
+#   VMS_DB_URL=postgresql://vms:vms@localhost:5435/vms_e2e python scripts/seed_demo_data.py
+#
+# Then start FastAPI pointing at the e2e DB:
+#   VMS_DB_URL=postgresql://vms:vms@localhost:5435/vms_e2e \
+#   VMS_REDIS_URL=redis://localhost:6381 \
+#   VMS_JWT_SECRET=e2e-test-secret \
+#   VMS_SERVE_FRONTEND=true \
+#   uvicorn vms.api.main:socket_app --port 8080
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: vms-e2e-db
+    environment:
+      POSTGRES_DB: vms_e2e
+      POSTGRES_USER: vms
+      POSTGRES_PASSWORD: vms
+    ports:
+      - "5435:5432"
+    volumes:
+      - vms_e2e_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vms -d vms_e2e"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  redis:
+    image: redis:7-alpine
+    container_name: vms-e2e-redis
+    ports:
+      - "6381:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      retries: 10
+
+volumes:
+  vms_e2e_pg:
