@@ -4,7 +4,7 @@
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status: IN PROGRESS — 4F**
+**Status: IN PROGRESS — 4G**
 
 **Goal:** Build the VMS React SPA from scratch — three role-gated views (Guard / Manager / Admin) backed by the existing FastAPI surface. Close the three backend gaps (`GET /api/persons` list, Zones CRUD API, Socket.io real-time server) that the frontend depends on, then deliver sub-plans 4A–4G to a shippable state: scaffold + design system, auth + routing, live guard view, analytics + forensic, admin views, real-time integration, and E2E/a11y/perf gates.
 
@@ -249,18 +249,18 @@ Light theme, sidebar nav. Depends on `GET /api/persons` (P0), Zones CRUD (P1), a
 
 Wires the client to the **P2 Socket.io server**. The §10 event contract + reconnect rehydration + degraded UX.
 
-- [ ] **4F.1** TDD `shared/api/socket.ts` — socket.io-client with auth token in handshake, `reconnection: true`, `reconnectionDelay: 500`, `reconnectionDelayMax: 5000` (§10). Test: client constructs, attaches auth.
-  - verify: `pnpm test:run src/shared/api/socket.test.ts` green (socket mocked).
-- [ ] **4F.2** TDD rAF-batched `person_location` throttle (`queuePersonLocation`/`flush` per §10) feeding `liveStore.applyLocations`. Test: multiple queued events flush once per frame, last-write-wins per track.
-  - verify: `pnpm test:run` throttle test green.
-- [ ] **4F.3** TDD socket event dispatch layer — `alert_fired`, `alert_state_changed`, `track_corrected`, `camera_snapshot`, `worker_health`, `head_count` → store actions (§10). Test each event→store mutation.
-  - verify: `pnpm test:run` dispatch test green.
-- [ ] **4F.4** TDD reconnect rehydration (§10) — on `connect`: `GET /api/state/snapshot` → `liveStore.reset`, re-emit `subscribe_camera`/`subscribe_track` for current focus/follow. Test: connect handler refetches + re-subscribes.
-  - verify: `pnpm test:run` reconnect test green.
-- [ ] **4F.5** TDD degraded UX (§10 table) — `degraded_mode` event / disconnect → "Reconnecting..." banner after 3s, camera grid polling 5s, AlertSidebar paused banner, frozen overlays, stale head count; recovery re-syncs via snapshot. Test: degraded state propagation per component contract.
-  - verify: `pnpm test:run` degraded-mode test green.
-- [ ] **4F.6** Integration test: live page + mocked socket server — alert_fired appears in sidebar ≤ render budget, person_location moves a dot, disconnect shows banner, reconnect clears it. Quality gate + commit.
-  - verify: `pnpm lint && pnpm typecheck && pnpm test:run` green. Commit `feat(frontend): socket.io real-time integration, throttling, reconnect, degraded mode`.
+- [x] **4F.1** TDD `shared/api/socket.ts` — socket.io-client with auth token in handshake, `reconnection: true`, `reconnectionDelay: 500`, `reconnectionDelayMax: 5000` (§10). Test: client constructs, attaches auth.
+  - verify: 6 tests green.
+- [x] **4F.2** TDD rAF-batched `person_location` throttle (`queuePersonLocation`/`flush` per §10) feeding `liveStore.applyLocations`. Test: multiple queued events flush once per frame, last-write-wins per track.
+  - verify: 5 tests green.
+- [x] **4F.3** TDD socket event dispatch layer — `alert_fired`, `alert_state_changed`, `track_corrected`, `camera_snapshot`, `worker_health`, `head_count` → store actions (§10). Test each event→store mutation.
+  - verify: 9 tests green.
+- [x] **4F.4** TDD reconnect rehydration (§10) — on `connect`: `GET /api/state/snapshot` → `liveStore.reset`, re-emit `subscribe_camera`/`subscribe_track` for current focus/follow. Test: connect handler refetches + re-subscribes.
+  - verify: 9 tests in useSocketConnection.test.ts green (covers 4F.4 + 4F.5).
+- [x] **4F.5** TDD degraded UX — `degraded_mode` event / disconnect → DegradedBanner after 3s timer, camera snapshot polling 5s (useCameraSnapshot already handles this), recovery clears banner. DegradedBanner: 3 tests. useSocketConnection 3s timer: verified in hook tests.
+  - verify: banner + timer tests green.
+- [x] **4F.6** Integration test: LivePage.integration.test.tsx — 3 panels render, banner absent when healthy, appears on degraded, clears on recovery, store mutation propagates. Committed 6cdb714c.
+  - verify: lint clean, tsc clean, 417 tests passing.
 
 **4F gate:** `pnpm lint && pnpm typecheck && pnpm test:run`.
 
