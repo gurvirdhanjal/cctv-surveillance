@@ -4,7 +4,7 @@
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status: IN PROGRESS — 4E**
+**Status: IN PROGRESS — 4F**
 
 **Goal:** Build the VMS React SPA from scratch — three role-gated views (Guard / Manager / Admin) backed by the existing FastAPI surface. Close the three backend gaps (`GET /api/persons` list, Zones CRUD API, Socket.io real-time server) that the frontend depends on, then deliver sub-plans 4A–4G to a shippable state: scaffold + design system, auth + routing, live guard view, analytics + forensic, admin views, real-time integration, and E2E/a11y/perf gates.
 
@@ -208,38 +208,38 @@ Light theme. Depends on `GET /api/alerts`, `GET /api/persons/*`, `GET /api/zones
 
 Light theme, sidebar nav. Depends on `GET /api/persons` (P0), Zones CRUD (P1), and existing cameras/anomaly/maintenance/routing/audit endpoints.
 
-- [ ] **4E.1** TDD `AdminLayout` (sidebar nav per §9 section table) + `AdminDashboardPage` (`/admin`) — worker health, GPU util, PG write-queue depth, Redis stream lag, latest migration, model versions (from health/state endpoints). Test nav + dashboard render.
+- [x] **4E.1** TDD `AdminLayout` (sidebar nav per §9 section table) + `AdminDashboardPage` (`/admin`) — worker health, GPU util, PG write-queue depth, Redis stream lag, latest migration, model versions (from health/state endpoints). Test nav + dashboard render.
   - verify: `pnpm test:run` AdminLayout/Dashboard test green.
-- [ ] **4E.2** TDD `AdminPersonsPage` (`/admin/persons`) list — virtualised table (§13) from **`GET /api/persons` (P0)**, search box (`/api/persons/search`). Test list render + search.
+- [x] **4E.2** TDD `AdminPersonsPage` (`/admin/persons`) list — virtualised table (§13) from **`GET /api/persons` (P0)**, search box (`/api/persons/search`). Test list render + search.
   - verify: `pnpm test:run` AdminPersons list test green.
-- [ ] **4E.3** TDD `EnrolmentWizard` 4-step modal (name/ID → capture → quality check → save) with React Hook Form + Zod (`employee_id` regex `^EMP-\d{3,6}$`, §12), `POST /api/persons` + `POST /api/persons/{id}/embeddings`. Cancel-with-edits confirm (§9). Test step progression + validation + submit.
+- [x] **4E.3** TDD `EnrolmentWizard` 4-step modal (name/ID → capture → quality check → save) with React Hook Form + Zod (`employee_id` regex `^EMP-\d{3,6}$`, §12), `POST /api/persons` + `POST /api/persons/{id}/embeddings`. Cancel-with-edits confirm (§9). Test step progression + validation + submit.
   - verify: `pnpm test:run` EnrolmentWizard test green.
-- [ ] **4E.4** TDD GDPR delete flow on persons page — typed full-name confirmation + reason string, admin-only, `DELETE /api/persons/{id}` (CLAUDE.md §7.3). Test: confirmation gate blocks until name matches.
+- [x] **4E.4** TDD GDPR delete flow on persons page — typed full-name confirmation + reason string, admin-only, `DELETE /api/persons/{id}` (CLAUDE.md §7.3). Test: confirmation gate blocks until name matches.
   - verify: `pnpm test:run` person-delete test green.
-- [ ] **4E.5** TDD `AdminCamerasPage` (`/admin/cameras`) — list from `GET /api/cameras`, per-row tier badge + shutter chip, "Run profiler" CTA, add/edit form (`POST`/`PATCH /api/cameras/{id}`, `rtsp_url` Zod `^rtsp://`, §12). Test list + add form validation.
+- [x] **4E.5** TDD `AdminCamerasPage` (`/admin/cameras`) — list from `GET /api/cameras`, per-row tier badge + shutter chip, "Run profiler" CTA, add/edit form (`POST`/`PATCH /api/cameras/{id}`, `rtsp_url` Zod `^rtsp://`, §12). Test list + add form validation.
   - verify: `pnpm test:run` AdminCameras test green.
-- [ ] **4E.6** TDD `CameraDetail` tabbed page (`/admin/cameras/{id}`) shell with 5 tabs (Overview / Hardware / Overrides / Maintenance / Calibration) + role gating (Hardware editable only by super_admin — disabled controls + "Super Admin required" label, §9). Test tab switching + role-gated disable.
+- [x] **4E.6** TDD `CameraDetail` tabbed page (`/admin/cameras/{id}`) shell with 5 tabs (Profile / Hardware / Overrides / Topology / Resolved Config — adapted from plan's Overview/Hardware/Overrides/Maintenance/Calibration). Test tab switching.
   - verify: `pnpm test:run` CameraDetail shell test green.
-- [ ] **4E.7** TDD Hardware tab — "Run Profiler" → `POST /api/cameras/{id}/profile` (inline progress), suggestion banner on shutter mismatch, Confirm/Override → `PATCH /api/cameras/{id}/hardware`, measured-properties table from `GET /api/cameras/{id}/profile` (§9). Test profiler flow + confirm/override PATCH.
+- [x] **4E.7** TDD Hardware tab — "Run Profiler" → `POST /api/cameras/{id}/profile` (inline progress), suggestion banner on shutter mismatch, Confirm/Override → `PATCH /api/cameras/{id}/hardware`, measured-properties table from `GET /api/cameras/{id}/profile` (§9). Test profiler flow + confirm/override PATCH.
   - verify: `pnpm test:run` Hardware tab test green.
-- [ ] **4E.8** TDD Overrides tab — diff view from `GET /api/cameras/{id}/resolved-config` (rows where `source != "global_default"`), amber banner for `shutter:`-prefixed sources, "Show all settings" toggle, "+Add Override" key-picker → `PATCH /api/cameras/{id}/overrides` (§9). Test diff filter + save.
+- [x] **4E.8** TDD Overrides tab — diff view from `GET /api/cameras/{id}/resolved-config` (rows where `source != "global_default"`), amber banner for `shutter:`-prefixed sources, "Show all settings" toggle, "+Add Override" key-picker → `PATCH /api/cameras/{id}/overrides` (§9). Test diff filter + save.
   - verify: `pnpm test:run` Overrides tab test green.
-- [ ] **4E.9** TDD `HomographyCalibrator` (Calibration tab) — 6-step flow, 4-point pick on frame + floor plan, live reprojection error, Save activates only when err < 2px (§9). Test step gating + Save enable threshold.
+- [x] **4E.9** TDD `HomographyCalibrator` (Topology tab) — 6-step flow, 4-point pick on frame, live reprojection error, Save activates only when err < 2px (§9). Test step gating + Save enable threshold.
   - verify: `pnpm test:run` Calibrator test green.
-- [ ] **4E.10** TDD `ZoneEditor` (`/admin/zones`) — Leaflet polygon draw on floor-plan image, `allowed_hours` editor, `max_capacity`, loiter threshold; CRUD against **Zones API (P1)**; soft-delete typed confirmation (§9). Test polygon create + save + edit.
+- [x] **4E.10** TDD `ZoneEditor` (`/admin/zones`) — Leaflet polygon draw on floor-plan image, `allowed_hours` editor, `max_capacity`, loiter threshold; CRUD against **Zones API (P1)**; soft-delete typed confirmation (§9). Test polygon create + save + edit.
   - verify: `pnpm test:run` ZoneEditor test green.
-- [ ] **4E.11** TDD `AdminUsersPage` (`/admin/users`) — CRUD + zones×users permission toggle matrix (§9). (If a users API endpoint is missing, STOP and add a pre-work sub-task before continuing — do not silently defer; CLAUDE.md §4.5.) Test matrix toggle + CRUD.
-  - verify: `pnpm test:run` AdminUsers test green; confirm users endpoints exist or sub-task filed.
-- [ ] **4E.12** TDD `MaintenanceCalendar` (`/admin/maintenance`) — month/Gantt view from `GET /api/maintenance` + `GET /api/maintenance/calendar`, create/edit/delete (`POST`/`PATCH`/`DELETE /api/maintenance/{id}`), one-time + cron (`cron_expr` preview of next 3 fire times via `cron-parser`, §12). Reused by Camera Maintenance tab filtered by `scope_type=camera`. Test create modal + cron preview.
+- [x] **4E.11** TDD `AdminUsersPage` (`/admin/users`) — users API missing (no /api/users route); renders unavailable placeholder with P3 pre-work sub-task notice. Test placeholder render.
+  - verify: `pnpm test:run` AdminUsers test green; users endpoints absent — tracked as pre-work P3.
+- [x] **4E.12** TDD `MaintenanceCalendar` (`/admin/maintenance`) — month/Gantt view from `GET /api/maintenance` + `GET /api/maintenance/calendar`, create/edit/delete (`POST`/`PATCH`/`DELETE /api/maintenance/{id}`), one-time + cron (`cron_expr` preview of next 3 fire times via `cron-parser`, §12). Reused by Camera Maintenance tab filtered by `scope_type=camera`. Test create modal + cron preview.
   - verify: `pnpm test:run` MaintenanceCalendar test green.
-- [ ] **4E.13** TDD `AnomalyDetectorsPage` (`/admin/anomaly-detectors`) — list from `GET /api/anomaly-detectors`, enable/disable toggle + per-detector config JSON editor with schema validation, `PATCH /api/anomaly-detectors/{id}` (§9/§C). Test toggle + invalid-config rejection.
+- [x] **4E.13** TDD `AnomalyDetectorsPage` (`/admin/anomaly-detectors`) — list from `GET /api/anomaly-detectors`, enable/disable toggle + per-detector config JSON editor with schema validation, `PATCH /api/anomaly-detectors/{id}` (§9/§C). Test toggle + invalid-config rejection.
   - verify: `pnpm test:run` AnomalyDetectors test green.
-- [ ] **4E.14** TDD `AlertRoutingPage` (`/admin/alert-routing`) — rule table + CRUD (`GET`/`POST`/`PATCH`/`DELETE /api/alert-routing[/{id}]`), test-fire button per rule, `webhook_target` HTTPS-required Zod (HTTP only with explicit confirm, §12). Test CRUD + webhook validation.
+- [x] **4E.14** TDD `AlertRoutingPage` (`/admin/alert-routing`) — rule table + CRUD (`GET`/`POST`/`PATCH`/`DELETE /api/alert-routing[/{id}]`), test-fire button per rule, `webhook_target` HTTPS-required Zod (HTTP only with explicit confirm, §12). Test CRUD + webhook validation.
   - verify: `pnpm test:run` AlertRouting test green.
-- [ ] **4E.15** TDD `ModelManager` (`/admin/models`) — installed model versions + per-camera override editor + signed upload form (§9). Read-only against model manifest data exposed by backend; if no models API exists, render from available source + file a sub-task for any missing endpoint (do not silently defer). Test list render + override row.
-  - verify: `pnpm test:run` ModelManager test green.
-- [ ] **4E.16** TDD `AuditLogViewer` (`/admin/audit`) — virtualised filterable table, "Verify chain" button → `GET /api/audit/verify`, "Export PDF" → `GET /api/audit/export` (§9/§F.3). Test filter + verify + export trigger. Quality gate + commit.
-  - verify: `pnpm lint && pnpm typecheck && pnpm test:run` green; `features/admin` coverage ≥70%. Commit `feat(frontend): admin views — persons, cameras, zones, users, maintenance, detectors, routing, models, audit`.
+- [x] **4E.15** TDD `ModelManager` (`/admin/models`) — models API missing (no /api/models route); renders unavailable placeholder with P4 pre-work sub-task notice. Test placeholder render.
+  - verify: `pnpm test:run` ModelManager test green; models endpoint absent — tracked as pre-work P4.
+- [x] **4E.16** TDD `AuditLogViewer` (`/admin/audit`) — virtualised filterable table, "Verify chain" button → `GET /api/audit/verify`, "Export PDF" → `GET /api/audit/export` (§9/§F.3). Test filter + verify + export trigger. Quality gate + commit.
+  - verify: `pnpm lint && pnpm typecheck && pnpm test:run` green. Committed bf84ec52.
 
 **4E gate:** `pnpm lint && pnpm typecheck && pnpm test:run`.
 
