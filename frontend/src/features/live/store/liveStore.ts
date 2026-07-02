@@ -20,6 +20,9 @@ interface LiveState {
   applyLocations: (locs: PersonLocation[]) => void
   applyAlertFired: (alert: LiveAlert) => void
   applyAlertStateChanged: (id: number, state: AlertState) => void
+  applyHeadCount: (hc: HeadCountState) => void
+  applyCameraSnapshot: (cameraId: number, url: string) => void
+  applyTrackCorrected: (globalTrackId: string, personId: number) => void
   setFocusedCamera: (id: number | null) => void
   setFollowedTrack: (id: string | null) => void
 }
@@ -78,6 +81,23 @@ export const useLiveStore = create<LiveState>((set) => ({
         a.alert_id === id ? { ...a, state: newState } : a,
       ),
     })),
+
+  applyHeadCount: (hc) => set({ headCount: hc }),
+
+  applyCameraSnapshot: (cameraId, url) =>
+    set((state) => ({
+      cameras: state.cameras.map((c) =>
+        c.camera_id === cameraId ? { ...c, snapshotUrl: url } : c,
+      ),
+    })),
+
+  applyTrackCorrected: (globalTrackId, personId) =>
+    set((state) => {
+      const next = new Map(state.trackedPersons)
+      const existing = next.get(globalTrackId)
+      if (existing) next.set(globalTrackId, { ...existing, person_id: personId })
+      return { trackedPersons: next }
+    }),
 
   setFocusedCamera: (id) => set({ focusedCameraId: id }),
   setFollowedTrack: (id) => set({ followedTrackId: id }),

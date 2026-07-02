@@ -1,15 +1,19 @@
 import { useEffect } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useLiveStore } from './store/liveStore'
+import { useSocketConnection } from './hooks/useSocketConnection'
 import { CameraGrid } from './components/CameraGrid'
 import { FocusedCamera } from './components/FocusedCamera'
 import { AlertSidebar } from './components/AlertSidebar'
 import { TopBar } from './components/TopBar'
+import { DegradedBanner } from './components/DegradedBanner'
 
 export function LivePage() {
   const cameras = useLiveStore((s) => s.cameras)
   const focusedCameraId = useLiveStore((s) => s.focusedCameraId)
   const setFocusedCamera = useLiveStore((s) => s.setFocusedCamera)
+
+  useSocketConnection()
 
   // Auto-focus first camera when none is selected
   useEffect(() => {
@@ -26,6 +30,7 @@ export function LivePage() {
       <Helmet title="Live" />
       <div className="flex h-screen flex-col overflow-hidden bg-surface-sunken">
         <TopBar />
+        <DegradedBanner />
         <div className="flex min-h-0 flex-1">
           {/* Camera grid — 320px fixed */}
           <div
