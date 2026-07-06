@@ -1006,4 +1006,148 @@ Durations: `fast 120ms` (hover/focus) · `base 200ms` (drawers, transitions) · 
 
 ---
 
+## §14. Enterprise VMS Design Principles
+
+> Distilled from the product-specific rulebook (2026-07-02). These rules are **binding** — they override aesthetic preference wherever they conflict with earlier sections.
+
+### 14.1 Philosophy
+
+The UI must communicate: **reliable · security-focused · fast · industrial · operational · data-dense without clutter**.
+
+Avoid: playful styling, excessive animations, oversized controls, consumer-app rounding. A VMS is closer to a control room than a marketing website.
+
+### 14.2 8-Point Grid — Mandatory
+
+All spacing must land on the 4px base unit. Preferred stops (in px):
+
+| Token | px |
+|---|---|
+| t-1 | 4 |
+| t-2 | 8 |
+| t-4 | 16 |
+| t-6 | 24 |
+| t-8 | 32 |
+| t-12 | 48 |
+| t-16 | 64 |
+
+**Never invent spacing like 13 px or 27 px.** Common layout values:
+
+| Context | Value |
+|---|---|
+| Page padding | 24 px (p-6) |
+| Card padding | 24 px (p-6) |
+| Gap between cards | 16 px (gap-4) |
+| Section margin | 32 px (mb-8) |
+| Button horizontal padding | 16 px (px-4) |
+| Sidebar padding | 24 px (px-6) |
+
+### 14.3 Border Radius — Consistent Table
+
+Never mix radius values arbitrarily. Use only these:
+
+| Element | Value | Tailwind |
+|---|---|---|
+| Cards | 12 px | `rounded-xl` |
+| Buttons | 10 px | `rounded-[10px]` |
+| Inputs / Selects | 10 px | `rounded-[10px]` |
+| Image / thumbnail | 10 px | `rounded-[10px]` |
+| Badges / pills | 9999 px | `rounded-full` |
+| Modals / dialogs | 12 px | `rounded-xl` |
+| Sidebar nav items | 8 px | `rounded-lg` |
+| Icon chip / KPI accent | 12 px | `rounded-xl` |
+
+### 14.4 Shadow Scale
+
+Never use heavy shadows. Two levels only:
+
+| Context | Value |
+|---|---|
+| Default card | `box-shadow: 0 1px 2px rgba(0,0,0,.05)` → `var(--shadow-1)` |
+| Hovered card | `box-shadow: 0 4px 12px rgba(0,0,0,.08)` → `var(--shadow-2)` |
+
+### 14.5 Animation Durations
+
+| Interaction | Duration |
+|---|---|
+| Hover state change | 120 ms |
+| Modal enter/exit | 180 ms |
+| Sidebar open/close | 180 ms |
+| Dropdown appear | 120 ms |
+| Card hover shadow | 120 ms |
+| Toast slide-in | 200 ms |
+
+Nothing longer than 250 ms. All animations must respect `prefers-reduced-motion`.
+
+### 14.6 Status Indicator — 5 States
+
+Extend the 4-state system in §2 to 5 semantic states:
+
+| State | Color | Token | Use |
+|---|---|---|---|
+| Healthy / Online | Green | `text-success` | Camera streaming, service up |
+| Degraded | Yellow | `text-warning` | Needs calibration, stream degraded |
+| Maintenance | Blue | `text-info` | Scheduled maintenance window active |
+| Offline | Gray | `text-text-muted` | Not reachable, inactive |
+| Critical | Red | `text-error` | Active critical alert, auth failed |
+
+### 14.7 Camera Card — Required Content
+
+Every camera card must display at minimum:
+
+- 16:9 snapshot thumbnail (lazy-loaded, `rounded-[10px]`)
+- Status badge overlay (5-state from §14.6) with live pulse for Online
+- Capability tier badge (FULL / MID / LOW)
+- Profile metadata (FPS · Resolution) when `profile_data` is available
+- AI capability summary ("Face · Body · Anomaly")
+- Actions: **Live** (primary) · **Settings** (secondary) · **Delete** (icon, destructive, least prominent)
+
+Delete must never share equal visual weight with Live or Settings.
+
+### 14.8 Dashboard Data Density
+
+The admin dashboard must display enough data for an operator to assess system state at a glance, without opening any sub-page:
+
+**Required sections:**
+1. Service health (API, DB, Redis, version)
+2. KPI overview (Head Count, Cameras Online, Active Alerts)
+3. Alert breakdown by type (Intrusion, Violence, Unknown Person, Loitering, PPE)
+4. Camera health summary (total, online, offline, needs calibration)
+5. Quick access links to primary admin sections
+
+### 14.9 Empty States
+
+Every empty state must follow this pattern:
+
+```
+[Icon — 40 px, opacity-30]
+[Primary line — 15px / 600]
+[Secondary line — 13px / muted]
+[Optional CTA button]
+```
+
+Never use plain text like "No items". Use a contextual icon and two lines of copy.
+
+### 14.10 Input Standards
+
+Every text/number input must have:
+- Height: `h-10` (40 px)
+- Radius: `rounded-[10px]`
+- Padding: `px-3`
+- Border: `border border-border`
+- Focus: `focus:border-brand-500 focus:outline-none`
+- Label: **above the input**, never inside as placeholder
+
+### 14.11 Typography Hierarchy — Admin Pages
+
+| Role | Size | Weight | Class |
+|---|---|---|---|
+| Page title (h1) | 22 px | 700 | `text-[22px] font-bold` |
+| Section label | 11 px | 600 uppercase | `text-[11px] font-semibold uppercase tracking-[0.08em]` |
+| Card title | 14 px | 600 | `text-[14px] font-semibold` |
+| Body / table row | 13–14 px | 400–500 | `text-[13px]` or `text-[14px]` |
+| Badge / meta | 11–12 px | 500–600 | `text-[11px]` or `text-[12px]` |
+| Mono data (IDs, hashes) | 13 px mono | 400 | `font-mono text-[13px]` |
+
+---
+
 **End of VMS Design System.**

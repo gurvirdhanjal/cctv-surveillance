@@ -4,13 +4,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { parseExpression } from 'cron-parser'
+import { CronExpressionParser } from 'cron-parser'
 import { api } from '@/shared/api/client'
 import type { MaintenanceWindow } from '@/shared/api/types'
 
 function getNextFirings(cronExpr: string, n = 3): string[] {
   try {
-    const interval = parseExpression(cronExpr)
+    const interval = CronExpressionParser.parse(cronExpr)
     return Array.from({ length: n }, () => {
       const d = interval.next().toDate()
       return d.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })

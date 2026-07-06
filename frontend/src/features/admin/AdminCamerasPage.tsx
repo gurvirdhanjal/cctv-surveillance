@@ -5,8 +5,15 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link } from 'react-router-dom'
+import { Camera as CameraIcon, Plus, Radio, Settings, Trash2 } from 'lucide-react'
 import { api } from '@/shared/api/client'
-import type { CameraResponse, CapabilityTier, CameraFromCredentials } from '@/shared/api/types'
+import { useAuthStore } from '@/stores/authStore'
+import type {
+  CameraResponse,
+  CapabilityTier,
+  CameraFromCredentials,
+  ProfileData,
+} from '@/shared/api/types'
 
 const TIER_COLORS: Record<CapabilityTier, string> = {
   FULL: 'bg-brand-100 text-brand-700',
@@ -14,7 +21,6 @@ const TIER_COLORS: Record<CapabilityTier, string> = {
   LOW: 'bg-surface-sunken text-text-secondary',
 }
 
-// Manufacturer presets fill in the stream path automatically
 const MANUFACTURER_PRESETS: Record<string, string> = {
   generic: '',
   hikvision: 'Streaming/Channels/1',
@@ -46,8 +52,47 @@ const addCameraSchema = z.object({
 
 type AddCameraForm = z.infer<typeof addCameraSchema>
 
+function parseProfile(raw: string | null): ProfileData | null {
+  if (!raw) return null
+  try {
+    return JSON.parse(raw) as ProfileData
+  } catch {
+    return null
+  }
+}
+
+function CameraStatusBadge({
+  cam,
+}: {
+  cam: CameraResponse
+}) {
+  if (cam.recalibrate_required_at) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-warning/85 px-2 py-0.5 text-[11px] font-semibold text-white backdrop-blur-sm">
+        <span className="h-1.5 w-1.5 rounded-full bg-white/80" />
+        Calibration
+      </span>
+    )
+  }
+  if (cam.is_active) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-success/85 px-2 py-0.5 text-[11px] font-semibold text-white backdrop-blur-sm">
+        <span className="h-1.5 w-1.5 animate-status-pulse rounded-full bg-white" />
+        Online
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-semibold text-white/70 backdrop-blur-sm">
+      <span className="h-1.5 w-1.5 rounded-full bg-white/40" />
+      Offline
+    </span>
+  )
+}
+
 export function AdminCamerasPage() {
   const queryClient = useQueryClient()
+  const token = useAuthStore((s) => s.token)
   const [showAdd, setShowAdd] = useState(false)
   const [manufacturer, setManufacturer] = useState('generic')
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
@@ -115,28 +160,46 @@ export function AdminCamerasPage() {
       <Helmet title="Cameras — Admin" />
       <div className="p-6">
         {deleteMutation.isError && (
-          <p role="alert" className="mb-3 text-[13px] text-error">
+          <p role="alert" className="mb-4 text-[13px] text-error">
             {(deleteMutation.error as { status?: number })?.status === 409
               ? 'Camera has associated records. Deactivate it instead of deleting.'
               : 'Failed to delete camera. Please try again.'}
           </p>
         )}
 
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-[22px] font-semibold text-text-primary">Cameras</h1>
+        <div className="mb-5 flex items-center justify-between">
+          <h1 className="text-[22px] font-bold text-text-primary">Cameras</h1>
           <button
             type="button"
             onClick={() => setShowAdd(true)}
-            className="px-4 py-2 text-[14px] rounded bg-brand-500 text-white hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+            className="inline-flex items-center gap-1.5 rounded-[10px] bg-brand-500 px-4 py-2 text-[13px] font-medium text-white hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
           >
+            <Plus className="h-4 w-4" aria-hidden="true" />
             Add Camera
           </button>
         </div>
 
         {isLoading && (
-          <div className="space-y-2" role="status" aria-label="Loading cameras">
+          <div
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
+            role="status"
+            aria-label="Loading cameras"
+          >
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-12 animate-pulse rounded border border-border bg-surface-raised" />
+              <div
+                key={i}
+                className="overflow-hidden rounded-xl border border-border bg-surface-base animate-pulse"
+              >
+                <div className="aspect-video bg-surface-sunken" />
+                <div className="p-5 space-y-3">
+                  <div className="h-4 w-2/3 rounded-lg bg-surface-sunken" />
+                  <div className="h-3 w-1/3 rounded-lg bg-surface-sunken" />
+                  <div className="flex gap-2 pt-1">
+                    <div className="h-8 w-16 rounded-lg bg-surface-sunken" />
+                    <div className="h-8 w-16 rounded-lg bg-surface-sunken" />
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         )}
@@ -147,103 +210,140 @@ export function AdminCamerasPage() {
           </p>
         )}
 
-        {!isLoading && !isError && (
-          <div className="rounded border border-border overflow-hidden">
-            <table className="w-full text-[14px]">
-              <thead className="bg-surface-sunken border-b border-border">
-                <tr>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase tracking-wide">
-                    Name
-                  </th>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase tracking-wide">
-                    Host
-                  </th>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase tracking-wide">
-                    Tier
-                  </th>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase tracking-wide">
-                    Status
-                  </th>
-                  <th className="px-4 py-2" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {cameras.map((cam) => (
-                  <tr key={cam.camera_id} className="hover:bg-surface-raised">
-                    <td className="px-4 py-3 font-medium text-text-primary">{cam.name}</td>
-                    <td className="px-4 py-3 font-mono text-[13px] text-text-secondary">
-                      {cam.rtsp_url}
-                    </td>
-                    <td className="px-4 py-3">
+        {!isLoading && !isError && cameras.length === 0 && (
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-surface-base py-20 text-center">
+            <CameraIcon className="mb-4 h-10 w-10 text-text-muted opacity-30" aria-hidden="true" />
+            <p className="text-[15px] font-semibold text-text-secondary">No cameras configured</p>
+            <p className="mt-1 text-[13px] text-text-muted">
+              Add your first camera to get started.
+            </p>
+          </div>
+        )}
+
+        {!isLoading && !isError && cameras.length > 0 && (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {cameras.map((cam) => {
+              const profile = parseProfile(cam.profile_data)
+              return (
+                <div
+                  key={cam.camera_id}
+                  className="overflow-hidden rounded-xl border border-border bg-surface-base transition-shadow hover:shadow-[var(--shadow-2)]"
+                >
+                  {/* Snapshot thumbnail */}
+                  <div className="relative aspect-video bg-surface-sunken">
+                    {token && (
+                      <img
+                        className="absolute inset-0 h-full w-full object-cover"
+                        src={`/api/cameras/${cam.camera_id}/snapshot?token=${encodeURIComponent(token)}`}
+                        alt={`${cam.name} snapshot`}
+                        loading="lazy"
+                        onError={(e) => {
+                          ;(e.currentTarget as HTMLImageElement).style.display = 'none'
+                        }}
+                      />
+                    )}
+                    {/* Placeholder icon — shown when no token or img errors */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <CameraIcon className="h-8 w-8 text-text-muted opacity-20" aria-hidden="true" />
+                    </div>
+                    <span className="absolute left-2 top-2">
+                      <CameraStatusBadge cam={cam} />
+                    </span>
+                    {/* Profile metadata overlay */}
+                    {profile && (
+                      <div className="absolute bottom-2 right-2 flex items-center gap-1.5 rounded-lg bg-black/60 px-2 py-1 text-[11px] font-medium text-white backdrop-blur-sm">
+                        {profile.fps_measured != null && (
+                          <span>{Math.round(profile.fps_measured)}fps</span>
+                        )}
+                        {profile.resolution_w != null && profile.resolution_h != null && (
+                          <>
+                            {profile.fps_measured != null && <span className="text-white/40">·</span>}
+                            <span>{profile.resolution_w}×{profile.resolution_h}</span>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Card body */}
+                  <div className="p-5">
+                    <div className="mb-3 flex items-start justify-between gap-2">
+                      <p className="text-[14px] font-semibold leading-snug text-text-primary">
+                        {cam.name}
+                      </p>
                       <span
                         data-testid={`tier-badge-${cam.camera_id}`}
-                        className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${
+                        className={`shrink-0 inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${
                           TIER_COLORS[cam.capability_tier as CapabilityTier] ?? TIER_COLORS.LOW
                         }`}
                       >
                         {cam.capability_tier}
                       </span>
-                    </td>
-                    <td className="px-4 py-3 text-text-secondary">
-                      {cam.is_active ? 'Active' : 'Inactive'}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {confirmDeleteId === cam.camera_id ? (
-                        <span className="flex items-center justify-end gap-3">
-                          <button
-                            type="button"
-                            onClick={() => deleteMutation.mutate(cam.camera_id)}
-                            disabled={deleteMutation.isPending}
-                            className="text-[13px] text-error hover:underline disabled:opacity-50"
-                          >
-                            {deleteMutation.isPending ? 'Deleting…' : 'Confirm delete'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setConfirmDeleteId(null)}
-                            className="text-[13px] text-text-muted hover:text-text-primary"
-                          >
-                            Cancel
-                          </button>
-                        </span>
-                      ) : (
-                        <span className="flex items-center justify-end gap-4">
-                          <Link
-                            to={`/admin/cameras/${cam.camera_id}`}
-                            className="text-brand-500 hover:underline text-[13px]"
-                            aria-label={`Configure ${cam.name}`}
-                          >
-                            Configure
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() => setConfirmDeleteId(cam.camera_id)}
-                            className="text-[13px] text-error hover:underline"
-                            aria-label={`Delete ${cam.name}`}
-                          >
-                            Delete
-                          </button>
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {cameras.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="px-4 py-6 text-center text-[14px] text-text-muted"
-                    >
-                      No cameras configured. Add your first camera to get started.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                    </div>
+
+                    {/* AI capability indicator */}
+                    <p className="mb-4 text-[12px] text-text-muted">
+                      {cam.capability_tier === 'FULL'
+                        ? 'Face · Body · Anomaly'
+                        : cam.capability_tier === 'MID'
+                          ? 'Face · Body'
+                          : 'Body only'}
+                    </p>
+
+                    {confirmDeleteId === cam.camera_id ? (
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => deleteMutation.mutate(cam.camera_id)}
+                          disabled={deleteMutation.isPending}
+                          className="text-[13px] font-medium text-error hover:underline disabled:opacity-50"
+                        >
+                          {deleteMutation.isPending ? 'Deleting…' : 'Confirm delete'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="text-[13px] text-text-muted hover:text-text-primary"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Link
+                          to="/live"
+                          className="inline-flex items-center gap-1.5 rounded-[10px] bg-brand-500 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-brand-700 transition-colors"
+                        >
+                          <Radio className="h-3.5 w-3.5" aria-hidden="true" />
+                          Live
+                        </Link>
+                        <Link
+                          to={`/admin/cameras/${cam.camera_id}`}
+                          className="inline-flex items-center gap-1.5 rounded-[10px] border border-border px-3 py-1.5 text-[12px] font-medium text-text-secondary hover:border-brand-500/40 hover:text-text-primary transition-colors"
+                          aria-label={`Settings ${cam.name}`}
+                        >
+                          <Settings className="h-3.5 w-3.5" aria-hidden="true" />
+                          Settings
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(cam.camera_id)}
+                          className="ml-auto rounded-[10px] p-1.5 text-text-muted hover:bg-error/10 hover:text-error transition-colors"
+                          aria-label={`Delete ${cam.name}`}
+                        >
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
 
+      {/* ── Add camera modal ─────────────────────────────────────────────── */}
       {showAdd && (
         <div
           role="dialog"
@@ -251,23 +351,22 @@ export function AdminCamerasPage() {
           aria-label="Add camera"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
         >
-          <div className="bg-surface-base rounded-lg shadow-lg w-full max-w-lg p-6">
-            <h2 className="text-[17px] font-semibold text-text-primary mb-1">Add Camera</h2>
-            <p className="text-[13px] text-text-muted mb-5">
+          <div className="w-full max-w-lg rounded-xl bg-surface-base p-6 shadow-lg">
+            <h2 className="mb-1 text-[17px] font-semibold text-text-primary">Add Camera</h2>
+            <p className="mb-5 text-[13px] text-text-muted">
               Enter the camera's network address and credentials. The RTSP stream URL is
               assembled securely on the server.
             </p>
 
             <form aria-label="Add camera form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              {/* Camera name */}
               <div>
-                <label htmlFor="cam-name" className="block text-[13px] font-medium text-text-secondary mb-1">
+                <label htmlFor="cam-name" className="mb-1 block text-[13px] font-medium text-text-secondary">
                   Camera name
                 </label>
                 <input
                   id="cam-name"
                   {...register('name')}
-                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary focus:outline-none focus:border-brand-500 transition-colors"
+                  className="h-10 w-full rounded-[10px] border border-border bg-surface-base px-3 text-[14px] text-text-primary transition-colors focus:border-brand-500 focus:outline-none"
                   placeholder="Assembly Line 1"
                 />
                 {errors.name && (
@@ -275,16 +374,15 @@ export function AdminCamerasPage() {
                 )}
               </div>
 
-              {/* Manufacturer preset */}
               <div>
-                <label htmlFor="cam-manufacturer" className="block text-[13px] font-medium text-text-secondary mb-1">
+                <label htmlFor="cam-manufacturer" className="mb-1 block text-[13px] font-medium text-text-secondary">
                   Manufacturer
                 </label>
                 <select
                   id="cam-manufacturer"
                   value={manufacturer}
                   onChange={onManufacturerChange}
-                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary focus:outline-none focus:border-brand-500 transition-colors"
+                  className="h-10 w-full rounded-[10px] border border-border bg-surface-base px-3 text-[14px] text-text-primary transition-colors focus:border-brand-500 focus:outline-none"
                 >
                   <option value="generic">Generic / ONVIF</option>
                   <option value="hikvision">Hikvision</option>
@@ -295,16 +393,15 @@ export function AdminCamerasPage() {
                 </select>
               </div>
 
-              {/* IP + Port row */}
               <div className="flex gap-3">
                 <div className="flex-1">
-                  <label htmlFor="cam-host" className="block text-[13px] font-medium text-text-secondary mb-1">
+                  <label htmlFor="cam-host" className="mb-1 block text-[13px] font-medium text-text-secondary">
                     IP address
                   </label>
                   <input
                     id="cam-host"
                     {...register('host')}
-                    className="w-full border border-border rounded px-3 py-2 text-[14px] font-mono bg-surface-base text-text-primary focus:outline-none focus:border-brand-500 transition-colors"
+                    className="h-10 w-full rounded-[10px] border border-border bg-surface-base px-3 text-[14px] font-mono text-text-primary transition-colors focus:border-brand-500 focus:outline-none"
                     placeholder="192.168.1.100"
                     autoComplete="off"
                   />
@@ -313,14 +410,14 @@ export function AdminCamerasPage() {
                   )}
                 </div>
                 <div className="w-24">
-                  <label htmlFor="cam-port" className="block text-[13px] font-medium text-text-secondary mb-1">
+                  <label htmlFor="cam-port" className="mb-1 block text-[13px] font-medium text-text-secondary">
                     Port
                   </label>
                   <input
                     id="cam-port"
                     type="number"
                     {...register('port')}
-                    className="w-full border border-border rounded px-3 py-2 text-[14px] font-mono bg-surface-base text-text-primary focus:outline-none focus:border-brand-500 transition-colors"
+                    className="h-10 w-full rounded-[10px] border border-border bg-surface-base px-3 text-[14px] font-mono text-text-primary transition-colors focus:border-brand-500 focus:outline-none"
                     placeholder="554"
                   />
                   {errors.port && (
@@ -329,16 +426,15 @@ export function AdminCamerasPage() {
                 </div>
               </div>
 
-              {/* Username + Password row */}
               <div className="flex gap-3">
                 <div className="flex-1">
-                  <label htmlFor="cam-username" className="block text-[13px] font-medium text-text-secondary mb-1">
+                  <label htmlFor="cam-username" className="mb-1 block text-[13px] font-medium text-text-secondary">
                     Username
                   </label>
                   <input
                     id="cam-username"
                     {...register('username')}
-                    className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary focus:outline-none focus:border-brand-500 transition-colors"
+                    className="h-10 w-full rounded-[10px] border border-border bg-surface-base px-3 text-[14px] text-text-primary transition-colors focus:border-brand-500 focus:outline-none"
                     placeholder="admin"
                     autoComplete="username"
                   />
@@ -347,14 +443,14 @@ export function AdminCamerasPage() {
                   )}
                 </div>
                 <div className="flex-1">
-                  <label htmlFor="cam-password" className="block text-[13px] font-medium text-text-secondary mb-1">
+                  <label htmlFor="cam-password" className="mb-1 block text-[13px] font-medium text-text-secondary">
                     Password
                   </label>
                   <input
                     id="cam-password"
                     type="password"
                     {...register('password')}
-                    className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary focus:outline-none focus:border-brand-500 transition-colors"
+                    className="h-10 w-full rounded-[10px] border border-border bg-surface-base px-3 text-[14px] text-text-primary transition-colors focus:border-brand-500 focus:outline-none"
                     placeholder="••••••••"
                     autoComplete="current-password"
                   />
@@ -364,29 +460,27 @@ export function AdminCamerasPage() {
                 </div>
               </div>
 
-              {/* Stream path */}
               <div>
-                <label htmlFor="cam-path" className="block text-[13px] font-medium text-text-secondary mb-1">
+                <label htmlFor="cam-path" className="mb-1 block text-[13px] font-medium text-text-secondary">
                   Stream path
-                  <span className="ml-1 text-text-muted font-normal">(auto-filled from manufacturer)</span>
+                  <span className="ml-1 font-normal text-text-muted">(auto-filled from manufacturer)</span>
                 </label>
                 <input
                   id="cam-path"
                   {...register('stream_path')}
-                  className="w-full border border-border rounded px-3 py-2 text-[14px] font-mono bg-surface-base text-text-primary focus:outline-none focus:border-brand-500 transition-colors"
+                  className="h-10 w-full rounded-[10px] border border-border bg-surface-base px-3 text-[14px] font-mono text-text-primary transition-colors focus:border-brand-500 focus:outline-none"
                   placeholder="Streaming/Channels/1"
                 />
               </div>
 
-              {/* Capability tier */}
               <div>
-                <label htmlFor="cam-tier" className="block text-[13px] font-medium text-text-secondary mb-1">
+                <label htmlFor="cam-tier" className="mb-1 block text-[13px] font-medium text-text-secondary">
                   Capability tier
                 </label>
                 <select
                   id="cam-tier"
                   {...register('capability_tier')}
-                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary focus:outline-none focus:border-brand-500 transition-colors"
+                  className="h-10 w-full rounded-[10px] border border-border bg-surface-base px-3 text-[14px] text-text-primary transition-colors focus:border-brand-500 focus:outline-none"
                 >
                   <option value="">Auto-detect</option>
                   <option value="FULL">FULL — face + body + anomaly</option>
@@ -405,14 +499,14 @@ export function AdminCamerasPage() {
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                  className="h-10 rounded-[10px] border border-border px-4 text-[13px] text-text-secondary hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={addMutation.isPending}
-                  className="px-4 py-2 text-[14px] rounded bg-brand-500 text-white hover:bg-brand-700 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                  className="h-10 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                 >
                   {addMutation.isPending ? 'Adding…' : 'Add Camera'}
                 </button>

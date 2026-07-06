@@ -1,6 +1,6 @@
 ﻿import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { api } from '@/shared/api/client'
+import { request } from '@/shared/api/client'
 
 interface Props {
   personId: number
@@ -19,8 +19,9 @@ export function GdprDeleteDialog({ personId, personName, onConfirmed, onCancel }
 
   const deleteMutation = useMutation({
     mutationFn: () =>
-      api.delete(`/api/persons/${personId}`, {
-        body: JSON.stringify({ confirmation_name: confirmationName, reason }),
+      request(`/api/persons/${personId}`, {
+        method: 'DELETE',
+        body: { confirmation_name: confirmationName, reason },
       }),
     onSuccess: onConfirmed,
   })

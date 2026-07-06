@@ -3,9 +3,10 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 
-vi.mock('@/shared/api/client', () => ({ api: { delete: vi.fn() } }))
+vi.mock('@/shared/api/client', () => ({ api: { delete: vi.fn() }, request: vi.fn() }))
 
 import { api } from '@/shared/api/client'
+import { request } from '@/shared/api/client'
 const { GdprDeleteDialog } = await import('./GdprDeleteDialog')
 
 function makeClient() {
@@ -32,6 +33,7 @@ function renderDialog(onConfirmed = vi.fn(), onCancel = vi.fn()) {
 describe('GdprDeleteDialog', () => {
   beforeEach(() => {
     vi.mocked(api.delete).mockReset()
+    vi.mocked(request).mockReset()
   })
 
   it('renders dialog with person name', () => {
@@ -80,7 +82,7 @@ describe('GdprDeleteDialog', () => {
   })
 
   it('calls DELETE /api/persons/:id when confirmed', async () => {
-    vi.mocked(api.delete).mockResolvedValue(undefined)
+    vi.mocked(request).mockResolvedValue(undefined)
     const onConfirmed = vi.fn()
     renderDialog(onConfirmed)
 
@@ -93,7 +95,10 @@ describe('GdprDeleteDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Delete Person' }))
 
     await waitFor(() => {
-      expect(vi.mocked(api.delete)).toHaveBeenCalledWith('/api/persons/7', expect.any(Object))
+      expect(vi.mocked(request)).toHaveBeenCalledWith(
+        '/api/persons/7',
+        expect.objectContaining({ method: 'DELETE' }),
+      )
     })
     expect(onConfirmed).toHaveBeenCalledOnce()
   })

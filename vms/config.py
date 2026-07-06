@@ -15,6 +15,8 @@ class Settings(BaseSettings):
         env_prefix="VMS_",
         case_sensitive=False,
         extra="ignore",
+        env_file=".env",
+        env_file_encoding="utf-8",
     )
 
     # connection strings — required
@@ -230,6 +232,10 @@ class Settings(BaseSettings):
     # Set to the React dev server in development, production origin in production.
     # Empty string or "*" allows all origins (dev default).
     frontend_origin: str = "*"
+    # When True, FastAPI mounts frontend/dist/ as a SPA (catch-all returns index.html).
+    # Default off in dev (Vite dev server handles frontend). Enable in production with
+    # VMS_SERVE_FRONTEND=true after running `pnpm build` inside frontend/.
+    serve_frontend: bool = False
 
     # storage backend
     storage_backend: str = "local"  # "local" | "minio"

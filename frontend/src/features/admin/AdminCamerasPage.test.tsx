@@ -77,11 +77,11 @@ describe('AdminCamerasPage', () => {
     expect(screen.getByTestId('tier-badge-2')).toHaveTextContent('LOW')
   })
 
-  it('renders Configure link for each camera', async () => {
+  it('renders Settings link for each camera', async () => {
     vi.mocked(api.get).mockResolvedValue(CAMERAS)
     renderPage()
     expect(
-      await screen.findByRole('link', { name: 'Configure Assembly Line 1' }),
+      await screen.findByRole('link', { name: 'Settings Assembly Line 1' }),
     ).toBeInTheDocument()
   })
 

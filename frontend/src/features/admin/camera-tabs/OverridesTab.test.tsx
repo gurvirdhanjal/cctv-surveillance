@@ -22,6 +22,7 @@ const CONFIG_NO_OVERRIDES = {
   settings: {
     adaface_min_sim: { value: 0.72, source: 'global_default' },
     scrfd_conf: { value: 0.5, source: 'global_default' },
+    shutter_correction: { value: false, source: 'global_default' },
   },
 }
 

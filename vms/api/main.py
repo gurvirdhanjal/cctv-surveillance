@@ -10,8 +10,8 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import socketio as _socketio  # type: ignore[import-untyped]
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from prometheus_client import make_asgi_app
 from sqlalchemy.exc import IntegrityError as SAIntegrityError
@@ -37,6 +37,40 @@ from vms.db.partition_manager import ensure_future_partitions
 from vms.db.session import SessionLocal, engine
 
 logger = logging.getLogger(__name__)
+
+
+def _apply_spa_mount(
+    app: FastAPI,
+    settings: Settings,
+    *,
+    dist_path: pathlib.Path | None = None,
+) -> None:
+    """Mount frontend/dist/ as a history-mode SPA.
+
+    All requests that do not match an existing route return index.html so
+    client-side routing (React Router) resolves deep links correctly.
+    The /assets sub-directory is mounted separately so Vite's hashed bundles
+    get efficient static-file serving.
+
+    The mount is registered last — API routers and other mounts added before
+    this call take precedence over the catch-all.
+    """
+    if not settings.serve_frontend:
+        return
+    dist = dist_path or (pathlib.Path(__file__).parent.parent.parent / "frontend" / "dist")
+    if not dist.exists():
+        logger.warning("VMS_SERVE_FRONTEND=true but frontend/dist/ not found — SPA mount skipped")
+        return
+    assets_dir = dist / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="spa-assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def _serve_spa(full_path: str) -> Response:
+        candidate = dist / full_path
+        if candidate.is_file():
+            return FileResponse(str(candidate))
+        return FileResponse(str(dist / "index.html"))
 
 
 def _apply_media_mount(app: FastAPI, settings: Settings) -> None:
@@ -110,6 +144,7 @@ def _call_ensure_future_partitions() -> None:
 
 _apply_media_mount(app, get_settings())
 _call_ensure_future_partitions()
+_apply_spa_mount(app, get_settings())
 
 # Combined ASGI app: socket.io intercepts /socket.io/* paths; all others go to FastAPI.
 # Run this with: uvicorn vms.api.main:socket_app

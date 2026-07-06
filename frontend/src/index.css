@@ -113,6 +113,16 @@
   --body-letter-spacing: 0.01em;
 }
 
+/* ─── Custom animations ──────────────────────────────────────────── */
+@keyframes status-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.5; }
+}
+
+.animate-status-pulse {
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
 /* ─── Base layer ─────────────────────────────────────────────────── */
 @layer base {
   *,

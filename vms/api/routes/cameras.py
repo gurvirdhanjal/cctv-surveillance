@@ -32,6 +32,7 @@ from vms.api.schemas import (
 from vms.db.audit import write_audit_event
 from vms.db.models import Camera
 from vms.db.models import User as DBUser
+from vms.db.session import SessionLocal
 from vms.inference.shutter_profile import resolve_camera_config
 from vms.profiler.probe import CameraProfiler
 from vms.profiler.report import generate_readiness_report
@@ -495,19 +496,18 @@ class _RtspFrameBuffer:
 @router.get("/cameras/{camera_id}/snapshot")
 async def camera_snapshot(
     camera_id: int,
-    db: Session = Depends(get_db),  # noqa: B008
     _user: dict[str, Any] = Depends(get_stream_user),  # noqa: B008
 ) -> Response:
     """Return a single JPEG frame from the camera."""
     import cv2  # local import
 
-    cam = _get_camera_or_404(camera_id, db)
-    if not cam.rtsp_url:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="No stream URL configured"
-        )
-
-    rtsp_url: str = cam.rtsp_url
+    with SessionLocal() as db:
+        cam = _get_camera_or_404(camera_id, db)
+        if not cam.rtsp_url:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="No stream URL configured"
+            )
+        rtsp_url: str = cam.rtsp_url
     loop = asyncio.get_event_loop()
 
     def _grab_frame() -> bytes:
@@ -541,17 +541,16 @@ async def camera_snapshot(
 @router.get("/cameras/{camera_id}/mjpeg")
 async def camera_mjpeg_stream(
     camera_id: int,
-    db: Session = Depends(get_db),  # noqa: B008
     _user: dict[str, Any] = Depends(get_stream_user),  # noqa: B008
 ) -> StreamingResponse:
     """Stream MJPEG from the camera. Display with <img src="/api/cameras/{id}/mjpeg?token=…">."""
-    cam = _get_camera_or_404(camera_id, db)
-    if not cam.rtsp_url:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="No stream URL configured"
-        )
-
-    rtsp_url: str = cam.rtsp_url
+    with SessionLocal() as db:
+        cam = _get_camera_or_404(camera_id, db)
+        if not cam.rtsp_url:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="No stream URL configured"
+            )
+        rtsp_url: str = cam.rtsp_url
     _min_frame_interval = 1.0 / _MJPEG_TARGET_FPS
 
     async def generate() -> Any:

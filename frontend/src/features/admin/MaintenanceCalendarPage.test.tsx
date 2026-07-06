@@ -10,12 +10,14 @@ vi.mock('@/shared/api/client', () => ({
 }))
 
 vi.mock('cron-parser', () => ({
-  parseExpression: vi.fn(() => {
-    let count = 0
-    return {
-      next: () => ({ toDate: () => new Date(2026, 6, 1 + count++, 2, 0, 0) }),
-    }
-  }),
+  CronExpressionParser: {
+    parse: vi.fn(() => {
+      let count = 0
+      return {
+        next: () => ({ toDate: () => new Date(2026, 6, 1 + count++, 2, 0, 0) }),
+      }
+    }),
+  },
 }))
 
 import { api } from '@/shared/api/client'

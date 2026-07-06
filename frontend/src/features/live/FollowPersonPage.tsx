@@ -56,7 +56,7 @@ export function FollowPersonPage() {
         <div className="flex min-h-0 flex-1">
           {/* Main column: focused feed + floor-plan */}
           <div className="relative min-w-0 flex-1">
-            <FocusedCamera cameraId={trackedLoc?.camera_id ?? null} hlsUrl={null} />
+            <FocusedCamera cameraId={trackedLoc?.camera_id ?? null} mjpegUrl={null} />
 
             {/* Mini floor-plan — shows tracked person dot */}
             {trackedLoc && (
