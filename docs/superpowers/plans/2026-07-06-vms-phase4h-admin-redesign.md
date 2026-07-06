@@ -4,7 +4,7 @@
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status: NOT STARTED**
+**Status: COMPLETE**
 
 **Goal:** Bring all remaining admin pages from "functional but unstyled / partially styled" to enterprise-ready quality matching the design system. Completes the Phase 4G remaining tasks (4G.2–4G.7) and closes the Phase 4 completion checklist.
 

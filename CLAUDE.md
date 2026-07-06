@@ -183,11 +183,11 @@ a plan checkbox before Phase 4 starts. No implementation without an approved pla
 
 **Task 5 critical gate:** FP16 cosine drift check (`scripts/trt_fp16_drift_check.py`) must be the **first step** of the Task 5 hardware session — collect ≥50 face crops + ≥50 body crops from the multi-cam run, then run the script. HARD STOP if any crop < 0.99 cosine FP32-vs-FP16 → mandatory `/advisor`. This is the §6.1 identity-correctness gate and blocks GA sign-off on TRT FP16.
 
-**Last major milestone:** Phase 3 TransReID Pose-Normalized Crops — COMPLETE (678 tests, commit `b341d03`). Plan: `docs/superpowers/plans/2026-06-17-vms-phase3-transreid-pose-normalized-crops.md`.
+**Last major milestone:** Phase 4 Frontend — COMPLETE (4A–4H all done, 448 tests, commit `b1d53bc`). Plans: `docs/superpowers/plans/2026-06-24-vms-phase4-frontend.md` + `2026-07-06-vms-phase4h-admin-redesign.md`. All admin pages enterprise-polished; E2E specs, bundle CI, Lighthouse config included.
 
 **Phase 6c — Triton + ONNX Scalability:** Plan written `docs/superpowers/plans/2026-06-25-vms-phase6c-triton-onnx-scalability.md`. **NOT STARTED — awaiting user review.** Covers: `TritonModelClient` gRPC wrapper, Triton model-repo generator, `InferenceBackend` protocol, Triton backend, engine factory, ROI crop completion, OSNet ONNX export, MoViNet evaluation, WSL2 runbook, 5-camera smoke test. After this plan lands, scaling from 12 → 52 → 100+ cameras requires only `.env` + `cameras` table changes — zero Python code changes.
 
-**Next parallel work (while Task 5 is hardware-blocked):** Phase 4 frontend plan written (`2026-06-24-vms-phase4-frontend.md`); 96 tasks, 7 sub-plans (4A–4G) + 3 backend pre-work items (persons list, zones CRUD, Socket.io). Begin pre-work P0–P2, then sub-plans in order. Write Phase 5 security plan after Phase 4 implementation is underway (`2026-06-24-vms-phase5-security.md` — at-rest thumbnail cipher, JWT hardening, audit-log immutability DB trigger, sensitive-log filter). Phase 5 is a GA exit criterion per `2026-05-27-vms-production-readiness.md`; must land before any customer deployment.
+**Next:** Phase 5 security plan (`2026-06-24-vms-phase5-security.md` — at-rest thumbnail cipher, JWT hardening, audit-log immutability DB trigger, sensitive-log filter). Phase 5 is a GA exit criterion per `2026-05-27-vms-production-readiness.md`; must land before any customer deployment.
 
 **Defer:** Phase 6d INT8/NVDEC (only needed past 52 cameras; §6.3 spec note: only build if §6.0 harness shows CPU decode ≥10ms/frame after motion-gate savings).
 
