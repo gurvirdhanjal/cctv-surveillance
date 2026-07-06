@@ -44,7 +44,7 @@ export function CameraDetailPage() {
   if (!camera) {
     return (
       <div className="p-6">
-        <p role="alert" className="text-red-600 text-[14px]">
+        <p role="alert" className="text-error text-[14px]">
           Camera not found.
         </p>
       </div>
@@ -64,7 +64,7 @@ export function CameraDetailPage() {
           >
             ←
           </button>
-          <h1 className="text-[22px] font-semibold text-text-primary">{camera.name}</h1>
+          <h1 className="text-[22px] font-bold text-text-primary">{camera.name}</h1>
           <span className="text-[12px] font-mono text-text-muted">ID {camId}</span>
         </div>
 
@@ -98,24 +98,24 @@ export function CameraDetailPage() {
           aria-labelledby={`tab-${activeTab}`}
         >
           {activeTab === 'profile' && (
-            <div className="space-y-4 text-[14px]">
-              <dl className="grid grid-cols-2 gap-x-6 gap-y-3">
+            <div className="space-y-4">
+              <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-xl border border-border bg-surface-base p-5 text-[14px]">
                 <div>
-                  <dt className="text-[12px] text-text-muted mb-0.5">Capability Tier</dt>
+                  <dt className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-1">Capability Tier</dt>
                   <dd className="font-medium text-text-primary">{camera.capability_tier}</dd>
                 </div>
                 <div>
-                  <dt className="text-[12px] text-text-muted mb-0.5">Shutter Type</dt>
+                  <dt className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-1">Shutter Type</dt>
                   <dd className="font-medium text-text-primary">{camera.shutter_type}</dd>
                 </div>
                 <div>
-                  <dt className="text-[12px] text-text-muted mb-0.5">Status</dt>
+                  <dt className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-1">Status</dt>
                   <dd className="font-medium text-text-primary">
                     {camera.is_active ? 'Active' : 'Inactive'}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[12px] text-text-muted mb-0.5">Profiled At</dt>
+                  <dt className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-1">Profiled At</dt>
                   <dd className="font-medium text-text-primary font-mono">
                     {camera.profiled_at ?? '—'}
                   </dd>
@@ -158,13 +158,13 @@ function ResolvedConfigTab({ cameraId }: { cameraId: number }) {
     ?.settings
 
   return (
-    <div className="overflow-auto">
+    <div className="rounded-xl border border-border overflow-hidden">
       <table className="w-full text-[13px] font-mono">
         <thead className="bg-surface-sunken border-b border-border">
           <tr>
-            <th className="text-left px-4 py-2 text-text-muted font-medium">Key</th>
-            <th className="text-left px-4 py-2 text-text-muted font-medium">Value</th>
-            <th className="text-left px-4 py-2 text-text-muted font-medium">Source</th>
+            <th className="text-left px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted font-sans">Key</th>
+            <th className="text-left px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted font-sans">Value</th>
+            <th className="text-left px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted font-sans">Source</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">

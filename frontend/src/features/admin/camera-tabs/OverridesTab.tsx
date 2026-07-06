@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/shared/api/client'
 import type { ResolvedConfigResponse } from '@/shared/api/types'
@@ -60,7 +60,7 @@ export function OverridesTab({ cameraId }: Props) {
         <div
           role="status"
           aria-label="Shutter override warning"
-          className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded p-3 text-[13px] text-amber-900"
+          className="flex items-start gap-2 rounded-xl border border-warning/20 bg-warning/10 p-3 text-[13px] text-warning"
         >
           <span aria-hidden="true">⚠</span>
           <span>
@@ -71,33 +71,42 @@ export function OverridesTab({ cameraId }: Props) {
       )}
 
       <div className="flex items-center justify-between">
-        <h2 className="text-[15px] font-medium text-text-primary">Per-camera overrides</h2>
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
+          Per-camera overrides
+        </h2>
         <button
           type="button"
           onClick={() => {
             setShowAdd(true)
             setAddError(null)
           }}
-          className="px-3 py-1.5 text-[13px] rounded border border-border text-text-secondary hover:text-text-primary"
+          aria-label="Add override"
+          className="h-9 rounded-[10px] border border-border px-3 text-[13px] text-text-secondary hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
         >
           Add override
         </button>
       </div>
 
       {isLoading && (
-        <p role="status" aria-label="Loading overrides">
+        <p role="status" aria-label="Loading overrides" className="text-[14px] text-text-muted">
           Loading…
         </p>
       )}
 
       {!isLoading && (
-        <div className="rounded border border-border overflow-hidden">
+        <div className="rounded-xl border border-border overflow-hidden">
           <table className="w-full text-[13px] font-mono">
             <thead className="bg-surface-sunken border-b border-border">
               <tr>
-                <th className="text-left px-4 py-2 text-text-muted font-medium">Key</th>
-                <th className="text-left px-4 py-2 text-text-muted font-medium">Value</th>
-                <th className="text-left px-4 py-2 text-text-muted font-medium">Source</th>
+                <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em] font-sans">
+                  Key
+                </th>
+                <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em] font-sans">
+                  Value
+                </th>
+                <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em] font-sans">
+                  Source
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -105,12 +114,16 @@ export function OverridesTab({ cameraId }: Props) {
                 <tr key={key} className="hover:bg-surface-raised">
                   <td className="px-4 py-2 text-text-secondary">{key}</td>
                   <td className="px-4 py-2 text-text-primary">{JSON.stringify(item.value)}</td>
-                  <td className="px-4 py-2 text-text-muted">{item.source}</td>
+                  <td className="px-4 py-2">
+                    <span className="inline-block rounded-full bg-surface-sunken px-2 py-0.5 text-[11px] font-sans text-text-muted">
+                      {item.source}
+                    </span>
+                  </td>
                 </tr>
               ))}
               {overriddenSettings.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="px-4 py-4 text-center text-text-muted">
+                  <td colSpan={3} className="px-4 py-6 text-center font-sans text-[13px] text-text-muted">
                     No overrides set — all settings use global defaults.
                   </td>
                 </tr>
@@ -121,13 +134,13 @@ export function OverridesTab({ cameraId }: Props) {
       )}
 
       {showAdd && (
-        <div className="border border-border rounded p-4 space-y-3 bg-surface-raised">
-          <h3 className="text-[14px] font-medium text-text-primary">Add override</h3>
+        <div className="rounded-xl border border-border bg-surface-raised p-4 space-y-3">
+          <h3 className="text-[13px] font-semibold text-text-primary">Add override</h3>
           <div className="flex gap-2">
             <div className="flex-1">
               <label
                 htmlFor="override-key"
-                className="block text-[12px] text-text-muted mb-1"
+                className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted"
               >
                 Key
               </label>
@@ -137,13 +150,13 @@ export function OverridesTab({ cameraId }: Props) {
                 value={newKey}
                 onChange={(e) => setNewKey(e.target.value)}
                 placeholder="scrfd_conf"
-                className="w-full border border-border rounded px-2 py-1.5 text-[13px] font-mono bg-surface-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="h-9 w-full rounded-[10px] border border-border bg-surface-base px-3 text-[13px] font-mono text-text-primary focus:border-brand-500 focus:outline-none"
               />
             </div>
             <div className="flex-1">
               <label
                 htmlFor="override-value"
-                className="block text-[12px] text-text-muted mb-1"
+                className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted"
               >
                 Value (JSON)
               </label>
@@ -153,23 +166,23 @@ export function OverridesTab({ cameraId }: Props) {
                 value={newValue}
                 onChange={(e) => setNewValue(e.target.value)}
                 placeholder="0.7"
-                className="w-full border border-border rounded px-2 py-1.5 text-[13px] font-mono bg-surface-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="h-9 w-full rounded-[10px] border border-border bg-surface-base px-3 text-[13px] font-mono text-text-primary focus:border-brand-500 focus:outline-none"
               />
             </div>
           </div>
           {addError && (
-            <p role="alert" className="text-[12px] text-red-600">
+            <p role="alert" className="text-[12px] text-error">
               {addError}
             </p>
           )}
-          <div className="flex gap-2 justify-end">
+          <div className="flex justify-end gap-2">
             <button
               type="button"
               onClick={() => {
                 setShowAdd(false)
                 setAddError(null)
               }}
-              className="px-3 py-1.5 text-[13px] rounded border border-border text-text-secondary"
+              className="h-9 rounded-[10px] border border-border px-3 text-[13px] text-text-secondary hover:text-text-primary"
             >
               Cancel
             </button>
@@ -177,9 +190,9 @@ export function OverridesTab({ cameraId }: Props) {
               type="button"
               onClick={handleAddOverride}
               disabled={saveMutation.isPending}
-              className="px-3 py-1.5 text-[13px] rounded bg-brand-500 text-white hover:bg-brand-600 disabled:opacity-50"
+              className="h-9 rounded-[10px] bg-brand-500 px-3 text-[13px] font-medium text-white hover:bg-brand-700 disabled:opacity-40"
             >
-              Save
+              {saveMutation.isPending ? 'Saving…' : 'Save'}
             </button>
           </div>
         </div>

@@ -1,11 +1,13 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { Bell, Plus } from 'lucide-react'
 import { api } from '@/shared/api/client'
 import type { AlertRoutingRule } from '@/shared/api/types'
+import { EmptyState } from './components/EmptyState'
 
 const routingSchema = z
   .object({
@@ -28,6 +30,13 @@ const routingSchema = z
   })
 
 type RoutingForm = z.infer<typeof routingSchema>
+
+const CHANNEL_BADGE: Record<string, string> = {
+  email: 'bg-info/10 text-info',
+  slack: 'bg-success/10 text-success',
+  telegram: 'bg-info/10 text-info',
+  webhook: 'bg-warning/10 text-warning',
+}
 
 export function AlertRoutingPage() {
   const queryClient = useQueryClient()
@@ -83,13 +92,14 @@ export function AlertRoutingPage() {
     <>
       <Helmet title="Alert Routing — Admin" />
       <div className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-[22px] font-semibold text-text-primary">Alert Routing</h1>
+        <div className="mb-5 flex items-center justify-between">
+          <h1 className="text-[22px] font-bold text-text-primary">Alert Routing</h1>
           <button
             type="button"
             onClick={() => setShowAdd(true)}
-            className="px-4 py-2 text-[14px] rounded bg-brand-500 text-white hover:bg-brand-600"
+            className="inline-flex items-center gap-1.5 h-10 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
           >
+            <Plus className="h-4 w-4" aria-hidden="true" />
             Add Rule
           </button>
         </div>
@@ -101,26 +111,44 @@ export function AlertRoutingPage() {
         )}
 
         {isLoading && (
-          <p role="status" aria-label="Loading routing rules">
+          <p role="status" aria-label="Loading routing rules" className="text-[14px] text-text-muted">
             Loading…
           </p>
         )}
 
-        {!isLoading && (
-          <div className="rounded border border-border overflow-hidden">
+        {!isLoading && rules.length === 0 && (
+          <EmptyState
+            icon={Bell}
+            title="No routing rules configured"
+            description="Create a rule to route alerts to email, Slack, Telegram, or webhook."
+            action={
+              <button
+                type="button"
+                onClick={() => setShowAdd(true)}
+                className="inline-flex items-center gap-1.5 h-9 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700"
+              >
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Add Rule
+              </button>
+            }
+          />
+        )}
+
+        {!isLoading && rules.length > 0 && (
+          <div className="rounded-xl border border-border overflow-hidden">
             <table className="w-full text-[14px]">
               <thead className="bg-surface-sunken border-b border-border">
                 <tr>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase">
+                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
                     Channel
                   </th>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase">
+                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
                     Target
                   </th>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase">
+                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
                     Alert Type
                   </th>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase">
+                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
                     Active
                   </th>
                   <th className="px-4 py-2" />
@@ -129,13 +157,19 @@ export function AlertRoutingPage() {
               <tbody className="divide-y divide-border">
                 {rules.map((r) => (
                   <tr key={r.routing_id} className="hover:bg-surface-raised">
-                    <td className="px-4 py-3 font-medium text-text-primary capitalize">
-                      {r.channel}
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ${
+                          CHANNEL_BADGE[r.channel] ?? 'bg-surface-sunken text-text-muted'
+                        }`}
+                      >
+                        {r.channel}
+                      </span>
                     </td>
                     <td className="px-4 py-3 font-mono text-[12px] text-text-secondary max-w-xs truncate">
                       {r.target}
                     </td>
-                    <td className="px-4 py-3 text-text-secondary">{r.alert_type ?? 'All'}</td>
+                    <td className="px-4 py-3 text-[13px] text-text-secondary">{r.alert_type ?? 'All'}</td>
                     <td className="px-4 py-3">
                       <button
                         type="button"
@@ -146,7 +180,7 @@ export function AlertRoutingPage() {
                           toggleMutation.mutate({ id: r.routing_id, active: !r.is_active })
                         }
                         disabled={toggleMutation.isPending}
-                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 disabled:opacity-50 ${
                           r.is_active ? 'bg-brand-500' : 'bg-surface-sunken border border-border'
                         }`}
                       >
@@ -162,23 +196,13 @@ export function AlertRoutingPage() {
                         type="button"
                         aria-label={`Delete rule ${r.routing_id}`}
                         onClick={() => deleteMutation.mutate(r.routing_id)}
-                        className="text-[13px] text-error hover:underline"
+                        className="rounded-[10px] px-2 py-1 text-[13px] text-error hover:bg-error/10 transition-colors"
                       >
                         Delete
                       </button>
                     </td>
                   </tr>
                 ))}
-                {rules.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="px-4 py-6 text-center text-[14px] text-text-muted"
-                    >
-                      No routing rules configured.
-                    </td>
-                  </tr>
-                )}
               </tbody>
             </table>
           </div>
@@ -192,8 +216,8 @@ export function AlertRoutingPage() {
           aria-label="Add routing rule"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
         >
-          <div className="bg-surface-base rounded-lg shadow-lg w-full max-w-md p-6">
-            <h2 className="text-[17px] font-semibold text-text-primary mb-4">Add Routing Rule</h2>
+          <div className="w-full max-w-md rounded-xl bg-surface-base p-6 shadow-lg">
+            <h2 className="mb-4 text-[17px] font-semibold text-text-primary">Add Routing Rule</h2>
             <form
               aria-label="Add routing rule form"
               onSubmit={handleSubmit((d) => createMutation.mutate(d))}
@@ -202,14 +226,14 @@ export function AlertRoutingPage() {
               <div>
                 <label
                   htmlFor="rule-channel"
-                  className="block text-[13px] font-medium text-text-secondary mb-1"
+                  className="mb-1 block text-[13px] font-medium text-text-secondary"
                 >
                   Channel
                 </label>
                 <select
                   id="rule-channel"
                   {...register('channel')}
-                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="h-10 w-full rounded-[10px] border border-border bg-surface-base px-3 text-[14px] text-text-primary focus:border-brand-500 focus:outline-none"
                 >
                   <option value="">Select channel…</option>
                   <option value="email">Email</option>
@@ -226,17 +250,17 @@ export function AlertRoutingPage() {
               <div>
                 <label
                   htmlFor="rule-target"
-                  className="block text-[13px] font-medium text-text-secondary mb-1"
+                  className="mb-1 block text-[13px] font-medium text-text-secondary"
                 >
                   Target
                   {channel === 'webhook' && (
-                    <span className="ml-1 text-[11px] text-text-muted">(must be https://)</span>
+                    <span className="ml-1 font-normal text-text-muted">(must be https://)</span>
                   )}
                 </label>
                 <input
                   id="rule-target"
                   {...register('target')}
-                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="h-10 w-full rounded-[10px] border border-border bg-surface-base px-3 text-[14px] text-text-primary focus:border-brand-500 focus:outline-none"
                   placeholder={
                     channel === 'email'
                       ? 'security@company.com'
@@ -254,14 +278,14 @@ export function AlertRoutingPage() {
               <div>
                 <label
                   htmlFor="rule-alert-type"
-                  className="block text-[13px] font-medium text-text-secondary mb-1"
+                  className="mb-1 block text-[13px] font-medium text-text-secondary"
                 >
-                  Alert type (optional — leave blank for all)
+                  Alert type <span className="font-normal text-text-muted">(optional — blank = all)</span>
                 </label>
                 <select
                   id="rule-alert-type"
                   {...register('alert_type')}
-                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none"
+                  className="h-10 w-full rounded-[10px] border border-border bg-surface-base px-3 text-[14px] text-text-primary focus:border-brand-500 focus:outline-none"
                 >
                   <option value="">All types</option>
                   <option value="UNKNOWN_PERSON">UNKNOWN_PERSON</option>
@@ -274,21 +298,21 @@ export function AlertRoutingPage() {
               </div>
               {createMutation.isError && (
                 <p role="alert" className="text-[13px] text-error">
-                  Failed to add rule.
+                  Failed to add rule. Please try again.
                 </p>
               )}
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => { reset(); setShowAdd(false) }}
-                  className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary"
+                  className="h-10 rounded-[10px] border border-border px-4 text-[13px] text-text-secondary hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={createMutation.isPending}
-                  className="px-4 py-2 text-[14px] rounded bg-brand-500 text-white hover:bg-brand-600 disabled:opacity-50"
+                  className="h-10 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                 >
                   {createMutation.isPending ? 'Adding…' : 'Add Rule'}
                 </button>

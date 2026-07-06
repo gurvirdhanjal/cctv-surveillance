@@ -1,11 +1,13 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { MapPin, Plus } from 'lucide-react'
 import { api } from '@/shared/api/client'
 import type { ZoneResponse } from '@/shared/api/types'
+import { EmptyState } from './components/EmptyState'
 
 const zoneSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(200),
@@ -95,35 +97,54 @@ export function ZoneEditorPage() {
     <>
       <Helmet title="Zones — Admin" />
       <div className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-[22px] font-semibold text-text-primary">Zones</h1>
+        <div className="mb-5 flex items-center justify-between">
+          <h1 className="text-[22px] font-bold text-text-primary">Zones</h1>
           <button
             type="button"
             onClick={() => setShowAdd(true)}
-            className="px-4 py-2 text-[14px] rounded bg-brand-500 text-white hover:bg-brand-600"
+            className="inline-flex items-center gap-1.5 h-10 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
           >
+            <Plus className="h-4 w-4" aria-hidden="true" />
             Add Zone
           </button>
         </div>
 
         {isLoading && (
-          <p role="status" aria-label="Loading zones">
+          <p role="status" aria-label="Loading zones" className="text-[14px] text-text-muted">
             Loading…
           </p>
         )}
 
-        {!isLoading && (
-          <div className="rounded border border-border overflow-hidden">
+        {!isLoading && zones.length === 0 && (
+          <EmptyState
+            icon={MapPin}
+            title="No zones defined"
+            description="Draw zones on the floor plan to track dwell time and restrict access."
+            action={
+              <button
+                type="button"
+                onClick={() => setShowAdd(true)}
+                className="inline-flex items-center gap-1.5 h-9 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700"
+              >
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Add Zone
+              </button>
+            }
+          />
+        )}
+
+        {!isLoading && zones.length > 0 && (
+          <div className="rounded-xl border border-border overflow-hidden">
             <table className="w-full text-[14px]">
               <thead className="bg-surface-sunken border-b border-border">
                 <tr>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase">
+                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
                     Name
                   </th>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase">
+                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
                     Loiter Threshold
                   </th>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase">
+                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
                     Max Capacity
                   </th>
                   <th className="px-4 py-2" />
@@ -133,8 +154,8 @@ export function ZoneEditorPage() {
                 {zones.map((zone) => (
                   <tr key={zone.zone_id} className="hover:bg-surface-raised">
                     <td className="px-4 py-3 font-medium text-text-primary">{zone.name}</td>
-                    <td className="px-4 py-3 text-text-secondary">{zone.loiter_threshold_s}s</td>
-                    <td className="px-4 py-3 text-text-secondary">
+                    <td className="px-4 py-3 text-[13px] text-text-secondary">{zone.loiter_threshold_s}s</td>
+                    <td className="px-4 py-3 text-[13px] text-text-secondary">
                       {zone.max_capacity ?? '—'}
                     </td>
                     <td className="px-4 py-3 text-right space-x-2">
@@ -142,7 +163,7 @@ export function ZoneEditorPage() {
                         type="button"
                         aria-label={`Edit ${zone.name}`}
                         onClick={() => handleEditClick(zone)}
-                        className="text-[13px] text-brand-600 hover:underline"
+                        className="rounded-[10px] px-2 py-1 text-[13px] text-brand-500 hover:bg-brand-500/10 transition-colors"
                       >
                         Edit
                       </button>
@@ -150,23 +171,13 @@ export function ZoneEditorPage() {
                         type="button"
                         aria-label={`Delete ${zone.name}`}
                         onClick={() => setDeleteTarget(zone)}
-                        className="text-[13px] text-error hover:underline"
+                        className="rounded-[10px] px-2 py-1 text-[13px] text-error hover:bg-error/10 transition-colors"
                       >
                         Delete
                       </button>
                     </td>
                   </tr>
                 ))}
-                {zones.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="px-4 py-6 text-center text-[14px] text-text-muted"
-                    >
-                      No zones defined.
-                    </td>
-                  </tr>
-                )}
               </tbody>
             </table>
           </div>
@@ -181,8 +192,8 @@ export function ZoneEditorPage() {
           aria-label="Add zone"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
         >
-          <div className="bg-surface-base rounded-lg shadow-lg w-full max-w-md p-6">
-            <h2 className="text-[17px] font-semibold text-text-primary mb-4">Add Zone</h2>
+          <div className="w-full max-w-md rounded-xl bg-surface-base p-6 shadow-lg">
+            <h2 className="mb-4 text-[17px] font-semibold text-text-primary">Add Zone</h2>
             <form
               aria-label="Add zone form"
               onSubmit={handleAddSubmit((d) => createMutation.mutate(d))}
@@ -191,14 +202,14 @@ export function ZoneEditorPage() {
               <div>
                 <label
                   htmlFor="zone-name"
-                  className="block text-[13px] font-medium text-text-secondary mb-1"
+                  className="mb-1 block text-[13px] font-medium text-text-secondary"
                 >
                   Zone name
                 </label>
                 <input
                   id="zone-name"
                   {...registerAdd('name')}
-                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="h-10 w-full rounded-[10px] border border-border bg-surface-base px-3 text-[14px] text-text-primary focus:border-brand-500 focus:outline-none"
                   placeholder="Assembly Line"
                 />
                 {addErrors.name && (
@@ -210,7 +221,7 @@ export function ZoneEditorPage() {
               <div>
                 <label
                   htmlFor="zone-loiter"
-                  className="block text-[13px] font-medium text-text-secondary mb-1"
+                  className="mb-1 block text-[13px] font-medium text-text-secondary"
                 >
                   Loiter threshold (seconds)
                 </label>
@@ -218,7 +229,7 @@ export function ZoneEditorPage() {
                   id="zone-loiter"
                   type="number"
                   {...registerAdd('loiter_threshold_s')}
-                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="h-10 w-full rounded-[10px] border border-border bg-surface-base px-3 text-[14px] text-text-primary focus:border-brand-500 focus:outline-none"
                 />
                 {addErrors.loiter_threshold_s && (
                   <p role="alert" className="mt-1 text-[12px] text-error">
@@ -230,14 +241,14 @@ export function ZoneEditorPage() {
                 <button
                   type="button"
                   onClick={() => { resetAdd(); setShowAdd(false) }}
-                  className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary"
+                  className="h-10 rounded-[10px] border border-border px-4 text-[13px] text-text-secondary hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={createMutation.isPending}
-                  className="px-4 py-2 text-[14px] rounded bg-brand-500 text-white hover:bg-brand-600 disabled:opacity-50"
+                  className="h-10 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                 >
                   {createMutation.isPending ? 'Saving…' : 'Add Zone'}
                 </button>
@@ -255,8 +266,8 @@ export function ZoneEditorPage() {
           aria-label={`Edit ${editingZone.name}`}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
         >
-          <div className="bg-surface-base rounded-lg shadow-lg w-full max-w-md p-6">
-            <h2 className="text-[17px] font-semibold text-text-primary mb-4">
+          <div className="w-full max-w-md rounded-xl bg-surface-base p-6 shadow-lg">
+            <h2 className="mb-4 text-[17px] font-semibold text-text-primary">
               Edit Zone: {editingZone.name}
             </h2>
             <form
@@ -269,14 +280,14 @@ export function ZoneEditorPage() {
               <div>
                 <label
                   htmlFor="edit-zone-name"
-                  className="block text-[13px] font-medium text-text-secondary mb-1"
+                  className="mb-1 block text-[13px] font-medium text-text-secondary"
                 >
                   Zone name
                 </label>
                 <input
                   id="edit-zone-name"
                   {...registerEdit('name')}
-                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="h-10 w-full rounded-[10px] border border-border bg-surface-base px-3 text-[14px] text-text-primary focus:border-brand-500 focus:outline-none"
                 />
                 {editErrors.name && (
                   <p role="alert" className="mt-1 text-[12px] text-error">
@@ -293,16 +304,16 @@ export function ZoneEditorPage() {
                 <button
                   type="button"
                   onClick={() => setEditingZone(null)}
-                  className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary"
+                  className="h-10 rounded-[10px] border border-border px-4 text-[13px] text-text-secondary hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={updateMutation.isPending}
-                  className="px-4 py-2 text-[14px] rounded bg-brand-500 text-white hover:bg-brand-600 disabled:opacity-50"
+                  className="h-10 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                 >
-                  Save
+                  {updateMutation.isPending ? 'Saving…' : 'Save'}
                 </button>
               </div>
             </form>
@@ -318,31 +329,33 @@ export function ZoneEditorPage() {
           aria-label={`Confirm delete ${deleteTarget.name}`}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
         >
-          <div className="bg-surface-base rounded-lg shadow-xl w-full max-w-sm p-6">
-            <p className="text-[15px] font-medium text-text-primary mb-2">
-              Delete zone "{deleteTarget.name}"?
-            </p>
-            <p className="text-[13px] text-text-secondary mb-3">
-              Type the zone name to confirm deletion.
-            </p>
+          <div className="w-full max-w-sm rounded-xl bg-surface-base p-6 shadow-xl">
+            <div className="mb-4 rounded-xl border border-error/20 bg-error/5 p-4">
+              <p className="text-[15px] font-semibold text-text-primary">
+                Delete zone "{deleteTarget.name}"?
+              </p>
+              <p className="mt-1 text-[13px] text-text-secondary">
+                This action cannot be undone. Type the zone name to confirm.
+              </p>
+            </div>
             <input
               type="text"
               aria-label="Type zone name to confirm"
               value={deleteConfirm}
               onChange={(e) => setDeleteConfirm(e.target.value)}
               placeholder={deleteTarget.name}
-              className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base mb-4 focus:outline-none"
+              className="mb-4 h-10 w-full rounded-[10px] border border-border bg-surface-base px-3 text-[14px] text-text-primary focus:border-brand-500 focus:outline-none"
             />
             {deleteMutation.isError && (
               <p role="alert" className="mb-3 text-[13px] text-error">
                 Failed to delete zone. Please try again.
               </p>
             )}
-            <div className="flex gap-2 justify-end">
+            <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => { setDeleteTarget(null); setDeleteConfirm('') }}
-                className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary"
+                className="h-10 rounded-[10px] border border-border px-4 text-[13px] text-text-secondary hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
               >
                 Cancel
               </button>
@@ -350,9 +363,9 @@ export function ZoneEditorPage() {
                 type="button"
                 onClick={() => deleteMutation.mutate(deleteTarget.zone_id)}
                 disabled={deleteConfirm !== deleteTarget.name || deleteMutation.isPending}
-                className="px-4 py-2 text-[14px] rounded bg-destructive text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="h-10 rounded-[10px] bg-error px-4 text-[13px] font-medium text-white hover:bg-error/90 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
               >
-                Delete
+                {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
               </button>
             </div>
           </div>

@@ -1,4 +1,5 @@
-﻿import { Helmet } from 'react-helmet-async'
+import { Helmet } from 'react-helmet-async'
+import { Cpu } from 'lucide-react'
 
 /**
  * Model management is blocked on the P4 pre-work sub-task: implement
@@ -11,26 +12,19 @@ export function ModelManagerPage() {
   return (
     <>
       <Helmet title="Models — Admin" />
-      <div className="p-6 max-w-2xl">
-        <h1 className="text-[22px] font-semibold text-text-primary mb-4">Models</h1>
+      <div className="p-6">
+        <h1 className="mb-5 text-[22px] font-bold text-text-primary">Models</h1>
         <div
           role="status"
           aria-label="Models API unavailable"
-          className="bg-surface-raised border border-border rounded p-6 text-center"
+          className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-surface-base py-20 text-center"
         >
-          <p className="text-[15px] font-medium text-text-primary mb-2">
-            Model management is not yet available
-          </p>
-          <p className="text-[13px] text-text-secondary mb-3">
-            The Models API (GET /api/models) needs to be implemented in the backend before this
-            page can be used. Models are currently managed via the{' '}
-            <code className="font-mono bg-surface-sunken px-1 rounded">vms-models</code> CLI and
-            the{' '}
-            <code className="font-mono bg-surface-sunken px-1 rounded">models/manifest.json</code>{' '}
-            file.
-          </p>
-          <p className="text-[12px] text-text-muted font-mono">
-            Tracked: plan 2026-06-24-vms-phase4-frontend.md — pre-work P4
+          <Cpu className="mb-4 h-10 w-10 text-text-muted opacity-30" aria-hidden="true" />
+          <p className="text-[15px] font-semibold text-text-secondary">Model manager coming soon</p>
+          <p className="mt-1 max-w-sm text-[13px] text-text-muted">
+            The /api/models backend endpoint is required. Models are currently managed via the{' '}
+            <code>vms-models</code> CLI and models/manifest.json. Tracked: plan
+            2026-06-24-vms-phase4-frontend.md — pre-work P4.
           </p>
         </div>
       </div>

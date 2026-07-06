@@ -1,7 +1,9 @@
-﻿import { Helmet } from 'react-helmet-async'
+import { Helmet } from 'react-helmet-async'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Zap } from 'lucide-react'
 import { api } from '@/shared/api/client'
 import type { AnomalyDetector } from '@/shared/api/types'
+import { EmptyState } from './components/EmptyState'
 
 export function AnomalyDetectorsPage() {
   const queryClient = useQueryClient()
@@ -23,7 +25,7 @@ export function AnomalyDetectorsPage() {
     <>
       <Helmet title="Anomaly Detectors — Admin" />
       <div className="p-6">
-        <h1 className="text-[22px] font-semibold text-text-primary mb-4">Anomaly Detectors</h1>
+        <h1 className="mb-5 text-[22px] font-bold text-text-primary">Anomaly Detectors</h1>
 
         {toggleMutation.isError && (
           <p role="alert" className="mb-3 text-[13px] text-error">
@@ -32,26 +34,34 @@ export function AnomalyDetectorsPage() {
         )}
 
         {isLoading && (
-          <p role="status" aria-label="Loading detectors">
+          <p role="status" aria-label="Loading detectors" className="text-[14px] text-text-muted">
             Loading…
           </p>
         )}
 
-        {!isLoading && (
-          <div className="rounded border border-border overflow-hidden">
+        {!isLoading && detectors.length === 0 && (
+          <EmptyState
+            icon={Zap}
+            title="No anomaly detectors configured"
+            description="Detectors are registered by the backend on startup. Check the server configuration."
+          />
+        )}
+
+        {!isLoading && detectors.length > 0 && (
+          <div className="rounded-xl border border-border overflow-hidden">
             <table className="w-full text-[14px]">
               <thead className="bg-surface-sunken border-b border-border">
                 <tr>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase">
+                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
                     Alert Type
                   </th>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase">
+                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
                     Class
                   </th>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase">
+                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
                     Model Version
                   </th>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase">
+                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
                     Enabled
                   </th>
                 </tr>
@@ -63,7 +73,7 @@ export function AnomalyDetectorsPage() {
                     <td className="px-4 py-3 font-mono text-[12px] text-text-secondary">
                       {d.class_path.split('.').pop()}
                     </td>
-                    <td className="px-4 py-3 text-text-secondary font-mono text-[12px]">
+                    <td className="px-4 py-3 font-mono text-[12px] text-text-secondary">
                       {d.model_version ?? '—'}
                     </td>
                     <td className="px-4 py-3">
@@ -79,7 +89,7 @@ export function AnomalyDetectorsPage() {
                           })
                         }
                         disabled={toggleMutation.isPending}
-                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 disabled:opacity-50 ${
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 disabled:opacity-50 ${
                           d.is_enabled ? 'bg-brand-500' : 'bg-surface-sunken border border-border'
                         }`}
                       >
@@ -92,16 +102,6 @@ export function AnomalyDetectorsPage() {
                     </td>
                   </tr>
                 ))}
-                {detectors.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="px-4 py-6 text-center text-[14px] text-text-muted"
-                    >
-                      No anomaly detectors configured.
-                    </td>
-                  </tr>
-                )}
               </tbody>
             </table>
           </div>

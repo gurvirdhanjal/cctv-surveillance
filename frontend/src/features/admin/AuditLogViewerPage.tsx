@@ -1,8 +1,10 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useQuery, useMutation } from '@tanstack/react-query'
+import { FileText, Download, ShieldCheck } from 'lucide-react'
 import { api } from '@/shared/api/client'
 import type { AuditLogEntry, AuditVerifyResponse } from '@/shared/api/types'
+import { EmptyState } from './components/EmptyState'
 
 export function AuditLogViewerPage() {
   const [verifyResult, setVerifyResult] = useState<AuditVerifyResponse | null>(null)
@@ -33,23 +35,25 @@ export function AuditLogViewerPage() {
     <>
       <Helmet title="Audit Log — Admin" />
       <div className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-[22px] font-semibold text-text-primary">Audit Log</h1>
+        <div className="mb-5 flex items-center justify-between">
+          <h1 className="text-[22px] font-bold text-text-primary">Audit Log</h1>
           <div className="flex gap-2">
             <button
               type="button"
               onClick={() => verifyMutation.mutate()}
               disabled={verifyMutation.isPending}
-              className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary hover:text-text-primary disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 h-10 rounded-[10px] border border-border px-4 text-[13px] text-text-secondary hover:text-text-primary disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
             >
+              <ShieldCheck className="h-4 w-4" aria-hidden="true" />
               {verifyMutation.isPending ? 'Verifying…' : 'Verify Chain'}
             </button>
             <button
               type="button"
               onClick={handleExport}
               aria-label="Export audit log PDF"
-              className="px-4 py-2 text-[14px] rounded bg-brand-500 text-white hover:bg-brand-600"
+              className="inline-flex items-center gap-1.5 h-10 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
             >
+              <Download className="h-4 w-4" aria-hidden="true" />
               Export PDF
             </button>
           </div>
@@ -59,10 +63,10 @@ export function AuditLogViewerPage() {
           <div
             role="status"
             aria-label="Chain verification result"
-            className={`mb-4 rounded border p-3 text-[13px] ${
+            className={`mb-4 rounded-xl border p-4 text-[13px] ${
               verifyResult.broken_chain_at
-                ? 'bg-red-50 border-red-200 text-red-800'
-                : 'bg-green-50 border-green-200 text-green-800'
+                ? 'bg-error/10 border-error/20 text-error'
+                : 'bg-success/10 border-success/20 text-success'
             }`}
           >
             {verifyResult.broken_chain_at ? (
@@ -79,38 +83,46 @@ export function AuditLogViewerPage() {
         )}
 
         {verifyError && (
-          <p role="alert" className="mb-4 text-[13px] text-red-600">
+          <p role="alert" className="mb-4 text-[13px] text-error">
             {verifyError}
           </p>
         )}
 
         {isLoading && (
-          <p role="status" aria-label="Loading audit log">
+          <p role="status" aria-label="Loading audit log" className="text-[14px] text-text-muted">
             Loading…
           </p>
         )}
 
-        {!isLoading && (
-          <div className="rounded border border-border overflow-hidden">
+        {!isLoading && entries.length === 0 && (
+          <EmptyState
+            icon={FileText}
+            title="No audit entries found."
+            description="Events appear here as the system processes requests and state changes."
+          />
+        )}
+
+        {!isLoading && entries.length > 0 && (
+          <div className="rounded-xl border border-border overflow-hidden">
             <table className="w-full text-[13px]">
               <thead className="bg-surface-sunken border-b border-border">
                 <tr>
-                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase">
+                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
                     ID
                   </th>
-                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase">
+                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
                     Timestamp
                   </th>
-                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase">
+                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
                     Event
                   </th>
-                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase">
+                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
                     Actor
                   </th>
-                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase">
+                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
                     Subject
                   </th>
-                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase">
+                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
                     Hash
                   </th>
                 </tr>
@@ -126,7 +138,7 @@ export function AuditLogViewerPage() {
                     <td className="px-4 py-2 text-text-secondary">
                       {e.actor_role ? `${e.actor_role}#${e.actor_user_id ?? '?'}` : '—'}
                     </td>
-                    <td className="px-4 py-2 text-text-secondary font-mono text-[12px]">
+                    <td className="px-4 py-2 font-mono text-[12px] text-text-secondary">
                       {e.subject_table ? `${e.subject_table}/${e.subject_id}` : '—'}
                     </td>
                     <td className="px-4 py-2 font-mono text-[11px] text-text-muted max-w-[80px] truncate">
@@ -134,16 +146,6 @@ export function AuditLogViewerPage() {
                     </td>
                   </tr>
                 ))}
-                {entries.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-4 py-6 text-center text-[14px] text-text-muted"
-                    >
-                      No audit entries found.
-                    </td>
-                  </tr>
-                )}
               </tbody>
             </table>
           </div>

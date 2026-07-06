@@ -1,7 +1,9 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Cpu } from 'lucide-react'
 import { api } from '@/shared/api/client'
 import type { ProfileResponse } from '@/shared/api/types'
+import { EmptyState } from '../components/EmptyState'
 
 interface Props {
   cameraId: number
@@ -31,26 +33,39 @@ export function HardwareTab({ cameraId }: Props) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-[16px] font-medium text-text-primary">Camera Profile</h2>
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
+          Camera Profile
+        </h2>
         <button
           type="button"
           onClick={() => setShowConfirm(true)}
-          className="px-4 py-2 text-[14px] rounded bg-brand-500 text-white hover:bg-brand-600"
+          className="inline-flex items-center gap-1.5 h-9 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
         >
+          <Cpu className="h-4 w-4" aria-hidden="true" />
           Run Profiler
         </button>
       </div>
 
       {isLoading && (
-        <p role="status" aria-label="Loading profile">
+        <p role="status" aria-label="Loading profile" className="text-[14px] text-text-muted">
           Loading…
         </p>
       )}
 
+      {!isLoading && !pd && (
+        <EmptyState
+          icon={Cpu}
+          title="No profile data yet"
+          description="Run the profiler to characterise this camera's hardware properties."
+        />
+      )}
+
       {!isLoading && pd && (
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-[14px]">
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-xl border border-border bg-surface-base p-5 text-[14px]">
           <div>
-            <dt className="text-[12px] text-text-muted mb-0.5">Resolution</dt>
+            <dt className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-1">
+              Resolution
+            </dt>
             <dd className="font-medium text-text-primary">
               {pd.resolution_w && pd.resolution_h
                 ? `${pd.resolution_w}×${pd.resolution_h}`
@@ -58,38 +73,42 @@ export function HardwareTab({ cameraId }: Props) {
             </dd>
           </div>
           <div>
-            <dt className="text-[12px] text-text-muted mb-0.5">Measured FPS</dt>
+            <dt className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-1">
+              Measured FPS
+            </dt>
             <dd className="font-medium text-text-primary">
               {pd.fps_measured != null ? `${pd.fps_measured} fps` : '—'}
             </dd>
           </div>
           <div>
-            <dt className="text-[12px] text-text-muted mb-0.5">Focus Score</dt>
+            <dt className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-1">
+              Focus Score
+            </dt>
             <dd className="font-medium text-text-primary">
               {pd.focus_score != null ? pd.focus_score.toFixed(2) : '—'}
             </dd>
           </div>
           <div>
-            <dt className="text-[12px] text-text-muted mb-0.5">Frame Drop Rate</dt>
+            <dt className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-1">
+              Frame Drop Rate
+            </dt>
             <dd className="font-medium text-text-primary">
               {pd.frame_drop_rate != null ? `${(pd.frame_drop_rate * 100).toFixed(1)}%` : '—'}
             </dd>
           </div>
           <div>
-            <dt className="text-[12px] text-text-muted mb-0.5">Suggested Tier</dt>
+            <dt className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-1">
+              Suggested Tier
+            </dt>
             <dd className="font-medium text-text-primary">{pd.suggested_tier ?? '—'}</dd>
           </div>
           <div>
-            <dt className="text-[12px] text-text-muted mb-0.5">Shutter Suggestion</dt>
+            <dt className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-1">
+              Shutter Suggestion
+            </dt>
             <dd className="font-medium text-text-primary">{pd.shutter_suggestion ?? '—'}</dd>
           </div>
         </dl>
-      )}
-
-      {!isLoading && !pd && (
-        <p className="text-[14px] text-text-muted">
-          No profile data yet. Run the profiler to characterise this camera.
-        </p>
       )}
 
       {showConfirm && (
@@ -99,23 +118,23 @@ export function HardwareTab({ cameraId }: Props) {
           aria-label="Confirm profiler run"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
         >
-          <div className="bg-surface-base rounded-lg shadow-lg w-full max-w-sm p-6">
-            <p className="text-[15px] font-medium text-text-primary mb-2">Run camera profiler?</p>
-            <p className="text-[13px] text-text-secondary mb-4">
+          <div className="w-full max-w-sm rounded-xl bg-surface-base p-6 shadow-lg">
+            <p className="mb-2 text-[15px] font-semibold text-text-primary">Run camera profiler?</p>
+            <p className="mb-4 text-[13px] text-text-secondary">
               This will briefly interrupt the live stream while the profiler analyses camera
               properties.
             </p>
             {profileMutation.isError && (
-              <p role="alert" className="mb-3 text-[13px] text-red-600">
+              <p role="alert" className="mb-3 text-[13px] text-error">
                 Profiler failed. Please try again.
               </p>
             )}
-            <div className="flex gap-2 justify-end">
+            <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setShowConfirm(false)}
                 disabled={profileMutation.isPending}
-                className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary hover:text-text-primary disabled:opacity-50"
+                className="h-10 rounded-[10px] border border-border px-4 text-[13px] text-text-secondary hover:text-text-primary disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
               >
                 Cancel
               </button>
@@ -123,7 +142,7 @@ export function HardwareTab({ cameraId }: Props) {
                 type="button"
                 onClick={() => profileMutation.mutate()}
                 disabled={profileMutation.isPending}
-                className="px-4 py-2 text-[14px] rounded bg-brand-500 text-white hover:bg-brand-600 disabled:opacity-50"
+                className="h-10 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
               >
                 {profileMutation.isPending ? 'Running…' : 'Run'}
               </button>

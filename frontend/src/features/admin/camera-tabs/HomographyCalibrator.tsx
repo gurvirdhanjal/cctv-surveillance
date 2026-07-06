@@ -77,7 +77,7 @@ export function HomographyCalibrator({ cameraId: _cameraId, initialStep = 'start
     <div className="space-y-4" aria-label={`Homography calibrator — ${STEP_LABELS[step]}`}>
       <div className="flex items-center gap-2">
         <h2 className="text-[15px] font-medium text-text-primary">Homography Calibration</h2>
-        <span className="px-2 py-0.5 rounded bg-surface-sunken text-[12px] text-text-muted">
+        <span className="rounded-full bg-surface-sunken px-2 py-0.5 text-[11px] text-text-muted">
           {STEP_LABELS[step]}
         </span>
       </div>
@@ -91,7 +91,7 @@ export function HomographyCalibrator({ cameraId: _cameraId, initialStep = 'start
           <button
             type="button"
             onClick={handleNext}
-            className="px-4 py-2 text-[14px] rounded bg-brand-500 text-white hover:bg-brand-600"
+            className="h-10 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
           >
             Start calibration
           </button>
@@ -107,7 +107,7 @@ export function HomographyCalibrator({ cameraId: _cameraId, initialStep = 'start
             role="img"
             aria-label="Frame point picker"
             onClick={handleFrameClick}
-            className="h-40 bg-surface-sunken rounded border border-border flex items-center justify-center cursor-crosshair relative"
+            className="h-40 bg-surface-sunken rounded-xl border border-border flex items-center justify-center cursor-crosshair relative"
           >
             <span className="text-[13px] text-text-muted">Live frame (click to add point)</span>
             {framePoints.map(([x, y], i) => (
@@ -123,7 +123,7 @@ export function HomographyCalibrator({ cameraId: _cameraId, initialStep = 'start
             type="button"
             onClick={handleNext}
             disabled={framePoints.length < 4}
-            className="px-4 py-2 text-[14px] rounded bg-brand-500 text-white hover:bg-brand-600 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="h-10 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
           >
             Next
           </button>
@@ -139,14 +139,14 @@ export function HomographyCalibrator({ cameraId: _cameraId, initialStep = 'start
             role="img"
             aria-label="Floor plan point picker"
             onClick={handleFloorClick}
-            className="h-40 bg-surface-sunken rounded border border-border flex items-center justify-center cursor-crosshair relative"
+            className="h-40 bg-surface-sunken rounded-xl border border-border flex items-center justify-center cursor-crosshair relative"
           >
             <span className="text-[13px] text-text-muted">Floor plan (click to add point)</span>
             {floorPoints.map(([x, y], i) => (
               <div
                 key={i}
                 style={{ position: 'absolute', left: x, top: y, transform: 'translate(-50%,-50%)' }}
-                className="w-3 h-3 bg-green-500 rounded-full border-2 border-white"
+                className="w-3 h-3 bg-success rounded-full border-2 border-white"
                 aria-label={`Floor point ${i + 1}`}
               />
             ))}
@@ -155,7 +155,7 @@ export function HomographyCalibrator({ cameraId: _cameraId, initialStep = 'start
             type="button"
             onClick={handleNext}
             disabled={floorPoints.length < 4}
-            className="px-4 py-2 text-[14px] rounded bg-brand-500 text-white hover:bg-brand-600 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="h-10 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
           >
             Compute
           </button>
@@ -165,13 +165,13 @@ export function HomographyCalibrator({ cameraId: _cameraId, initialStep = 'start
       {step === 'review' && (
         <div className="space-y-4">
           <div
-            className={`rounded p-4 border ${
-              canSave ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+            className={`rounded-xl p-4 border ${
+              canSave ? 'bg-success/10 border-success/20' : 'bg-error/10 border-error/20'
             }`}
           >
-            <p className="text-[13px] font-medium">
+            <p className="text-[13px] font-medium text-text-primary">
               Reprojection error:{' '}
-              <span className={canSave ? 'text-green-800' : 'text-red-700'}>
+              <span className={canSave ? 'text-success' : 'text-error'}>
                 {reprErr !== null ? `${reprErr.toFixed(2)} px` : '—'}
               </span>
             </p>
@@ -183,7 +183,7 @@ export function HomographyCalibrator({ cameraId: _cameraId, initialStep = 'start
             <button
               type="button"
               onClick={handleReset}
-              className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary hover:text-text-primary"
+              className="h-10 rounded-[10px] border border-border px-4 text-[13px] text-text-secondary hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
             >
               Recalibrate
             </button>
@@ -192,7 +192,7 @@ export function HomographyCalibrator({ cameraId: _cameraId, initialStep = 'start
               onClick={handleSave}
               disabled={!canSave}
               aria-disabled={!canSave}
-              className="px-4 py-2 text-[14px] rounded bg-brand-500 text-white hover:bg-brand-600 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="h-10 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
             >
               Save homography
             </button>
@@ -201,15 +201,15 @@ export function HomographyCalibrator({ cameraId: _cameraId, initialStep = 'start
       )}
 
       {step === 'done' && (
-        <div className="bg-green-50 border border-green-200 rounded p-4 space-y-2">
-          <p className="text-[14px] font-medium text-green-800">Calibration saved successfully.</p>
-          <p className="text-[13px] text-green-700">
+        <div className="rounded-xl border border-success/20 bg-success/10 p-4 space-y-2">
+          <p className="text-[14px] font-semibold text-success">Calibration saved successfully.</p>
+          <p className="text-[13px] text-success">
             Reprojection error: {reprErr?.toFixed(2)} px
           </p>
           <button
             type="button"
             onClick={handleReset}
-            className="px-3 py-1.5 text-[13px] rounded border border-green-300 text-green-800 hover:bg-green-100"
+            className="h-9 rounded-[10px] border border-success/30 px-3 text-[13px] text-success hover:bg-success/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
           >
             Recalibrate
           </button>

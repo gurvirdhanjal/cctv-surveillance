@@ -1,17 +1,13 @@
-﻿import { useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { Users, Plus } from 'lucide-react'
 import { api } from '@/shared/api/client'
 import type { PersonResponse } from '@/shared/api/types'
 import { EnrolmentWizard } from './components/EnrolmentWizard'
 import { GdprDeleteDialog } from './components/GdprDeleteDialog'
-
-const TIER_BADGE: Record<string, string> = {
-  FULL: 'bg-brand-100 text-brand-700',
-  MID: 'bg-yellow-100 text-yellow-800',
-  LOW: 'bg-surface-sunken text-text-muted',
-}
+import { EmptyState } from './components/EmptyState'
 
 type PersonExt = PersonResponse & { role?: string }
 
@@ -43,13 +39,14 @@ export function AdminPersonsPage() {
     <>
       <Helmet title="Persons — Admin" />
       <div className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-[22px] font-semibold text-text-primary">Persons</h1>
+        <div className="mb-5 flex items-center justify-between">
+          <h1 className="text-[22px] font-bold text-text-primary">Persons</h1>
           <button
             type="button"
             onClick={() => setShowEnrol(true)}
-            className="px-4 py-2 text-[14px] rounded bg-brand-500 text-white hover:bg-brand-600"
+            className="inline-flex items-center gap-1.5 h-10 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
           >
+            <Plus className="h-4 w-4" aria-hidden="true" />
             Enrol Person
           </button>
         </div>
@@ -60,32 +57,52 @@ export function AdminPersonsPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by name or employee ID…"
-          className="mb-4 w-full max-w-sm border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-500"
+          className="mb-5 h-10 w-full max-w-sm rounded-[10px] border border-border bg-surface-base px-3 text-[14px] text-text-primary focus:border-brand-500 focus:outline-none"
         />
 
         {isLoading && (
-          <p role="status" aria-label="Loading persons">
+          <p role="status" aria-label="Loading persons" className="text-[14px] text-text-muted">
             Loading…
           </p>
         )}
         {isError && (
-          <p role="alert" className="text-error text-[14px]">
+          <p role="alert" className="text-[14px] text-error">
             Failed to load persons.
           </p>
         )}
 
-        {!isLoading && !isError && (
-          <div className="rounded border border-border overflow-hidden">
+        {!isLoading && !isError && persons.length === 0 && (
+          <EmptyState
+            icon={Users}
+            title="No persons found."
+            description={search ? 'No persons match your search.' : 'Use the enrolment wizard to add the first person.'}
+            action={
+              !search ? (
+                <button
+                  type="button"
+                  onClick={() => setShowEnrol(true)}
+                  className="inline-flex items-center gap-1.5 h-9 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700"
+                >
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  Enrol Person
+                </button>
+              ) : undefined
+            }
+          />
+        )}
+
+        {!isLoading && !isError && persons.length > 0 && (
+          <div className="rounded-xl border border-border overflow-hidden">
             <table className="w-full text-[14px]">
               <thead className="bg-surface-sunken border-b border-border">
                 <tr>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase tracking-wide">
+                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
                     Name
                   </th>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase tracking-wide">
+                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
                     Employee ID
                   </th>
-                  <th className="text-left px-4 py-2 text-[12px] font-semibold text-text-muted uppercase tracking-wide">
+                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
                     Status
                   </th>
                   <th className="px-4 py-2" />
@@ -114,13 +131,13 @@ export function AdminPersonsPage() {
                       }}
                       className="flex items-center px-4 py-3 border-b border-border hover:bg-surface-raised"
                     >
-                      <span className="flex-1 font-medium text-text-primary">{p.name}</span>
-                      <span className="w-36 font-mono text-text-secondary">{p.employee_id}</span>
+                      <span className="flex-1 text-[14px] font-medium text-text-primary">{p.name}</span>
+                      <span className="w-36 font-mono text-[13px] text-text-secondary">{p.employee_id}</span>
                       <span className="w-24">
                         <span
-                          className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${
+                          className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${
                             p.is_active
-                              ? TIER_BADGE['FULL']
+                              ? 'bg-success/10 text-success'
                               : 'bg-surface-sunken text-text-muted'
                           }`}
                         >
@@ -131,7 +148,7 @@ export function AdminPersonsPage() {
                         type="button"
                         aria-label={`Delete ${p.name}`}
                         onClick={() => setDeleteTarget(p)}
-                        className="px-3 py-1 text-[12px] text-error hover:text-red-700 hover:bg-red-50 rounded"
+                        className="rounded-[10px] px-3 py-1 text-[13px] text-error hover:bg-error/10 transition-colors"
                       >
                         Delete
                       </button>
@@ -140,11 +157,6 @@ export function AdminPersonsPage() {
                 })}
               </div>
             </div>
-            {persons.length === 0 && (
-              <p className="px-4 py-6 text-[14px] text-text-muted text-center">
-                No persons found.
-              </p>
-            )}
           </div>
         )}
       </div>
