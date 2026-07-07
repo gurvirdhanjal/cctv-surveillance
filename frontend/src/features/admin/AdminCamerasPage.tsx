@@ -5,7 +5,8 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link } from 'react-router-dom'
-import { Camera as CameraIcon, Plus, Radio, Settings, Trash2 } from 'lucide-react'
+import { Camera as CameraIcon } from 'lucide-react'
+import { Icon } from '@/shared/design-system/icons'
 import { api } from '@/shared/api/client'
 import { useAuthStore } from '@/stores/authStore'
 import type {
@@ -172,7 +173,7 @@ export function AdminCamerasPage() {
         <PageHeader
           title="Cameras"
           actions={
-            <Button onClick={() => setShowAdd(true)} icon={<Plus className="h-4 w-4" aria-hidden="true" />}>
+            <Button onClick={() => setShowAdd(true)} icon={<Icon.add className="h-4 w-4" aria-hidden="true" />}>
               Add Camera
             </Button>
           }
@@ -313,7 +314,7 @@ export function AdminCamerasPage() {
                           to="/live"
                           className="inline-flex items-center gap-1.5 rounded-[10px] bg-action-700 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-action-800 transition-colors"
                         >
-                          <Radio className="h-3.5 w-3.5" aria-hidden="true" />
+                          <Icon.live className="h-3.5 w-3.5" aria-hidden="true" />
                           Live
                         </Link>
                         <Link
@@ -321,7 +322,7 @@ export function AdminCamerasPage() {
                           className="inline-flex items-center gap-1.5 rounded-[10px] border border-border px-3 py-1.5 text-[12px] font-medium text-text-secondary hover:border-brand-500/40 hover:text-text-primary transition-colors"
                           aria-label={`Settings ${cam.name}`}
                         >
-                          <Settings className="h-3.5 w-3.5" aria-hidden="true" />
+                          <Icon.settings className="h-3.5 w-3.5" aria-hidden="true" />
                           Settings
                         </Link>
                         <button
@@ -330,7 +331,7 @@ export function AdminCamerasPage() {
                           className="ml-auto rounded-[10px] p-1.5 text-text-muted hover:bg-error/10 hover:text-error transition-colors"
                           aria-label={`Delete ${cam.name}`}
                         >
-                          <Trash2 className="h-4 w-4" aria-hidden="true" />
+                          <Icon.delete className="h-4 w-4" aria-hidden="true" />
                         </button>
                       </div>
                     )}

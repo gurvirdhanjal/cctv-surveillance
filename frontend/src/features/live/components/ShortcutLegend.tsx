@@ -1,5 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog'
-import { X } from 'lucide-react'
+import { Icon } from '@/shared/design-system/icons'
 
 const SHORTCUTS: { key: string; description: string }[] = [
   { key: 'A', description: 'Acknowledge selected alarm' },
@@ -39,7 +39,7 @@ export function ShortcutLegend({ open, onClose }: ShortcutLegendProps) {
                 className="rounded-[10px] p-1.5 text-slate-400 hover:bg-[#1a2234] hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                 aria-label="Close"
               >
-                <X className="h-4 w-4" />
+                <Icon.close className="h-4 w-4" />
               </button>
             </Dialog.Close>
           </div>

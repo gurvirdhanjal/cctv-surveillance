@@ -6,14 +6,13 @@ import {
   CheckCircle2,
   XCircle,
   Camera,
-  Users,
-  Bell,
   Zap,
   ShieldAlert,
   Clock,
   AlertTriangle,
   HardDrive,
 } from 'lucide-react'
+import { Icon } from '@/shared/design-system/icons'
 import { api } from '@/shared/api/client'
 import type { HealthResponse, ReadinessResponse, StateSnapshot, AlertType } from '@/shared/api/types'
 import { PageHeader } from '@/shared/design-system/components/PageHeader'
@@ -94,7 +93,7 @@ function KpiCard({ label, value, icon: Icon, to, accent, isPending = false }: Kp
 const ALERT_TYPE_META: Record<AlertType, { label: string; icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean | 'true' | 'false' }>; accent: string }> = {
   INTRUSION: { label: 'Intrusion', icon: ShieldAlert, accent: 'text-error' },
   LOITERING: { label: 'Loitering', icon: Clock, accent: 'text-warning' },
-  UNKNOWN_PERSON: { label: 'Unknown', icon: Users, accent: 'text-info' },
+  UNKNOWN_PERSON: { label: 'Unknown', icon: Icon.users, accent: 'text-info' },
   VIOLENCE: { label: 'Violence', icon: AlertTriangle, accent: 'text-error' },
   PPE_VIOLATION: { label: 'PPE', icon: HardDrive, accent: 'text-warning' },
   SYSTEM_CRITICAL: { label: 'System', icon: Zap, accent: 'text-error' },
@@ -193,7 +192,7 @@ export function AdminDashboardPage() {
             <KpiCard
               label="Head Count"
               value={snapshot?.head_count?.plant_total ?? '—'}
-              icon={Users}
+              icon={Icon.users}
               to="/admin/persons"
               accent="bg-brand-500/10 text-brand-500"
               isPending={!snapshot}
@@ -208,7 +207,7 @@ export function AdminDashboardPage() {
             <KpiCard
               label="Active Alerts"
               value={snapshot?.active_alerts?.length ?? '—'}
-              icon={Bell}
+              icon={Icon.alert}
               to="/admin/alert-routing"
               accent="bg-warning/10 text-warning"
             />
@@ -269,9 +268,9 @@ export function AdminDashboardPage() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
               { to: '/admin/cameras', label: 'Cameras', icon: Camera, desc: 'Manage streams' },
-              { to: '/admin/persons', label: 'Persons', icon: Users, desc: 'Identity database' },
+              { to: '/admin/persons', label: 'Persons', icon: Icon.users, desc: 'Identity database' },
               { to: '/admin/anomaly-detectors', label: 'Anomaly', icon: Zap, desc: 'Detection rules' },
-              { to: '/admin/alert-routing', label: 'Alerts', icon: Bell, desc: 'Routing & dispatch' },
+              { to: '/admin/alert-routing', label: 'Alerts', icon: Icon.alert, desc: 'Routing & dispatch' },
             ].map(({ to, label, icon: Icon, desc }) => (
               <Link
                 key={to}

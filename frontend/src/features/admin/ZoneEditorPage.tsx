@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { MapPin, Plus } from 'lucide-react'
+import { MapPin } from 'lucide-react'
+import { Icon } from '@/shared/design-system/icons'
 import { api } from '@/shared/api/client'
 import type { ZoneResponse } from '@/shared/api/types'
 import { EmptyState } from './components/EmptyState'
@@ -105,7 +106,7 @@ export function ZoneEditorPage() {
             onClick={() => setShowAdd(true)}
             className="inline-flex items-center gap-1.5 h-10 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
           >
-            <Plus className="h-4 w-4" aria-hidden="true" />
+            <Icon.add className="h-4 w-4" aria-hidden="true" />
             Add Zone
           </button>
         </div>
@@ -127,7 +128,7 @@ export function ZoneEditorPage() {
                 onClick={() => setShowAdd(true)}
                 className="inline-flex items-center gap-1.5 h-9 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800"
               >
-                <Plus className="h-4 w-4" aria-hidden="true" />
+                <Icon.add className="h-4 w-4" aria-hidden="true" />
                 Add Zone
               </button>
             }

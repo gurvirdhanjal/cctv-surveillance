@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { type ColumnDef } from '@tanstack/react-table'
-import { Users, Plus } from 'lucide-react'
+import { Icon } from '@/shared/design-system/icons'
 import { api } from '@/shared/api/client'
 import type { PersonResponse } from '@/shared/api/types'
 import { EnrolmentWizard } from './components/EnrolmentWizard'
@@ -85,7 +85,7 @@ export function AdminPersonsPage() {
         <PageHeader
           title="Persons"
           actions={
-            <Button onClick={() => setShowEnrol(true)} icon={<Plus className="h-4 w-4" aria-hidden="true" />}>
+            <Button onClick={() => setShowEnrol(true)} icon={<Icon.add className="h-4 w-4" aria-hidden="true" />}>
               Enrol Person
             </Button>
           }
@@ -110,7 +110,7 @@ export function AdminPersonsPage() {
             pageSize={25}
             emptyContent={
               <EmptyState
-                icon={Users}
+                icon={Icon.users}
                 title="No persons enrolled"
                 description="Use the enrolment wizard to add the first person."
                 action={
@@ -119,7 +119,7 @@ export function AdminPersonsPage() {
                     onClick={() => setShowEnrol(true)}
                     className="inline-flex items-center gap-1.5 h-9 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800"
                   >
-                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    <Icon.add className="h-4 w-4" aria-hidden="true" />
                     Enrol Person
                   </button>
                 }

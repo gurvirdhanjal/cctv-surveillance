@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { Users } from 'lucide-react'
+import { Icon } from '@/shared/design-system/icons'
 import { EmptyState } from './EmptyState'
 
 describe('EmptyState', () => {
   it('renders icon, title, and description', () => {
     render(
       <EmptyState
-        icon={Users}
+        icon={Icon.users}
         title="No persons enrolled"
         description="Use the enrolment wizard to add the first person."
       />,
@@ -17,14 +17,14 @@ describe('EmptyState', () => {
   })
 
   it('renders without description', () => {
-    render(<EmptyState icon={Users} title="Nothing here" />)
+    render(<EmptyState icon={Icon.users} title="Nothing here" />)
     expect(screen.getByText('Nothing here')).toBeInTheDocument()
   })
 
   it('renders optional action', () => {
     render(
       <EmptyState
-        icon={Users}
+        icon={Icon.users}
         title="No items"
         action={<button type="button">Add item</button>}
       />,

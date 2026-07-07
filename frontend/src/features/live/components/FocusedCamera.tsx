@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Maximize2, Minimize2, Bookmark, Download } from 'lucide-react'
+import { Maximize2, Minimize2 } from 'lucide-react'
+import { Icon } from '@/shared/design-system/icons'
 import { BoundingBoxOverlay } from './BoundingBoxOverlay'
 import { useHlsStream } from '../hooks/useHlsStream'
 import { useLiveStore } from '../store/liveStore'
@@ -129,7 +130,7 @@ export function FocusedCamera({ cameraId, mjpegUrl }: FocusedCameraProps) {
             aria-label="Bookmark this frame"
             tabIndex={controlsVisible ? 0 : -1}
           >
-            <Bookmark className="h-4 w-4" />
+            <Icon.bookmark className="h-4 w-4" />
           </button>
           <button
             type="button"
@@ -150,7 +151,7 @@ export function FocusedCamera({ cameraId, mjpegUrl }: FocusedCameraProps) {
             aria-label="Export clip"
             tabIndex={controlsVisible ? 0 : -1}
           >
-            <Download className="h-4 w-4" />
+            <Icon.export className="h-4 w-4" />
           </button>
         </div>
       </div>

@@ -1,12 +1,13 @@
-import { Square, Grid2x2, Grid3x3, LayoutGrid } from 'lucide-react'
+import { Grid3x3, LayoutGrid } from 'lucide-react'
+import { Icon } from '@/shared/design-system/icons'
 import { cn } from '@/shared/utils/cn'
 import { useLiveStore } from '../store/liveStore'
 
 const OPTIONS = [
-  { value: 1 as const, Icon: Square, label: '1×1 view' },
-  { value: 4 as const, Icon: Grid2x2, label: '2×2 grid' },
-  { value: 9 as const, Icon: Grid3x3, label: '3×3 grid' },
-  { value: 16 as const, Icon: LayoutGrid, label: '4×4 wall' },
+  { value: 1 as const, Glyph: Icon.zone, label: '1×1 view' },
+  { value: 4 as const, Glyph: Icon.grid, label: '2×2 grid' },
+  { value: 9 as const, Glyph: Grid3x3, label: '3×3 grid' },
+  { value: 16 as const, Glyph: LayoutGrid, label: '4×4 wall' },
 ]
 
 export function GridLayoutSelector() {
@@ -19,7 +20,7 @@ export function GridLayoutSelector() {
       aria-label="Grid layout"
       className="inline-flex rounded-[10px] border border-[#1e293b] bg-[#111827] p-0.5"
     >
-      {OPTIONS.map(({ value, Icon, label }) => {
+      {OPTIONS.map(({ value, Glyph, label }) => {
         const active = gridLayout === value
         return (
           <button
@@ -36,7 +37,7 @@ export function GridLayoutSelector() {
                 : 'text-slate-400 hover:bg-[#1a2234]'
             )}
           >
-            <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+            <Glyph className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
         )
       })}

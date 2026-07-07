@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { type ColumnDef } from '@tanstack/react-table'
-import { Download, FileText, ShieldCheck } from 'lucide-react'
+import { ShieldCheck } from 'lucide-react'
+import { Icon } from '@/shared/design-system/icons'
 import { api } from '@/shared/api/client'
 import type { AuditLogEntry, AuditVerifyResponse } from '@/shared/api/types'
 import { EmptyState } from './components/EmptyState'
@@ -119,7 +120,7 @@ export function AuditLogViewerPage() {
               <Button
                 onClick={handleExport}
                 aria-label="Export audit log PDF"
-                icon={<Download className="h-4 w-4" aria-hidden="true" />}
+                icon={<Icon.export className="h-4 w-4" aria-hidden="true" />}
               >
                 Export PDF
               </Button>
@@ -164,7 +165,7 @@ export function AuditLogViewerPage() {
 
         {!isLoading && entries.length === 0 && (
           <EmptyState
-            icon={FileText}
+            icon={Icon.audit}
             title="No audit entries found."
             description="Events appear here as the system processes requests and state changes."
           />

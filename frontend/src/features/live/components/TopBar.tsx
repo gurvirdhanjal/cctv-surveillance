@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { Search, Users, Bell } from 'lucide-react'
+import { Icon } from '@/shared/design-system/icons'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthStore } from '@/stores/authStore'
 import { useCommandPaletteStore } from '@/stores/commandPaletteStore'
@@ -49,7 +49,7 @@ export function TopBar() {
         aria-label="Search persons"
         aria-expanded={paletteOpen}
       >
-        <Search className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+        <Icon.search className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
         <span className="flex-1 text-left">Search…</span>
         <kbd className="rounded bg-[#232d42] px-1.5 font-mono text-[11px]">⌘K</kbd>
       </button>
@@ -61,7 +61,7 @@ export function TopBar() {
         className="flex items-center gap-1.5 text-slate-400"
         aria-label={`${headCount.total} people on site`}
       >
-        <Users className="h-3.5 w-3.5" aria-hidden="true" />
+        <Icon.users className="h-3.5 w-3.5" aria-hidden="true" />
         <span className="font-mono text-[13px]">{headCount.total}</span>
       </div>
 
@@ -89,7 +89,7 @@ export function TopBar() {
           className="flex items-center gap-1 rounded-full bg-[#dc2626] px-2.5 py-1 text-[13px] font-semibold text-white"
           aria-label={`${activeAlertCount} active alerts`}
         >
-          <Bell className="h-3.5 w-3.5" aria-hidden="true" />
+          <Icon.alert className="h-3.5 w-3.5" aria-hidden="true" />
           {activeAlertCount}
         </span>
       )}

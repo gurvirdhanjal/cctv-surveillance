@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { type ColumnDef } from '@tanstack/react-table'
-import { Bell, Plus } from 'lucide-react'
+import { Icon } from '@/shared/design-system/icons'
 import { api } from '@/shared/api/client'
 import type { AlertRoutingRule } from '@/shared/api/types'
 import { EmptyState } from './components/EmptyState'
@@ -171,7 +171,7 @@ export function AlertRoutingPage() {
         <PageHeader
           title="Alert Routing"
           actions={
-            <Button onClick={() => setShowAdd(true)} icon={<Plus className="h-4 w-4" aria-hidden="true" />}>
+            <Button onClick={() => setShowAdd(true)} icon={<Icon.add className="h-4 w-4" aria-hidden="true" />}>
               Add Rule
             </Button>
           }
@@ -191,11 +191,11 @@ export function AlertRoutingPage() {
 
         {!isLoading && rules.length === 0 && (
           <EmptyState
-            icon={Bell}
+            icon={Icon.alert}
             title="No routing rules configured"
             description="Create a rule to route alerts to email, Slack, Telegram, or webhook."
             action={
-              <Button onClick={() => setShowAdd(true)} icon={<Plus className="h-4 w-4" aria-hidden="true" />}>
+              <Button onClick={() => setShowAdd(true)} icon={<Icon.add className="h-4 w-4" aria-hidden="true" />}>
                 Add Rule
               </Button>
             }

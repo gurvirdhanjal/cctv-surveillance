@@ -4,17 +4,15 @@ import { motion } from 'framer-motion'
 import {
   LayoutDashboard,
   Camera,
-  Users,
   MapPin,
   Zap,
-  Bell,
   Wrench,
   Cpu,
   UserCog,
-  FileText,
   LogOut,
   ExternalLink,
 } from 'lucide-react'
+import { Icon } from '@/shared/design-system/icons'
 
 function VmsLogo() {
   return (
@@ -60,7 +58,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     group: 'People',
     items: [
-      { to: '/admin/persons', label: 'Persons', icon: Users, end: false },
+      { to: '/admin/persons', label: 'Persons', icon: Icon.users, end: false },
       { to: '/admin/zones', label: 'Zones', icon: MapPin, end: false },
     ],
   },
@@ -68,7 +66,7 @@ const NAV_SECTIONS: NavSection[] = [
     group: 'Operations',
     items: [
       { to: '/admin/anomaly-detectors', label: 'Anomaly Detectors', icon: Zap, end: false },
-      { to: '/admin/alert-routing', label: 'Alert Routing', icon: Bell, end: false },
+      { to: '/admin/alert-routing', label: 'Alert Routing', icon: Icon.alert, end: false },
       { to: '/admin/maintenance', label: 'Maintenance', icon: Wrench, end: false },
     ],
   },
@@ -77,7 +75,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: '/admin/models', label: 'Models', icon: Cpu, end: false },
       { to: '/admin/users', label: 'Users', icon: UserCog, end: false },
-      { to: '/admin/audit', label: 'Audit Log', icon: FileText, end: false },
+      { to: '/admin/audit', label: 'Audit Log', icon: Icon.audit, end: false },
     ],
   },
 ]
