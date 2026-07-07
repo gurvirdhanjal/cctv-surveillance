@@ -45,6 +45,41 @@ describe('Button', () => {
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
   })
 
+  it('renders icon variant (square 32px, no padding)', () => {
+    render(<Button variant="icon" aria-label="Settings"><span>⚙</span></Button>)
+    const btn = screen.getByRole('button', { name: 'Settings' })
+    // icon variant applies h-8 w-8 p-0 (square, no text padding)
+    expect(btn.className).toContain('h-8')
+    expect(btn.className).toContain('w-8')
+  })
+
+  it('renders toolbar variant (32px height, sm radius)', () => {
+    render(<Button variant="toolbar" aria-label="Filter">Filter</Button>)
+    const btn = screen.getByRole('button', { name: 'Filter' })
+    // toolbar variant applies h-8 rounded-sm
+    expect(btn.className).toContain('h-8')
+    expect(btn.className).toContain('rounded-sm')
+  })
+
+  it('renders split variant with onPrimary', async () => {
+    const onPrimary = vi.fn()
+    render(
+      <Button variant="split" onPrimary={onPrimary} menuItems={[]}>
+        Export
+      </Button>
+    )
+    const btn = screen.getByRole('button', { name: /export/i })
+    await userEvent.click(btn)
+    expect(onPrimary).toHaveBeenCalledOnce()
+  })
+
+  it('focus ring uses --focus-ring (charcoal), not brand brass', () => {
+    const { container } = render(<Button>Save</Button>)
+    const btn = container.querySelector('button')!
+    expect(btn.className).not.toMatch(/brand/)
+    expect(btn.className).toContain('focus-ring') // maps to --focus-ring
+  })
+
   it('is accessible (no axe violations)', async () => {
     const { container } = render(
       <div>
