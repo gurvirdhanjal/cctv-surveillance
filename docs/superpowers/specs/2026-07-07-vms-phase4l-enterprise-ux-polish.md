@@ -182,7 +182,7 @@ grid, list, pin`.
 | Layer | Token | z-index | background token | shadow token |
 |---|---|---|---|---|
 | 0 Background | `--elev-bg` | `0` | `--surface-sunken` | none |
-| 1 Surface | `--elev-surface` | `0` | `--surface-default` | `--shadow-1` |
+| 1 Surface | `--elev-surface` | `0` | `--surface-base` | `--shadow-1` |
 | 2 Raised Card | `--elev-raised` | `1` | `--surface-raised` | `--shadow-2` |
 | 3 Selected Card | `--elev-selected` | `2` | `--surface-raised` | `--shadow-2` + selection ring |
 | 4 Floating Toolbar | `--elev-toolbar` | `40` | `--surface-raised` | `--shadow-3` |
@@ -366,20 +366,49 @@ new className/style.
 **Animation durations:** `--dur-fast:80ms; --dur-normal:120ms; --dur-slow:180ms;
 --dur-xslow:300ms;`
 
-**Shadows (exact rgba, light theme; dark theme uses black at higher alpha):**
-```
+**Shadows.** §G supersedes the existing `--shadow-1/2/3` values in `index.css`
+(which use pure-black rgba and lack a 4th tier). The new values use slate-900
+rgb(15,23,42) for crisper falloff on light surfaces. The `index.css` values must be
+replaced in the §G implementation commit; keeping both would create two competing
+definitions of the same token name.
+
+Light theme (exact):
+```css
 --shadow-1: 0 1px 2px rgba(15, 23, 42, 0.06);
 --shadow-2: 0 2px 6px rgba(15, 23, 42, 0.10);
 --shadow-3: 0 8px 24px rgba(15, 23, 42, 0.14);
 --shadow-4: 0 16px 48px rgba(15, 23, 42, 0.20);
 ```
-
-**Interaction states:**
+Dark theme (exact; added inside `[data-theme="dark"]` block):
+```css
+--shadow-1: 0 1px 3px rgba(0, 0, 0, 0.25);
+--shadow-2: 0 2px 8px rgba(0, 0, 0, 0.40);
+--shadow-3: 0 8px 24px rgba(0, 0, 0, 0.55);
+--shadow-4: 0 16px 48px rgba(0, 0, 0, 0.65);
 ```
---state-focus-ring:   0 0 0 2px var(--surface-default), 0 0 0 4px var(--brand-accent);
---state-selection:    inset 0 0 0 2px var(--brand-accent);
---state-hover-overlay: rgba(15, 23, 42, 0.04);   /* dark: rgba(255,255,255,0.06) */
---state-pressed-overlay: rgba(15, 23, 42, 0.08); /* dark: rgba(255,255,255,0.10) */
+
+**Interaction states.**
+
+Focus ring uses the existing neutral `--focus-ring` token (charcoal `#1e293b` light /
+slate-400 `#94a3b8` dark) — **not** brand brass. Brass is logo + nav only (see
+Preface inviolable constraints); putting brass on focus rings of every button, input,
+and table row would violate that rule and also introduces a competing `:focus-visible`
+treatment alongside the `--focus-ring` token already live in `index.css`. The two
+tokens (`--focus-ring` for the ring color, `--state-focus-ring` for the full
+box-shadow shorthand) are complementary: `--state-focus-ring` composes the outer
+halo geometry; its color comes from `--focus-ring`.
+
+`--state-selection` (selected table rows, active nav items) is also neutral — brass
+selections outside nav items contradict the three-tier rule. Nav active indicator
+uses the `borderLeft: var(--brand-accent)` motion pill (already live in AdminLayout),
+not this token.
+
+```css
+/* composable box-shadow shorthand — color from --focus-ring, not --brand-accent */
+--state-focus-ring:      0 0 0 2px var(--surface-base), 0 0 0 4px var(--focus-ring);
+--state-selection:       inset 0 0 0 2px var(--border-strong);
+--state-hover-overlay:   rgba(15, 23, 42, 0.04);   /* dark: rgba(255,255,255,0.06) */
+--state-pressed-overlay: rgba(15, 23, 42, 0.08);   /* dark: rgba(255,255,255,0.10) */
 ```
 
 **Acceptance criteria.**
@@ -818,6 +847,17 @@ admin/analytics/forensic pages.
 - [ ] CI `Grep` finds no icon import outside the registry (dup of §B check).
 - [ ] Review checklist item added: "≤3 accents, ≥8px gaps, no orphan buttons" — a
       documented gate in the PR template for `frontend/` changes.
+
+**Note on §K status hues and visual restraint.** The "≤3 accents" rule applies to
+*interactive accent fills* — it is not violated by §K's 9-hue status palette because
+those hues appear as small badge fills and dots, never on buttons/toggles. However,
+the rule alone does not guarantee a restrained-feeling `/live` grid: a 52-camera
+board where most cameras have different statuses *will* look hue-heavy even if it is
+rule-compliant. Mitigations: (1) status badge sizes should be small (16–18px dot +
+text, not large colored chips), (2) only show expanded status detail on hover or in
+the sidebar, not on every card simultaneously, (3) do a visual gut-check once §I
+ships with real camera data before concluding the restraint goal is met. Add this
+gut-check as a 4M acceptance criterion.
 
 ---
 
