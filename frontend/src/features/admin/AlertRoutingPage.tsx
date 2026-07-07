@@ -1,14 +1,19 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { type ColumnDef } from '@tanstack/react-table'
 import { Bell, Plus } from 'lucide-react'
 import { api } from '@/shared/api/client'
 import type { AlertRoutingRule } from '@/shared/api/types'
 import { EmptyState } from './components/EmptyState'
 import { SkeletonTable } from '@/shared/design-system/components/Skeleton'
+import { PageHeader } from '@/shared/design-system/components/PageHeader'
+import { Button } from '@/shared/design-system/components/Button'
+import { DataTable } from '@/shared/design-system/components/DataTable'
+import { Switch } from '@/shared/design-system/components/ui/Switch'
 
 const routingSchema = z
   .object({
@@ -89,21 +94,88 @@ export function AlertRoutingPage() {
 
   const channel = watch('channel')
 
+  const columns = useMemo<ColumnDef<AlertRoutingRule, unknown>[]>(
+    () => [
+      {
+        accessorKey: 'channel',
+        header: 'Channel',
+        cell: ({ getValue }) => {
+          const ch = getValue() as string
+          return (
+            <span
+              className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ${
+                CHANNEL_BADGE[ch] ?? 'bg-surface-sunken text-text-muted'
+              }`}
+            >
+              {ch}
+            </span>
+          )
+        },
+      },
+      {
+        accessorKey: 'target',
+        header: 'Target',
+        cell: ({ getValue }) => (
+          <span className="font-mono text-[12px] text-text-secondary max-w-xs truncate block">
+            {getValue() as string}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'alert_type',
+        header: 'Alert Type',
+        cell: ({ getValue }) => (
+          <span className="text-[13px] text-text-secondary">
+            {(getValue() as string | null) ?? 'All'}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'is_active',
+        header: 'Active',
+        enableSorting: false,
+        cell: ({ row }) => (
+          <Switch
+            checked={row.original.is_active}
+            onCheckedChange={(checked) =>
+              toggleMutation.mutate({ id: row.original.routing_id, active: checked })
+            }
+            disabled={toggleMutation.isPending}
+            aria-label={`${row.original.is_active ? 'Deactivate' : 'Activate'} rule ${row.original.routing_id}`}
+          />
+        ),
+      },
+      {
+        id: 'actions',
+        header: '',
+        enableSorting: false,
+        cell: ({ row }) => (
+          <button
+            type="button"
+            aria-label={`Delete rule ${row.original.routing_id}`}
+            onClick={() => deleteMutation.mutate(row.original.routing_id)}
+            className="rounded-[10px] px-2 py-1 text-[13px] text-error hover:bg-error/10 transition-colors"
+          >
+            Delete
+          </button>
+        ),
+      },
+    ],
+    [toggleMutation, deleteMutation],
+  )
+
   return (
     <>
       <Helmet title="Alert Routing — Admin" />
       <div className="p-6">
-        <div className="mb-5 flex items-center justify-between">
-          <h1 className="text-[22px] font-bold text-text-primary">Alert Routing</h1>
-          <button
-            type="button"
-            onClick={() => setShowAdd(true)}
-            className="inline-flex items-center gap-1.5 h-10 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
-          >
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            Add Rule
-          </button>
-        </div>
+        <PageHeader
+          title="Alert Routing"
+          actions={
+            <Button onClick={() => setShowAdd(true)} icon={<Plus className="h-4 w-4" aria-hidden="true" />}>
+              Add Rule
+            </Button>
+          }
+        />
 
         {(deleteMutation.isError || toggleMutation.isError) && (
           <p role="alert" className="mb-3 text-[13px] text-error">
@@ -123,90 +195,20 @@ export function AlertRoutingPage() {
             title="No routing rules configured"
             description="Create a rule to route alerts to email, Slack, Telegram, or webhook."
             action={
-              <button
-                type="button"
-                onClick={() => setShowAdd(true)}
-                className="inline-flex items-center gap-1.5 h-9 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800"
-              >
-                <Plus className="h-4 w-4" aria-hidden="true" />
+              <Button onClick={() => setShowAdd(true)} icon={<Plus className="h-4 w-4" aria-hidden="true" />}>
                 Add Rule
-              </button>
+              </Button>
             }
           />
         )}
 
         {!isLoading && rules.length > 0 && (
-          <div className="rounded-xl border border-border overflow-hidden">
-            <table className="w-full text-[14px]">
-              <thead className="bg-surface-sunken border-b border-border">
-                <tr>
-                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
-                    Channel
-                  </th>
-                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
-                    Target
-                  </th>
-                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
-                    Alert Type
-                  </th>
-                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
-                    Active
-                  </th>
-                  <th className="px-4 py-2" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {rules.map((r) => (
-                  <tr key={r.routing_id} className="hover:bg-surface-raised">
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ${
-                          CHANNEL_BADGE[r.channel] ?? 'bg-surface-sunken text-text-muted'
-                        }`}
-                      >
-                        {r.channel}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-[12px] text-text-secondary max-w-xs truncate">
-                      {r.target}
-                    </td>
-                    <td className="px-4 py-3 text-[13px] text-text-secondary">{r.alert_type ?? 'All'}</td>
-                    <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={r.is_active}
-                        aria-label={`${r.is_active ? 'Deactivate' : 'Activate'} rule ${r.routing_id}`}
-                        onClick={() =>
-                          toggleMutation.mutate({ id: r.routing_id, active: !r.is_active })
-                        }
-                        disabled={toggleMutation.isPending}
-                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-action-700 focus-visible:ring-offset-1 disabled:opacity-50 ${
-                          r.is_active ? 'bg-action-700' : 'bg-surface-sunken border border-border'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
-                            r.is_active ? 'translate-x-4' : 'translate-x-0.5'
-                          }`}
-                        />
-                      </button>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        type="button"
-                        aria-label={`Delete rule ${r.routing_id}`}
-                        onClick={() => deleteMutation.mutate(r.routing_id)}
-                        className="rounded-[10px] px-2 py-1 text-[13px] text-error hover:bg-error/10 transition-colors"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            columns={columns}
+            data={rules}
+            filterPlaceholder="Filter routing rules…"
+            pageSize={20}
+          />
         )}
       </div>
 

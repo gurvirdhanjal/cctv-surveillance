@@ -145,6 +145,60 @@
   animation: logo-glow 2.5s ease-in-out infinite;
 }
 
+/* ─── shadcn/ui compatibility layer ─────────────────────────────── */
+/*
+ * shadcn primitives reference generic CSS var names (--primary, --background,
+ * etc.). Every value here is a pointer into a VMS design-system token.
+ * No literal colors. VMS tokens are declared above and always win.
+ * Dark values use [data-theme="dark"] — NOT .dark — to match VMS theme system.
+ */
+@layer base {
+  :root {
+    --background:          var(--surface-base);
+    --foreground:          var(--text-primary);
+    --card:                var(--surface-base);
+    --card-foreground:     var(--text-primary);
+    --popover:             var(--surface-base);
+    --popover-foreground:  var(--text-primary);
+    --muted:               var(--surface-sunken);
+    --muted-foreground:    var(--text-muted);
+    --accent:              var(--surface-raised);
+    --accent-foreground:   var(--text-primary);
+    --border:              var(--border-default);
+    --input:               var(--border-default);
+    --ring:                var(--interactive-primary);  /* charcoal focus ring */
+    --primary:             var(--interactive-primary);  /* action-700 charcoal */
+    --primary-foreground:  var(--text-inverse);
+    --secondary:           var(--surface-sunken);
+    --secondary-foreground: var(--text-primary);
+    --destructive:         var(--destructive);          /* #dc2626 severity only */
+    --destructive-foreground: var(--text-inverse);
+    --radius:              0.625rem;                    /* 10px button/input radius */
+  }
+
+  [data-theme='dark'] {
+    --background:          var(--surface-base);
+    --foreground:          var(--text-primary);
+    --card:                var(--surface-raised);
+    --card-foreground:     var(--text-primary);
+    --popover:             var(--surface-raised);
+    --popover-foreground:  var(--text-primary);
+    --muted:               var(--surface-sunken);
+    --muted-foreground:    var(--text-muted);
+    --accent:              var(--surface-raised);
+    --accent-foreground:   var(--text-primary);
+    --border:              var(--border-default);
+    --input:               var(--border-default);
+    --ring:                var(--focus-ring);           /* slate-400 on dark */
+    --primary:             #334155;                     /* action-600 — visible on dark */
+    --primary-foreground:  var(--text-inverse);
+    --secondary:           var(--surface-sunken);
+    --secondary-foreground: var(--text-primary);
+    --destructive:         var(--destructive);
+    --destructive-foreground: var(--text-inverse);
+  }
+}
+
 /* ─── Base layer ─────────────────────────────────────────────────── */
 @layer base {
   *,

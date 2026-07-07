@@ -2,6 +2,8 @@ import type { Config } from 'tailwindcss'
 
 const config: Config = {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
+  // Use VMS data-theme attribute so shadcn dark: utilities align with our theme system
+  darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
     extend: {
       fontFamily: {

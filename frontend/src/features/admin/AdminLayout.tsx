@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
+import { motion } from 'framer-motion'
 import {
   LayoutDashboard,
   Camera,
@@ -133,15 +134,27 @@ export function AdminLayout() {
                     to={to}
                     end={end}
                     className={({ isActive }) =>
-                      `mx-2 flex items-center gap-2.5 rounded-md py-2 text-[13px] font-medium transition-colors duration-fast border-l-[3px] ${
+                      `relative mx-2 flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-medium transition-colors duration-fast ${
                         isActive
-                          ? 'border-[var(--brand-accent)] bg-surface-sunken text-text-primary pl-[calc(0.75rem_-_3px)] pr-3'
-                          : 'border-transparent px-3 text-text-secondary hover:bg-surface-sunken hover:text-text-primary'
+                          ? 'text-text-primary'
+                          : 'text-text-secondary hover:bg-surface-sunken hover:text-text-primary'
                       }`
                     }
                   >
-                    <Icon className="h-[15px] w-[15px] shrink-0" aria-hidden="true" />
-                    {label}
+                    {({ isActive }) => (
+                      <>
+                        {isActive && (
+                          <motion.span
+                            layoutId="admin-nav-active"
+                            className="absolute inset-0 rounded-md bg-surface-sunken"
+                            style={{ borderLeft: '3px solid var(--brand-accent)' }}
+                            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                          />
+                        )}
+                        <Icon className="relative h-[15px] w-[15px] shrink-0" aria-hidden="true" />
+                        <span className="relative">{label}</span>
+                      </>
+                    )}
                   </NavLink>
                 ))}
               </div>

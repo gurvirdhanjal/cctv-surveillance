@@ -4,20 +4,6 @@ import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { HelmetProvider } from 'react-helmet-async'
 
-vi.mock('@tanstack/react-virtual', () => ({
-  useVirtualizer: vi.fn(({ count }: { count: number }) => ({
-    getVirtualItems: () =>
-      Array.from({ length: count }, (_, i) => ({
-        key: i,
-        index: i,
-        start: i * 52,
-        size: 52,
-      })),
-    getTotalSize: () => count * 52,
-    measureElement: vi.fn(),
-  })),
-}))
-
 vi.mock('@/shared/api/client', () => ({ api: { get: vi.fn() } }))
 
 vi.mock('./components/EnrolmentWizard', () => ({
@@ -65,11 +51,11 @@ describe('AdminPersonsPage', () => {
     vi.mocked(api.get).mockReset()
   })
 
-  it('renders page heading and search input', () => {
+  it('renders page heading and filter input', async () => {
     vi.mocked(api.get).mockResolvedValue([])
     renderPage()
     expect(screen.getByRole('heading', { name: 'Persons' })).toBeInTheDocument()
-    expect(screen.getByRole('searchbox', { name: 'Search persons' })).toBeInTheDocument()
+    expect(await screen.findByRole('searchbox', { name: 'Filter by name or employee ID…' })).toBeInTheDocument()
   })
 
   it('renders Enrol Person button', () => {
@@ -110,7 +96,7 @@ describe('AdminPersonsPage', () => {
   it('shows empty state when no persons', async () => {
     vi.mocked(api.get).mockResolvedValue([])
     renderPage()
-    expect(await screen.findByText('No persons found.')).toBeInTheDocument()
+    expect(await screen.findByText('No persons enrolled')).toBeInTheDocument()
   })
 
   it('shows error state when fetch fails', async () => {

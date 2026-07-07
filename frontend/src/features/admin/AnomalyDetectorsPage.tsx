@@ -1,10 +1,15 @@
+import { useMemo } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { type ColumnDef } from '@tanstack/react-table'
 import { Zap } from 'lucide-react'
 import { api } from '@/shared/api/client'
 import type { AnomalyDetector } from '@/shared/api/types'
 import { EmptyState } from './components/EmptyState'
 import { SkeletonTable } from '@/shared/design-system/components/Skeleton'
+import { PageHeader } from '@/shared/design-system/components/PageHeader'
+import { DataTable } from '@/shared/design-system/components/DataTable'
+import { Switch } from '@/shared/design-system/components/ui/Switch'
 
 export function AnomalyDetectorsPage() {
   const queryClient = useQueryClient()
@@ -22,11 +27,57 @@ export function AnomalyDetectorsPage() {
     },
   })
 
+  const columns = useMemo<ColumnDef<AnomalyDetector, unknown>[]>(
+    () => [
+      {
+        accessorKey: 'alert_type',
+        header: 'Alert Type',
+        cell: ({ getValue }) => (
+          <span className="font-medium text-text-primary">{getValue() as string}</span>
+        ),
+      },
+      {
+        accessorKey: 'class_path',
+        header: 'Class',
+        cell: ({ getValue }) => (
+          <span className="font-mono text-[12px] text-text-secondary">
+            {(getValue() as string).split('.').pop()}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'model_version',
+        header: 'Model Version',
+        cell: ({ getValue }) => (
+          <span className="font-mono text-[12px] text-text-secondary">
+            {(getValue() as string | null) ?? '—'}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'is_enabled',
+        header: 'Enabled',
+        enableSorting: false,
+        cell: ({ row }) => (
+          <Switch
+            checked={row.original.is_enabled}
+            onCheckedChange={(checked) =>
+              toggleMutation.mutate({ detectorId: row.original.detector_id, enabled: checked })
+            }
+            disabled={toggleMutation.isPending}
+            aria-label={`${row.original.is_enabled ? 'Disable' : 'Enable'} ${row.original.alert_type}`}
+          />
+        ),
+      },
+    ],
+    [toggleMutation],
+  )
+
   return (
     <>
       <Helmet title="Anomaly Detectors — Admin" />
       <div className="p-6">
-        <h1 className="mb-5 text-[22px] font-bold text-text-primary">Anomaly Detectors</h1>
+        <PageHeader title="Anomaly Detectors" />
 
         {toggleMutation.isError && (
           <p role="alert" className="mb-3 text-[13px] text-error">
@@ -49,63 +100,12 @@ export function AnomalyDetectorsPage() {
         )}
 
         {!isLoading && detectors.length > 0 && (
-          <div className="rounded-xl border border-border overflow-hidden">
-            <table className="w-full text-[14px]">
-              <thead className="bg-surface-sunken border-b border-border">
-                <tr>
-                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
-                    Alert Type
-                  </th>
-                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
-                    Class
-                  </th>
-                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
-                    Model Version
-                  </th>
-                  <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
-                    Enabled
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {detectors.map((d) => (
-                  <tr key={d.detector_id} className="hover:bg-surface-raised">
-                    <td className="px-4 py-3 font-medium text-text-primary">{d.alert_type}</td>
-                    <td className="px-4 py-3 font-mono text-[12px] text-text-secondary">
-                      {d.class_path.split('.').pop()}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-[12px] text-text-secondary">
-                      {d.model_version ?? '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={d.is_enabled}
-                        aria-label={`${d.is_enabled ? 'Disable' : 'Enable'} ${d.alert_type}`}
-                        onClick={() =>
-                          toggleMutation.mutate({
-                            detectorId: d.detector_id,
-                            enabled: !d.is_enabled,
-                          })
-                        }
-                        disabled={toggleMutation.isPending}
-                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-action-700 focus-visible:ring-offset-1 disabled:opacity-50 ${
-                          d.is_enabled ? 'bg-action-700' : 'bg-surface-sunken border border-border'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
-                            d.is_enabled ? 'translate-x-4' : 'translate-x-0.5'
-                          }`}
-                        />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            columns={columns}
+            data={detectors}
+            filterPlaceholder="Filter detectors…"
+            pageSize={20}
+          />
         )}
       </div>
     </>
