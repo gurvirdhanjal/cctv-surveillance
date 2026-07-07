@@ -4,6 +4,7 @@ import { Cpu } from 'lucide-react'
 import { api } from '@/shared/api/client'
 import type { ProfileResponse } from '@/shared/api/types'
 import { EmptyState } from '../components/EmptyState'
+import { Skeleton, SkeletonText } from '@/shared/design-system/components/Skeleton'
 
 interface Props {
   cameraId: number
@@ -39,7 +40,7 @@ export function HardwareTab({ cameraId }: Props) {
         <button
           type="button"
           onClick={() => setShowConfirm(true)}
-          className="inline-flex items-center gap-1.5 h-9 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+          className="inline-flex items-center gap-1.5 h-9 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
         >
           <Cpu className="h-4 w-4" aria-hidden="true" />
           Run Profiler
@@ -47,9 +48,12 @@ export function HardwareTab({ cameraId }: Props) {
       </div>
 
       {isLoading && (
-        <p role="status" aria-label="Loading profile" className="text-[14px] text-text-muted">
-          Loading…
-        </p>
+        <div role="status" aria-label="Loading profile">
+          <div className="space-y-4">
+            <Skeleton className="h-48 w-full" />
+            <SkeletonText lines={4} />
+          </div>
+        </div>
       )}
 
       {!isLoading && !pd && (
@@ -142,7 +146,7 @@ export function HardwareTab({ cameraId }: Props) {
                 type="button"
                 onClick={() => profileMutation.mutate()}
                 disabled={profileMutation.isPending}
-                className="h-10 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                className="h-10 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
               >
                 {profileMutation.isPending ? 'Running…' : 'Run'}
               </button>

@@ -88,6 +88,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from vms.api.deps import get_api_redis
     from vms.dispatcher.worker import AlertDispatcher
 
+    try:
+        ensure_future_partitions(engine, months_ahead=3)
+    except Exception:
+        logger.warning("Could not create tracking_events partitions on startup — DB may not be ready yet", exc_info=True)
+
     redis = get_api_redis()
     dispatcher = AlertDispatcher.from_settings(
         redis=redis,
@@ -137,13 +142,7 @@ app.include_router(forensic.router, prefix="/api")
 app.mount("/metrics", make_asgi_app())
 
 
-def _call_ensure_future_partitions() -> None:
-    """Create monthly tracking_events partitions for current month + 3 months ahead."""
-    ensure_future_partitions(engine, months_ahead=3)
-
-
 _apply_media_mount(app, get_settings())
-_call_ensure_future_partitions()
 _apply_spa_mount(app, get_settings())
 
 # Combined ASGI app: socket.io intercepts /socket.io/* paths; all others go to FastAPI.

@@ -96,7 +96,7 @@ export function EnrolmentWizard({ onDone, onCancel }: Props) {
               key={label}
               className={`flex-1 text-center text-[12px] py-1 rounded ${
                 i === step
-                  ? 'bg-brand-500 text-white font-medium'
+                  ? 'bg-action-700 text-white font-medium'
                   : i < step
                     ? 'bg-brand-100 text-brand-700'
                     : 'bg-surface-sunken text-text-muted'
@@ -163,7 +163,7 @@ export function EnrolmentWizard({ onDone, onCancel }: Props) {
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 text-[14px] rounded bg-brand-500 text-white hover:bg-brand-600 disabled:opacity-50"
+                className="px-4 py-2 text-[14px] rounded bg-action-700 text-white hover:bg-action-800 disabled:opacity-50"
               >
                 Next
               </button>
@@ -194,7 +194,7 @@ export function EnrolmentWizard({ onDone, onCancel }: Props) {
               <button
                 type="button"
                 onClick={handleNext}
-                className="px-4 py-2 text-[14px] rounded bg-brand-500 text-white hover:bg-brand-600"
+                className="px-4 py-2 text-[14px] rounded bg-action-700 text-white hover:bg-action-800"
               >
                 Next
               </button>
@@ -221,7 +221,7 @@ export function EnrolmentWizard({ onDone, onCancel }: Props) {
               <button
                 type="button"
                 onClick={handleNext}
-                className="px-4 py-2 text-[14px] rounded bg-brand-500 text-white hover:bg-brand-600"
+                className="px-4 py-2 text-[14px] rounded bg-action-700 text-white hover:bg-action-800"
               >
                 Next
               </button>
@@ -258,7 +258,7 @@ export function EnrolmentWizard({ onDone, onCancel }: Props) {
                 type="button"
                 onClick={handleFinalSave}
                 disabled={enrolMutation.isPending}
-                className="px-4 py-2 text-[14px] rounded bg-brand-500 text-white hover:bg-brand-600 disabled:opacity-50"
+                className="px-4 py-2 text-[14px] rounded bg-action-700 text-white hover:bg-action-800 disabled:opacity-50"
               >
                 {enrolMutation.isPending ? 'Saving…' : 'Save'}
               </button>

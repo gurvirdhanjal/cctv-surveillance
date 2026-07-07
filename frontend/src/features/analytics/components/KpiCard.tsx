@@ -9,7 +9,7 @@
 export function KpiCard({ label, value, unit, loading = false, error = false }: KpiCardProps) {
   return (
     <div
-      className="rounded-lg border border bg-surface-base p-4 shadow-1"
+      className="rounded-lg border border bg-surface-base p-4 shadow-1 hover:shadow-2 transition-shadow duration-fast"
       aria-label={label}
     >
       <p className="text-[12px] font-medium uppercase tracking-wider text-text-muted">{label}</p>

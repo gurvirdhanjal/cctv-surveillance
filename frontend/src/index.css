@@ -24,8 +24,19 @@
   --severity-low: #65a30d;
 }
 
+/* ─── Motion / duration (theme-invariant) ───────────────────────── */
+:root {
+  --duration-fast:     100ms;
+  --duration-quick:    120ms;
+  --duration-base:     180ms;
+  --duration-slow:     200ms;
+  --duration-flash:    600ms;
+  --easing-standard:   cubic-bezier(0.4, 0, 0.2, 1);
+  --easing-emphasized: cubic-bezier(0.2, 0, 0, 1);
+}
+
 /* ─── Light theme (default / Manager / Admin) ────────────────────── */
-:root[data-theme='light'] {
+[data-theme='light'] {
   --text-primary: #0f172a;
   --text-secondary: #475569;
   --text-muted: #94a3b8;
@@ -38,9 +49,11 @@
   --border-default: #e2e8f0;
   --border-strong: #cbd5e1;
 
-  --focus-ring: #2b6cb0;
-  --interactive-hover: #1a4480;
-  --interactive-active: #102a4c;
+  --brand-accent: #c0392b;
+  --interactive-primary: #1e293b;
+  --focus-ring: #1e293b;
+  --interactive-hover: #0f172a;
+  --interactive-active: #020617;
   --disabled-bg: #e2e8f0;
   --disabled-text: #94a3b8;
 
@@ -59,7 +72,7 @@
   --error: #dc2626;
 
   --overlay-scrim: rgba(15, 23, 42, 0.45);
-  --selected-row: #eef6ff;
+  --selected-row: #f1f5f9;
 
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.06);
   --shadow-2: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -69,7 +82,7 @@
 }
 
 /* ─── Dark theme (Guard / control-room) ─────────────────────────── */
-:root[data-theme='dark'] {
+[data-theme='dark'] {
   --text-primary: #f3f4f6;
   --text-secondary: #9ca3af;
   --text-muted: #6b7280;
@@ -82,7 +95,7 @@
   --border-default: #1f2937;
   --border-strong: #374151;
 
-  --focus-ring: #7eb0ff;
+  --focus-ring: #94a3b8;
   --interactive-hover: #3b82f6;
   --interactive-active: #2b6cb0;
   --disabled-bg: #1f2937;
@@ -103,7 +116,7 @@
   --error: #ef4444;
 
   --overlay-scrim: rgba(2, 6, 23, 0.7);
-  --selected-row: #0a1c33;
+  --selected-row: #1e293b;
 
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.024);
   --shadow-2: 0 4px 6px rgba(0, 0, 0, 0.04);
@@ -121,6 +134,15 @@
 
 .animate-status-pulse {
   animation: status-pulse 2s ease-in-out infinite;
+}
+
+@keyframes logo-glow {
+  0%, 100% { box-shadow: 0 0 4px 1px rgba(192, 57, 43, 0.45); }
+  50%       { box-shadow: 0 0 12px 4px rgba(192, 57, 43, 0.75), 0 0 24px 8px rgba(192, 57, 43, 0.2); }
+}
+
+.animate-logo-glow {
+  animation: logo-glow 2.5s ease-in-out infinite;
 }
 
 /* ─── Base layer ─────────────────────────────────────────────────── */

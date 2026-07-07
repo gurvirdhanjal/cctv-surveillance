@@ -25,7 +25,7 @@ export const PersonDot = memo(function PersonDot({ location }: PersonDotProps) {
       }}
       className={cn(
         'h-3 w-3 rounded-full border-2 border-white',
-        isKnown ? 'bg-brand-500' : 'bg-severity-critical',
+        isKnown ? 'bg-action-700' : 'bg-severity-critical',
       )}
       aria-label={isKnown ? `Person #${person_id}` : 'Unknown person'}
       role="img"

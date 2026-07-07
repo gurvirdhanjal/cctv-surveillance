@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { CronExpressionParser } from 'cron-parser'
 import { api } from '@/shared/api/client'
 import type { MaintenanceWindow } from '@/shared/api/types'
+import { SkeletonTable } from '@/shared/design-system/components/Skeleton'
 
 function getNextFirings(cronExpr: string, n = 3): string[] {
   try {
@@ -110,7 +111,7 @@ export function MaintenanceCalendarPage() {
           <button
             type="button"
             onClick={() => setShowCreate(true)}
-            className="px-4 py-2 text-[14px] rounded bg-brand-500 text-white hover:bg-brand-600"
+            className="px-4 py-2 text-[14px] rounded bg-action-700 text-white hover:bg-action-800"
           >
             Schedule Window
           </button>
@@ -123,9 +124,9 @@ export function MaintenanceCalendarPage() {
         )}
 
         {isLoading && (
-          <p role="status" aria-label="Loading maintenance windows">
-            Loading…
-          </p>
+          <div role="status" aria-label="Loading maintenance windows">
+            <SkeletonTable rows={5} />
+          </div>
         )}
 
         {!isLoading && (
@@ -285,7 +286,7 @@ export function MaintenanceCalendarPage() {
                           onClick={() => field.onChange('ONE_TIME')}
                           className={`px-4 py-2 text-[13px] rounded border transition-colors ${
                             field.value === 'ONE_TIME'
-                              ? 'bg-brand-500 text-white border-brand-500'
+                              ? 'bg-action-700 text-white border-action-700'
                               : 'border-border text-text-secondary hover:text-text-primary'
                           }`}
                         >
@@ -297,7 +298,7 @@ export function MaintenanceCalendarPage() {
                           onClick={() => field.onChange('RECURRING')}
                           className={`px-4 py-2 text-[13px] rounded border transition-colors ${
                             field.value === 'RECURRING'
-                              ? 'bg-brand-500 text-white border-brand-500'
+                              ? 'bg-action-700 text-white border-action-700'
                               : 'border-border text-text-secondary hover:text-text-primary'
                           }`}
                         >
@@ -425,7 +426,7 @@ export function MaintenanceCalendarPage() {
                 <button
                   type="submit"
                   disabled={createMutation.isPending}
-                  className="px-4 py-2 text-[14px] rounded bg-brand-500 text-white hover:bg-brand-600 disabled:opacity-50"
+                  className="px-4 py-2 text-[14px] rounded bg-action-700 text-white hover:bg-action-800 disabled:opacity-50"
                 >
                   {createMutation.isPending ? 'Scheduling…' : 'Schedule'}
                 </button>

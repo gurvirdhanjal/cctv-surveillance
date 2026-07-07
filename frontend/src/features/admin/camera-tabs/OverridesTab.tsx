@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/shared/api/client'
 import type { ResolvedConfigResponse } from '@/shared/api/types'
+import { SkeletonTable } from '@/shared/design-system/components/Skeleton'
 
 interface Props {
   cameraId: number
@@ -88,9 +89,9 @@ export function OverridesTab({ cameraId }: Props) {
       </div>
 
       {isLoading && (
-        <p role="status" aria-label="Loading overrides" className="text-[14px] text-text-muted">
-          Loading…
-        </p>
+        <div role="status" aria-label="Loading overrides">
+          <SkeletonTable rows={4} />
+        </div>
       )}
 
       {!isLoading && (
@@ -190,7 +191,7 @@ export function OverridesTab({ cameraId }: Props) {
               type="button"
               onClick={handleAddOverride}
               disabled={saveMutation.isPending}
-              className="h-9 rounded-[10px] bg-brand-500 px-3 text-[13px] font-medium text-white hover:bg-brand-700 disabled:opacity-40"
+              className="h-9 rounded-[10px] bg-action-700 px-3 text-[13px] font-medium text-white hover:bg-action-800 disabled:opacity-40"
             >
               {saveMutation.isPending ? 'Saving…' : 'Save'}
             </button>

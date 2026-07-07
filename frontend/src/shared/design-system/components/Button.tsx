@@ -6,7 +6,7 @@ import { Spinner } from './Spinner'
 const buttonVariants = cva(
   [
     'inline-flex items-center justify-center gap-2 rounded-md font-medium',
-    'transition-colors duration-[120ms]',
+    'transition-colors duration-quick',
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
     'focus-visible:outline-[var(--focus-ring)]',
     'aria-disabled:pointer-events-none aria-disabled:bg-[var(--disabled-bg)]',
@@ -17,9 +17,9 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary: [
-          'bg-brand-500 text-text-inverse shadow-1',
-          'hover:bg-[var(--interactive-hover)]',
-          'active:bg-[var(--interactive-active)]',
+          'bg-action-700 text-text-inverse shadow-1',
+          'hover:bg-action-800',
+          'active:bg-action-900',
         ],
         secondary: [
           'border border-border bg-transparent text-text-primary',

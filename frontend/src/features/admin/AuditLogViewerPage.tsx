@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { FileText, Download, ShieldCheck } from 'lucide-react'
+import { Download, FileText, ShieldCheck } from 'lucide-react'
 import { api } from '@/shared/api/client'
 import type { AuditLogEntry, AuditVerifyResponse } from '@/shared/api/types'
 import { EmptyState } from './components/EmptyState'
+import { Button } from '@/shared/design-system/components/Button'
+import { PageHeader } from '@/shared/design-system/components/PageHeader'
+import { SkeletonTable } from '@/shared/design-system/components/Skeleton'
 
 export function AuditLogViewerPage() {
   const [verifyResult, setVerifyResult] = useState<AuditVerifyResponse | null>(null)
@@ -35,29 +38,29 @@ export function AuditLogViewerPage() {
     <>
       <Helmet title="Audit Log — Admin" />
       <div className="p-6">
-        <div className="mb-5 flex items-center justify-between">
-          <h1 className="text-[22px] font-bold text-text-primary">Audit Log</h1>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => verifyMutation.mutate()}
-              disabled={verifyMutation.isPending}
-              className="inline-flex items-center gap-1.5 h-10 rounded-[10px] border border-border px-4 text-[13px] text-text-secondary hover:text-text-primary disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
-            >
-              <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-              {verifyMutation.isPending ? 'Verifying…' : 'Verify Chain'}
-            </button>
-            <button
-              type="button"
-              onClick={handleExport}
-              aria-label="Export audit log PDF"
-              className="inline-flex items-center gap-1.5 h-10 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
-            >
-              <Download className="h-4 w-4" aria-hidden="true" />
-              Export PDF
-            </button>
-          </div>
-        </div>
+        <PageHeader
+          title="Audit Log"
+          actions={
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => verifyMutation.mutate()}
+                disabled={verifyMutation.isPending}
+                loading={verifyMutation.isPending}
+                icon={<ShieldCheck className="h-4 w-4" aria-hidden="true" />}
+              >
+                {verifyMutation.isPending ? 'Verifying…' : 'Verify Chain'}
+              </Button>
+              <Button
+                onClick={handleExport}
+                aria-label="Export audit log PDF"
+                icon={<Download className="h-4 w-4" aria-hidden="true" />}
+              >
+                Export PDF
+              </Button>
+            </>
+          }
+        />
 
         {verifyResult && (
           <div
@@ -89,9 +92,9 @@ export function AuditLogViewerPage() {
         )}
 
         {isLoading && (
-          <p role="status" aria-label="Loading audit log" className="text-[14px] text-text-muted">
-            Loading…
-          </p>
+          <div role="status" aria-label="Loading audit log">
+            <SkeletonTable rows={10} />
+          </div>
         )}
 
         {!isLoading && entries.length === 0 && (

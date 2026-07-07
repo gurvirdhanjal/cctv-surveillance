@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { api } from '@/shared/api/client'
 import type { HealthResponse, ReadinessResponse, StateSnapshot, AlertType } from '@/shared/api/types'
+import { PageHeader } from '@/shared/design-system/components/PageHeader'
 
 type ServiceStatus = 'ok' | 'fail' | 'loading'
 
@@ -36,7 +37,7 @@ function StatusBadge({ status }: { status: ServiceStatus }) {
 
 function ServiceRow({ name, status }: { name: string; status: ServiceStatus }) {
   return (
-    <div className="flex items-center justify-between rounded-xl border border-border bg-surface-base px-4 py-3">
+    <div className="flex items-center justify-between rounded-xl border border-border bg-surface-base px-4 py-3 shadow-1 hover:shadow-2 transition-shadow duration-fast cursor-default">
       <div className="flex items-center gap-3">
         {status === 'loading' ? (
           <span className="h-4 w-4 animate-pulse rounded-full bg-surface-sunken" />
@@ -63,7 +64,7 @@ interface KpiCardProps {
 
 function KpiCard({ label, value, icon: Icon, to, accent, isPending = false }: KpiCardProps) {
   return (
-    <div className="rounded-xl border border-border bg-surface-base p-6">
+    <div className="rounded-xl border border-border bg-surface-base p-6 shadow-1 hover:shadow-2 transition-shadow duration-fast cursor-default">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
@@ -157,7 +158,7 @@ export function AdminDashboardPage() {
     <>
       <Helmet title="System Dashboard — Admin" />
       <div className="p-6 max-w-4xl space-y-6">
-        <h1 className="text-[22px] font-bold text-text-primary">System Dashboard</h1>
+        <PageHeader title="System Dashboard" />
 
         {/* ── Service health ────────────────────────────────────────────── */}
         <section aria-label="System health">
@@ -168,7 +169,7 @@ export function AdminDashboardPage() {
             <ServiceRow name="API" status={apiStatus} />
             <ServiceRow name="Database" status={dbStatus} />
             <ServiceRow name="Redis" status={redisStatus} />
-            <div className="flex items-center justify-between rounded-xl border border-border bg-surface-base px-4 py-3">
+            <div className="flex items-center justify-between rounded-xl border border-border bg-surface-base px-4 py-3 shadow-1 hover:shadow-2 transition-shadow duration-fast cursor-default">
               <p className="text-[13px] font-medium text-text-primary">Version</p>
               <p className="font-mono text-[13px] font-semibold text-text-secondary">
                 {healthPending ? (
@@ -225,7 +226,7 @@ export function AdminDashboardPage() {
                   return (
                     <div
                       key={type}
-                      className="flex flex-col items-center gap-1 rounded-xl border border-border bg-surface-base px-3 py-3"
+                      className="flex flex-col items-center gap-1 rounded-xl border border-border bg-surface-base px-3 py-3 shadow-1 hover:shadow-2 transition-shadow duration-fast cursor-default"
                     >
                       <Icon className={`h-4 w-4 ${count > 0 ? meta.accent : 'text-text-muted'}`} aria-hidden="true" />
                       <p className={`tabular-nums text-[22px] font-bold leading-none ${count > 0 ? 'text-text-primary' : 'text-text-muted'}`}>
@@ -275,10 +276,10 @@ export function AdminDashboardPage() {
               <Link
                 key={to}
                 to={to}
-                className="group rounded-xl border border-border bg-surface-base p-5 transition-colors hover:border-brand-500/40 hover:bg-surface-raised"
+                className="group rounded-xl border border-border bg-surface-base p-5 shadow-1 transition-[box-shadow,border-color] duration-fast hover:shadow-2 hover:border-action-700/30"
               >
                 <Icon
-                  className="mb-2 h-5 w-5 text-text-muted transition-colors group-hover:text-brand-500"
+                  className="mb-2 h-5 w-5 text-text-muted transition-colors group-hover:text-action-700"
                   aria-hidden="true"
                 />
                 <p className="text-[13px] font-semibold text-text-primary">{label}</p>

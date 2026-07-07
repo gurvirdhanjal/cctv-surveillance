@@ -12,7 +12,7 @@ const badgeVariants = cva(
         medium: 'bg-[var(--severity-medium)] text-white',
         low: 'bg-[var(--severity-low)] text-white',
         /** Camera capability tier */
-        full: 'bg-brand-500 text-white',
+        full: 'bg-action-700 text-white',
         mid: 'bg-brand-300 text-brand-900',
         tier_low: 'bg-surface-sunken text-text-secondary border border-border',
         /** Generic */

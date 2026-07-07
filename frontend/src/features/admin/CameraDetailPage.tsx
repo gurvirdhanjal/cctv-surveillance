@@ -7,6 +7,7 @@ import type { CameraResponse } from '@/shared/api/types'
 import { HardwareTab } from './camera-tabs/HardwareTab'
 import { OverridesTab } from './camera-tabs/OverridesTab'
 import { HomographyCalibrator } from './camera-tabs/HomographyCalibrator'
+import { Skeleton, SkeletonTable } from '@/shared/design-system/components/Skeleton'
 
 type TabId = 'profile' | 'hardware' | 'overrides' | 'topology' | 'config'
 
@@ -33,10 +34,9 @@ export function CameraDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6">
-        <p role="status" aria-label="Loading camera">
-          Loading…
-        </p>
+      <div className="p-6" role="status" aria-label="Loading camera">
+        <Skeleton className="h-8 w-1/3 mb-4" />
+        <Skeleton className="h-64 w-full" />
       </div>
     )
   }
@@ -149,9 +149,9 @@ function ResolvedConfigTab({ cameraId }: { cameraId: number }) {
 
   if (isLoading)
     return (
-      <p role="status" aria-label="Loading config">
-        Loading…
-      </p>
+      <div role="status" aria-label="Loading config">
+        <SkeletonTable rows={4} />
+      </div>
     )
 
   const settings = (data as { settings?: Record<string, { value: unknown; source: string }> })

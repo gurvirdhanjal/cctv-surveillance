@@ -1,5 +1,5 @@
 # VMS Design System
-**Design Specification** · 2026-06-24
+**Design Specification** · 2026-06-24 (updated 2026-07-06 — crimson brand refresh)
 **Status:** Approved
 **Companion:** `docs/frontend/2026-05-01-vms-frontend-spec.md` — feature behavior, routes, backend API, testing plan
 
@@ -35,17 +35,44 @@ Both themes are first-class and fully polished — dark is not a tinted aftertho
 
 ## 2. Color palette
 
+### 2.0 Three-tier color model (binding rule)
+
+Surveillance software lives with red = alarm. This is non-negotiable — Honeywell is red, Hikvision is red, but their *software* is not. Their logo is red. Their buttons are not.
+
+**Tier 1 — Brand Identity.** Crimson (`brand-500 = #c0392b`). Appears on ≤ 5 elements per screen: the logo/wordmark, the 3px left-border on the active navigation item, and a thin accent on the sidebar header. Never on buttons, focus rings, selections, or table rows.
+
+**Tier 2 — Action / Interactive.** Dark Charcoal (`action-700 = #1e293b`). Appears on all interactive controls: primary buttons, focus rings, toggle fills. Neutral, professional, reads as "this is how you act."
+
+**Tier 3 — Alarm / Severity.** Signal Red (`#dc2626`). Appears ONLY on alarm severity indicators: critical badge, critical card left-border, recording-failure badge, device-fault badge. It must never be diluted by appearing anywhere else — its exclusivity is what makes it scannable in a dim control room.
+
+This separation prevents the "red means alarm" ambiguity that degrades operator response time.
+
 ### 2.1 Brand & severity (theme-invariant)
 
 ```ts
-brand: { 50:'#eef6ff', 100:'#d9eaff', 300:'#7eb0ff', 500:'#2b6cb0', 700:'#1a4480', 900:'#102a4c' }
-// Extended for dark selected-row backgrounds:
-brand: { 950:'#0a1c33' }   // NEW — derived; see §2.6
+// Brand — Crimson scale (ACCENT ONLY — see §2.0)
+brand: {
+  50:  '#fff1f0',  // very subtle hover well (rarely needed)
+  100: '#ffe4e1',  // light brand bg (avoid in production)
+  500: '#c0392b',  // ACCENT — logo, nav active left-bar, NOTHING ELSE
+  700: '#9b2226',  // hover on brand-accented elements only
+  950: '#3b0a0a',  // dark-theme context (nav dark area accent)
+}
+
+// Action — Dark Charcoal scale (PRIMARY INTERACTIVE)
+action: {
+  600: '#334155',  // secondary action bg on hover
+  700: '#1e293b',  // primary button fill, toggle fill — THIS is the interactive color
+  800: '#0f172a',  // primary button hover
+  900: '#020617',  // primary button pressed
+}
 
 severity: { critical:'#dc2626', high:'#ea580c', medium:'#d97706', low:'#65a30d' }
 ```
 
 Severity hex values are identical in both themes — a critical red must mean the same thing on any display. Contrast is managed by the surface behind them, not by re-tinting the severity color.
+
+> **Three-tier color rule — see §2.0. Brand ≠ Action ≠ Alarm. They are always distinct.**
 
 ### 2.2 Semantic tokens — full table
 
@@ -61,20 +88,24 @@ Severity hex values are identical in both themes — a critical red must mean th
 | `border.default` | `#e2e8f0` | `#1f2937` | Card borders, dividers, input borders |
 | `border.strong` | `#cbd5e1` | `#374151` | Hovered inputs, emphasized dividers |
 
-### 2.3 Interactive states (NEW — extends §5)
+> **Light theme surfaces are neutral white/slate — not warm-tinted.** The brand identity (crimson) is expressed through the nav active bar and logo, not through surface color. Warm-tinted surfaces would create ambient red saturation that competes with the alarm semantic. Keep surfaces clean.
 
-These were not defined in the frontend spec §5; they are derived here and become canonical.
+### 2.3 Interactive states
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `focus.ring` | `#2b6cb0` | `#7eb0ff` | `:focus-visible` outline (brand-500 / brand-300 for dark contrast) |
-| `interactive.hover` | `#1a4480` | `#3b82f6` | Primary button hover (brand-700 / lighter for dark) |
-| `interactive.active` | `#102a4c` | `#2b6cb0` | Primary button pressed |
+| `interactive.primary` | `#1e293b` | — | Primary button fill (action-700; dark uses existing dark bg) |
+| `focus.ring` | `#1e293b` | `#94a3b8` | `:focus-visible` outline — charcoal on light, light-gray on dark |
+| `interactive.hover` | `#0f172a` | `#3b82f6` | Primary button hover (action-800) |
+| `interactive.active` | `#020617` | `#2b6cb0` | Primary button pressed (action-900) |
+| `brand.accent` | `#c0392b` | `#c0392b` | Nav active left-bar, logo — accent only |
 | `interactive.disabledBg` | `#e2e8f0` | `#1f2937` | Disabled control fill |
 | `interactive.disabledText` | `#94a3b8` | `#4b5563` | Disabled control label |
 | `destructive.base` | `#dc2626` | `#dc2626` | Delete / purge fill |
 | `destructive.hover` | `#b91c1c` | `#ef4444` | Destructive hover |
 | `destructive.subtleBg` | `#fef2f2` | `#1f1315` | Destructive modal body tint |
+
+> **Focus ring:** charcoal (`#1e293b`) on light surfaces achieves ~15:1 contrast on white — AAA. On dark surfaces, `#94a3b8` (slate-400) achieves sufficient contrast without using the crimson brand. Never use `brand-accent` as the focus ring — brand appears on structure, not interactive focus.
 
 ### 2.4 Status colors — camera state
 
@@ -99,9 +130,48 @@ These were not defined in the frontend spec §5; they are derived here and becom
 | Token | Light | Dark | Use |
 |---|---|---|---|
 | `overlay.scrim` | `rgba(15,23,42,0.45)` | `rgba(2,6,23,0.70)` | Modal backdrop (dark scrim is heavier — surface is already dark) |
-| `selected.row` | `#eef6ff` (brand-50) | `#0a1c33` (brand-950) | TanStack table selected row |
+| `selected.row` | `#f1f5f9` (surface-sunken) | `#0a1c33` | TanStack table selected row |
 
-> **Resolved ambiguity:** §5 supplied `brand.900=#102a4c` but no value dark enough for a selected-row tint on the `#0a0e1a` dark base. `brand-950=#0a1c33` is introduced here, sampled to sit ~1 step above the base surface without competing with severity colors.
+> **Selected row uses neutral surface-sunken**, not a brand-tinted color. Putting crimson in a selection highlight would scatter the alarm semantic across every table. The neutral tint is sufficient — it creates visible selection without color noise.
+
+---
+
+### 2.7 Three-tier color rule — enforcement
+
+**Quick decision table:**
+
+| What am I styling? | Correct color | Wrong colors |
+|---|---|---|
+| Primary button, toggle, checkbox, slider | `action-700` (#1e293b) | brand-500, severity-critical |
+| Focus ring | `--focus-ring` (#1e293b light / #94a3b8 dark) | brand-500, severity-critical |
+| Selected table row | `surface-sunken` (#f1f5f9) | brand-50, any red tint |
+| Active navigation item FILL | `surface-sunken` or `white/5` — subtle | brand-500 fill |
+| Active navigation INDICATOR | `brand-500` as a 3px left border | action-700, severity |
+| Logo / wordmark | `brand-500` | action-700, severity |
+| Critical alarm badge | `severity-critical` (#dc2626) | brand-500, action-700 |
+| Critical alarm left-border | `severity-critical` (#dc2626) | brand-500, action-700 |
+| Recording failure, device fault | `severity-critical` (#dc2626) | brand-500, action-700 |
+| Camera health score bar | `action-700` | brand-500, severity |
+| SLA warning/breach | `amber-500` | red, brand-500 |
+
+If you are unsure: **ask "is this an alarm signal?"** → yes → severity. **"Is this a button/control?"** → yes → action. **"Is this a logo or nav active bar?"** → yes → brand.
+
+---
+
+### 2.8 Forbidden token names
+
+These names **do not exist** in the design system. Using them is a type error and a design lint failure:
+
+| WRONG — do not use | CORRECT equivalent |
+|---|---|
+| `surface-elevated` | `surface-raised` |
+| `border-subtle` | `border` (maps to `--border-default`) |
+| `border-muted` | `border` |
+| `text-tertiary` | `text-muted` |
+| `surface-hover` | `surface-raised` (nav hover) or `surface-sunken` (table row hover) |
+| `brand-primary` | `brand-500` |
+| `brand-secondary` | `brand-700` |
+| `color-brand` | `brand-500` |
 
 ---
 
@@ -260,7 +330,19 @@ Four levels. Dark theme multiplies shadow alpha by **0.40×** because shadows re
 The single source of runtime truth. Tailwind reads these via `theme.extend.colors` referencing `var(--…)`; components never hard-code hex.
 
 ```css
-/* index.css */
+/* index.css — updated 2026-07-06: three-tier color model */
+
+/* Duration tokens — theme-invariant */
+:root {
+  --duration-fast:     100ms;
+  --duration-quick:    120ms;
+  --duration-base:     180ms;
+  --duration-slow:     200ms;
+  --duration-flash:    600ms;
+  --easing-standard:   cubic-bezier(0.4, 0, 0.2, 1);
+  --easing-emphasized: cubic-bezier(0.2, 0, 0, 1);
+}
+
 :root[data-theme="light"] {
   --text-primary:   #0f172a;
   --text-secondary: #475569;
@@ -268,15 +350,21 @@ The single source of runtime truth. Tailwind reads these via `theme.extend.color
   --text-inverse:   #ffffff;
 
   --surface-base:   #ffffff;
-  --surface-raised: #f8fafc;
-  --surface-sunken: #f1f5f9;
+  --surface-raised: #f8fafc;  /* neutral slate-50 */
+  --surface-sunken: #f1f5f9;  /* neutral slate-100 */
 
-  --border-default: #e2e8f0;
-  --border-strong:  #cbd5e1;
+  --border-default: #e2e8f0;  /* neutral slate-200 */
+  --border-strong:  #cbd5e1;  /* neutral slate-300 */
 
-  --focus-ring:        #2b6cb0;
-  --interactive-hover: #1a4480;
-  --interactive-active:#102a4c;
+  /* Action (primary interactive) — charcoal, NOT brand red */
+  --interactive-primary: #1e293b;  /* action-700 — primary button fill */
+  --interactive-hover:   #0f172a;  /* action-800 */
+  --interactive-active:  #020617;  /* action-900 */
+  --focus-ring:          #1e293b;  /* charcoal — neutral, not red */
+
+  /* Brand accent — sparse identity only */
+  --brand-accent: #c0392b;         /* nav active left-bar, logo */
+
   --disabled-bg:       #e2e8f0;
   --disabled-text:     #94a3b8;
 
@@ -295,7 +383,7 @@ The single source of runtime truth. Tailwind reads these via `theme.extend.color
   --error:   #dc2626;
 
   --overlay-scrim: rgba(15,23,42,0.45);
-  --selected-row:  #eef6ff;
+  --selected-row:  #f1f5f9;  /* neutral surface-sunken — never a red tint */
 
   --shadow-1: 0 1px 2px rgba(0,0,0,0.06);
   --shadow-2: 0 4px 6px rgba(0,0,0,0.10);
@@ -338,7 +426,7 @@ The single source of runtime truth. Tailwind reads these via `theme.extend.color
   --error:   #ef4444;
 
   --overlay-scrim: rgba(2,6,23,0.70);
-  --selected-row:  #0a1c33;
+  --selected-row:  #450a0a;  /* brand-950 deep crimson-black */
 
   --shadow-1: 0 1px 2px rgba(0,0,0,0.024);
   --shadow-2: 0 4px 6px rgba(0,0,0,0.04);
@@ -371,17 +459,36 @@ The single source of runtime truth. Tailwind reads these via `theme.extend.color
 ```
 
 ```ts
-// tailwind.config.ts (excerpt)
+// tailwind.config.ts (excerpt) — updated 2026-07-06: three-tier color model
 extend: {
   colors: {
     text: { primary: 'var(--text-primary)', secondary: 'var(--text-secondary)', muted: 'var(--text-muted)', inverse: 'var(--text-inverse)' },
     surface: { base: 'var(--surface-base)', raised: 'var(--surface-raised)', sunken: 'var(--surface-sunken)' },
     border: { DEFAULT: 'var(--border-default)', strong: 'var(--border-strong)' },
     severity: { critical: 'var(--severity-critical)', high: 'var(--severity-high)', medium: 'var(--severity-medium)', low: 'var(--severity-low)' },
-    // brand stays a static scale (theme-invariant); add 950:
-    brand: { 50:'#eef6ff',100:'#d9eaff',300:'#7eb0ff',500:'#2b6cb0',700:'#1a4480',900:'#102a4c',950:'#0a1c33' },
+    // brand — ACCENT only (logo, nav active bar — see §2.0 and §2.7)
+    brand: {
+      50:  '#fff1f0',
+      100: '#ffe4e1',
+      500: '#c0392b',  // accent — nav left-bar, logo only
+      700: '#9b2226',
+      950: '#3b0a0a',
+    },
+    // action — PRIMARY INTERACTIVE (buttons, focus, toggles — see §2.0)
+    action: {
+      600: '#334155',   // secondary hover bg
+      700: '#1e293b',   // primary fill
+      800: '#0f172a',   // hover
+      900: '#020617',   // pressed
+    },
   },
   boxShadow: { 1: 'var(--shadow-1)', 2: 'var(--shadow-2)', 3: 'var(--shadow-3)' },
+  transitionDuration: {
+    fast:  'var(--duration-fast)',    // 100ms — hover
+    quick: 'var(--duration-quick)',   // 120ms — dropdown
+    base:  'var(--duration-base)',    // 180ms — modal, sidebar
+    slow:  'var(--duration-slow)',    // 200ms — toast
+  },
 }
 ```
 
@@ -425,7 +532,7 @@ import { useEffect, type PropsWithChildren } from 'react';
 import { useThemeStore } from '@/stores/themeStore';
 
 const META_THEME_COLOR: Record<'light' | 'dark', string> = {
-  light: '#ffffff',   // matches --surface-base light
+  light: '#ffffff',   // matches --surface-base light (pure white, unchanged)
   dark:  '#0a0e1a',   // matches --surface-base dark
 };
 
@@ -549,11 +656,11 @@ Variants: `primary` (brand-500 fill), `secondary` (outlined), `ghost`, `destruct
 States: default · hover · active · disabled (`aria-disabled` + `pointer-events-none`, **not** `cursor-not-allowed`) · loading (spinner replaces leading icon; label stays; `aria-busy="true"`).
 
 ```tsx
-// primary / md
+// primary / md — uses action-700 (dark charcoal), NOT brand-500 (crimson)
 <button
-  className="inline-flex h-10 items-center gap-2 rounded-md bg-brand-500 px-4
+  className="inline-flex h-10 items-center gap-2 rounded-[10px] bg-action-700 px-4
              text-14 font-600 text-text-inverse shadow-1
-             hover:bg-[var(--interactive-hover)] active:bg-[var(--interactive-active)]
+             hover:bg-action-800 active:bg-action-900
              focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2
              focus-visible:outline-[var(--focus-ring)]
              aria-disabled:pointer-events-none aria-disabled:bg-[var(--disabled-bg)]
@@ -564,9 +671,11 @@ States: default · hover · active · disabled (`aria-disabled` + `pointer-event
 </button>
 ```
 
+> **Why `action-700` not `brand-500`:** See §2.0. Primary buttons use the action (charcoal) tier, not the brand (crimson) tier. Crimson is reserved for the nav active indicator and logo.
+
 ```
-secondary:   border border-strong bg-transparent text-text-primary hover:bg-surface-raised
-ghost:       bg-transparent text-text-primary hover:bg-surface-raised
+secondary:   border border-strong bg-transparent text-text-primary hover:bg-surface-sunken
+ghost:       bg-transparent text-text-primary hover:bg-surface-sunken
 destructive: bg-[var(--destructive)] text-white hover:bg-[var(--destructive-hover)]
 ```
 
@@ -707,7 +816,7 @@ shadcn `Tooltip`, 200ms open delay. Placements: above/below/left/right (auto-fli
 │                                              │
 │ ░ Cam-07 · North Dock ░░ (scrim BL)          │
 └──────────────────────────────────────────────┘
-focused:     ring-2 ring-brand-500 shadow-2
+focused:     ring-2 ring-brand-500 shadow-2  /* brand-500 = #c0392b crimson */
 maintenance: opacity-50 + centered Calendar icon overlay
 ```
 
@@ -726,9 +835,9 @@ maintenance: opacity-50 + centered Calendar icon overlay
      data-identity={identity} />
 ```
 ```css
-.person-dot[data-identity="known"]    { background: var(--severity, #2b6cb0); }
-.person-dot[data-identity="unknown"]  { background: #ef4444; }
-.person-dot[data-identity="followed"] { background: #facc15; }
+.person-dot[data-identity="known"]    { background: #c0392b; }  /* brand-500 crimson */
+.person-dot[data-identity="unknown"]  { background: #ef4444; }  /* bright red — visually distinct from brand */
+.person-dot[data-identity="followed"] { background: #facc15; }  /* yellow — always distinct */
 ```
 
 ### 7.16 Severity color bar (4px left border)
@@ -841,7 +950,28 @@ Monospace `<textarea>` (`font-mono text-13`). Schema-validated on change (deboun
 
 ## 9. Motion & animation
 
-Durations: `fast 120ms` (hover/focus) · `base 200ms` (drawers, transitions) · `slow 400ms` (large layout). Easings: `standard cubic-bezier(0.4,0,0.2,1)`, `emphasized cubic-bezier(0.2,0,0,1)`.
+**Cardinal rule: never animate live telemetry.** Camera feeds, head-count numbers, FPS counters, person dots — these update in real time. Animating their transitions obscures changes rather than highlighting them. Motion is reserved for navigation and structural UI transitions.
+
+### 9.0 Duration table
+
+| Interaction | Duration | Why |
+|---|---|---|
+| Hover state (color, shadow) | 100ms | Feels instant; longer = sluggish |
+| Dropdown / popover appear | 120ms | Opacity + 4px translateY |
+| Page fade transition | 120ms | Opacity only; no slide |
+| Accordion expand/collapse | 150ms | Height transition |
+| Sidebar open/close | 180ms | Emphasized slide |
+| Modal enter | 180ms | Scale 0.96 → 1 + opacity |
+| Toast slide-in | 200ms | From right |
+| Card hover shadow | 100ms | Shadow-1 → shadow-2 |
+| Tab indicator slide | 200ms | Sliding underline |
+| Skeleton → content | 0ms | Instant swap — no fade |
+| Chart initial render | 0ms | Never animate chart data |
+| Chart data refresh | 0ms | Instant update |
+| Live telemetry values | 0ms | Head count, FPS, bitrate — instant |
+| Alert severity flash | 600ms one-shot | Background only, not a pulse |
+
+Durations: `fast 100ms` · `quick 120ms` · `base 180ms` · `slow 200ms`. Easings: `standard cubic-bezier(0.4,0,0.2,1)`, `emphasized cubic-bezier(0.2,0,0,1)`.
 
 ```css
 @keyframes toast-slide-in {
@@ -961,15 +1091,19 @@ Durations: `fast 120ms` (hover/focus) · `base 200ms` (drawers, transitions) · 
 | `text.primary` `#0f172a` on `surface.base` `#ffffff` | light | 17.9:1 | AAA |
 | `text.secondary` `#475569` on `#ffffff` | light | 7.5:1 | AA (body) |
 | `text.muted` `#94a3b8` on `#ffffff` | light | 2.6:1 | large/decorative only |
-| brand-500 `#2b6cb0` on `#ffffff` | light | 4.9:1 | AA (body) |
-| white on brand-500 `#2b6cb0` | both | 4.3:1 | AA large / button label OK |
+| action-700 `#1e293b` on `#ffffff` | light | **15.2:1** | AAA — primary button fill |
+| white on action-700 `#1e293b` | light | **15.2:1** | AAA — button label |
+| brand-500 `#c0392b` on `#ffffff` | light | 4.6:1 | AA — accent use (nav bar) only |
 | `text.primary` `#f3f4f6` on `surface.base` `#0a0e1a` | dark | 16.6:1 | AAA |
 | `text.secondary` `#9ca3af` on `#0a0e1a` | dark | 6.9:1 | AA (body) |
 | `text.muted` `#6b7280` on `#0a0e1a` | dark | 3.7:1 | large only |
 | severity.critical `#dc2626` on `#0a0e1a` | dark | 4.8:1 | AA (body) |
 | severity.critical `#dc2626` on `#ffffff` | light | 4.5:1 | AA (body, exactly at floor) |
+| severity.critical `#dc2626` on `surface.sunken` `#fff5f5` | light | 4.4:1 | close to floor — use on base/raised surfaces, not sunken |
 
 > **Resolved ambiguity / flag:** `text.muted` fails 4.5:1 in both themes — by design it is for placeholders, disabled text, and timestamps (large or non-essential). **Never use `text.muted` for content a user must read to operate the system.** Timestamps that carry operational meaning (alert age) use `text.secondary`.
+
+> **New contrast flag (2026-07-06):** The warm `surface.sunken` (`#fff5f5`) reduces severity-critical's contrast to 4.4:1 — just below AA. Severity-critical badges and borders should always be placed on `surface.base` (`#ffffff`) or `surface.raised` (`#fffbfb`), not on `surface.sunken`. This is a table-header / inset-well color — alert content does not appear there anyway.
 
 ### 13.2 Focus-visible ring
 
@@ -1078,17 +1212,38 @@ Never use heavy shadows. Two levels only:
 
 Nothing longer than 250 ms. All animations must respect `prefers-reduced-motion`.
 
-### 14.6 Status Indicator — 5 States
+### 14.6 Camera Operational Status — 12 States
 
-Extend the 4-state system in §2 to 5 semantic states:
+Replace the legacy 4-state model with operational language. These are mutually exclusive states; ordered by operational priority.
 
-| State | Color | Token | Use |
-|---|---|---|---|
-| Healthy / Online | Green | `text-success` | Camera streaming, service up |
-| Degraded | Yellow | `text-warning` | Needs calibration, stream degraded |
-| Maintenance | Blue | `text-info` | Scheduled maintenance window active |
-| Offline | Gray | `text-text-muted` | Not reachable, inactive |
-| Critical | Red | `text-error` | Active critical alert, auth failed |
+| State | Label | Color | Icon | Pulse | Description |
+|---|---|---|---|---|---|
+| `recording` | Recording | green-600 | `Radio` | Yes | Writing to storage + AI running |
+| `streaming` | Streaming | green-500 | `Play` | Yes | Streaming to viewers; storage paused |
+| `connected` | Connected | green-400 | `CheckCircle2` | No | Reachable, not yet streaming |
+| `analytics` | Analytics | blue-500 | `Cpu` | No | AI pipeline active; stream degraded |
+| `maintenance` | Maintenance | blue-400 | `Calendar` | No | Scheduled maintenance window active |
+| `standby` | Standby | gray-400 | `Moon` | No | Healthy but idle |
+| `reconnecting` | Reconnecting | amber-500 | `RefreshCw` | Yes | Connection lost; retrying |
+| `unauthorized` | Unauthorized | amber-600 | `ShieldX` | No | RTSP credentials rejected |
+| `unreachable` | Unreachable | gray-500 | `WifiOff` | No | No network path; not retrying |
+| `offline` | Offline | gray-500 | `XCircle` | No | Gracefully stopped |
+| `recovering` | Recovering | amber-400 | `Activity` | Yes | Reconnected; restarting pipeline |
+| `disabled` | Disabled | gray-300 | `MinusCircle` | No | Manually disabled by admin |
+
+**Pulse:** active only on `recording`, `streaming`, `reconnecting`, `recovering`. Never on alarm/warning states.
+
+**Status language principle** — never use vague terms:
+
+| Avoid | Use instead |
+|---|---|
+| Online | Recording · Streaming · Connected |
+| Offline | Offline · Unreachable · Disabled |
+| Healthy | Recording · Connected |
+| Ready | Streaming |
+| Error | Unauthorized · Unreachable + error code |
+| Auth Failed | Unauthorized |
+| Degraded | Reconnecting · Recovering |
 
 ### 14.7 Camera Card — Required Content
 
@@ -1116,16 +1271,52 @@ The admin dashboard must display enough data for an operator to assess system st
 
 ### 14.9 Empty States
 
-Every empty state must follow this pattern:
+Every empty state must use the `<EmptyState>` shared component. Never use plain text.
 
 ```
-[Icon — 40 px, opacity-30]
-[Primary line — 15px / 600]
-[Secondary line — 13px / muted]
-[Optional CTA button]
+[Icon — 40px, text-text-muted opacity-40]
+[Primary line — text-[15px] font-semibold text-text-primary mt-4]
+[Secondary line — text-[13px] text-text-muted mt-1 max-w-xs]
+[Optional CTA button — mt-5, primary variant]
+centered, py-16
 ```
 
-Never use plain text like "No items". Use a contextual icon and two lines of copy.
+Examples:
+
+```
+Camera icon (40px, muted)
+No cameras assigned
+Assign cameras to begin monitoring live feeds.
+[ Add Camera ]  ← primary button
+```
+
+```
+Shield icon
+No active alarms
+The system is monitoring. Alarms will appear here.
+(no CTA — this is a good state)
+```
+
+```
+User icon
+No persons enrolled
+Enroll persons to enable facial recognition.
+[ Enroll Person ]
+```
+
+```
+FileText icon
+No audit events found
+Try adjusting the date range or filters.
+[ Clear Filters ]  ← ghost button
+```
+
+**Rules:**
+- Icon must be contextually relevant to what is missing (Camera for cameras, not a generic X)
+- Primary line: specific. Not "No items" — "No cameras assigned."
+- Secondary line: explains what to do, not what the absence means. Not "No cameras found" — "Assign cameras to begin monitoring."
+- CTA: only if there is a direct action available. No CTA for read-only states or "good" states like no alarms.
+- Never show a spinner and an empty state together.
 
 ### 14.10 Input Standards
 
@@ -1134,7 +1325,7 @@ Every text/number input must have:
 - Radius: `rounded-[10px]`
 - Padding: `px-3`
 - Border: `border border-border`
-- Focus: `focus:border-brand-500 focus:outline-none`
+- Focus: `focus:border-brand-500 focus:outline-none` (brand-500 is now crimson `#c0392b`)
 - Label: **above the input**, never inside as placeholder
 
 ### 14.11 Typography Hierarchy — Admin Pages
@@ -1149,5 +1340,14 @@ Every text/number input must have:
 | Mono data (IDs, hashes) | 13 px mono | 400 | `font-mono text-[13px]` |
 
 ---
+
+---
+
+## 15. Change log
+
+| Date | Change | Plan ref |
+|---|---|---|
+| 2026-06-24 | Initial design system: blue brand, component patterns, 8-pt grid, §14 enterprise principles | Phase 4 |
+| 2026-07-06 | **Three-tier color model** — brand (crimson accent, logo+nav only), action (dark charcoal, all interactive), alarm (bright red, exclusive to severity). New `action` Tailwind scale. Surfaces reverted to neutral. Focus ring → charcoal. Expanded §2.0, §2.7, §9 (motion table), §14.6 (12-state camera status model), §14.9 (empty state component), §2.8 (forbidden tokens), §15 (change log). Phase 5 Enterprise Interaction Guidelines spec created. | Phase 4I + 5 (`2026-07-06-vms-phase4i-design-refresh.md`, `2026-07-06-vms-enterprise-interaction-guidelines.md`) |
 
 **End of VMS Design System.**

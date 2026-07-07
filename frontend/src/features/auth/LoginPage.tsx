@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Helmet } from 'react-helmet-async'
+import { ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/shared/design-system/components/Button'
 import { Input } from '@/shared/design-system/components/Input'
@@ -50,9 +51,14 @@ export function LoginPage() {
     <>
       <Helmet title="Log in" />
       <div className="flex min-h-screen items-center justify-center bg-surface-sunken px-4">
-        <div className="w-full max-w-[400px] rounded-xl bg-surface-base p-8 shadow-3">
+        <div className="w-full max-w-[400px] rounded-xl bg-surface-base p-8 shadow-3 border-t-[3px] border-[var(--brand-accent)]">
           {/* Logo / wordmark */}
           <div className="mb-8 text-center">
+            <ShieldCheck
+              size={24}
+              className="mx-auto mb-3 text-[var(--brand-accent)]"
+              aria-hidden
+            />
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">
               Video Management System
             </p>

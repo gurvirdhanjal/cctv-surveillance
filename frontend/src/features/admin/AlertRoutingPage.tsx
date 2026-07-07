@@ -8,6 +8,7 @@ import { Bell, Plus } from 'lucide-react'
 import { api } from '@/shared/api/client'
 import type { AlertRoutingRule } from '@/shared/api/types'
 import { EmptyState } from './components/EmptyState'
+import { SkeletonTable } from '@/shared/design-system/components/Skeleton'
 
 const routingSchema = z
   .object({
@@ -97,7 +98,7 @@ export function AlertRoutingPage() {
           <button
             type="button"
             onClick={() => setShowAdd(true)}
-            className="inline-flex items-center gap-1.5 h-10 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+            className="inline-flex items-center gap-1.5 h-10 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
             Add Rule
@@ -111,9 +112,9 @@ export function AlertRoutingPage() {
         )}
 
         {isLoading && (
-          <p role="status" aria-label="Loading routing rules" className="text-[14px] text-text-muted">
-            Loading…
-          </p>
+          <div role="status" aria-label="Loading routing rules">
+            <SkeletonTable rows={6} />
+          </div>
         )}
 
         {!isLoading && rules.length === 0 && (
@@ -125,7 +126,7 @@ export function AlertRoutingPage() {
               <button
                 type="button"
                 onClick={() => setShowAdd(true)}
-                className="inline-flex items-center gap-1.5 h-9 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700"
+                className="inline-flex items-center gap-1.5 h-9 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800"
               >
                 <Plus className="h-4 w-4" aria-hidden="true" />
                 Add Rule
@@ -180,8 +181,8 @@ export function AlertRoutingPage() {
                           toggleMutation.mutate({ id: r.routing_id, active: !r.is_active })
                         }
                         disabled={toggleMutation.isPending}
-                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 disabled:opacity-50 ${
-                          r.is_active ? 'bg-brand-500' : 'bg-surface-sunken border border-border'
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-action-700 focus-visible:ring-offset-1 disabled:opacity-50 ${
+                          r.is_active ? 'bg-action-700' : 'bg-surface-sunken border border-border'
                         }`}
                       >
                         <span
@@ -312,7 +313,7 @@ export function AlertRoutingPage() {
                 <button
                   type="submit"
                   disabled={createMutation.isPending}
-                  className="h-10 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                  className="h-10 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                 >
                   {createMutation.isPending ? 'Adding…' : 'Add Rule'}
                 </button>

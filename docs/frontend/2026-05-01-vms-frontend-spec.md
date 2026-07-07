@@ -1,6 +1,6 @@
 # VMS Frontend Specification
 
-**Design Specification** · 2026-05-01 · **Last updated: 2026-06-24**
+**Design Specification** · 2026-05-01 · **Last updated: 2026-07-06**
 **Status:** Approved · Companion to `2026-05-01-vms-v2-hardened-design.md` §12 (high-level frontend)
 **Audience:** Frontend engineers implementing the React app in Phase 4.
 
@@ -11,6 +11,8 @@
 > **For all visual design** — colors, typography, spacing, CSS variables, component states, theme switching, motion, and accessibility details — the canonical source is:
 > **[`docs/frontend/2026-06-24-vms-design-system.md`](2026-06-24-vms-design-system.md)**
 > Sections here summarise those concerns; the design system is authoritative on anything visual.
+>
+> **Brand color (updated 2026-07-06):** The primary brand color is now **Pompeii Red / Crimson** (`brand-500 = #c0392b`), replacing the previous blue (`#2b6cb0`). The dark theme is unchanged. See design system §2.1, §2.7 (crimson vs severity-critical distinction), and Phase 4I plan `2026-07-06-vms-phase4i-design-refresh.md` for implementation tasks.
 
 ---
 

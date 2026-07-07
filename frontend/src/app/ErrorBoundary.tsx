@@ -35,7 +35,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <p className="text-[14px] text-text-secondary">{error.message}</p>
           <button
             onClick={this.reset}
-            className="rounded-md bg-brand-500 px-4 py-2 text-[14px] font-medium text-white hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+            className="rounded-md bg-action-700 px-4 py-2 text-[14px] font-medium text-white hover:bg-action-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
           >
             Try again
           </button>

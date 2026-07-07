@@ -26,10 +26,10 @@ export function AnalyticsLayout() {
                 end={end}
                 className={({ isActive }) =>
                   [
-                    'block rounded-md px-3 py-2 text-[14px] transition-colors',
+                    'block rounded-md py-2 text-[14px] transition-colors duration-fast border-l-[3px]',
                     isActive
-                      ? 'bg-brand-50 font-medium text-brand-700'
-                      : 'text-text-secondary hover:bg-surface-sunken',
+                      ? 'border-[var(--brand-accent)] bg-surface-sunken font-medium text-text-primary pl-[calc(0.75rem_-_3px)] pr-3'
+                      : 'border-transparent px-3 text-text-secondary hover:bg-surface-sunken',
                   ].join(' ')
                 }
               >

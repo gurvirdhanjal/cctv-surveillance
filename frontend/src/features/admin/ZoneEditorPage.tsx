@@ -8,6 +8,7 @@ import { MapPin, Plus } from 'lucide-react'
 import { api } from '@/shared/api/client'
 import type { ZoneResponse } from '@/shared/api/types'
 import { EmptyState } from './components/EmptyState'
+import { SkeletonTable } from '@/shared/design-system/components/Skeleton'
 
 const zoneSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(200),
@@ -102,7 +103,7 @@ export function ZoneEditorPage() {
           <button
             type="button"
             onClick={() => setShowAdd(true)}
-            className="inline-flex items-center gap-1.5 h-10 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+            className="inline-flex items-center gap-1.5 h-10 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
             Add Zone
@@ -110,9 +111,9 @@ export function ZoneEditorPage() {
         </div>
 
         {isLoading && (
-          <p role="status" aria-label="Loading zones" className="text-[14px] text-text-muted">
-            Loading…
-          </p>
+          <div role="status" aria-label="Loading zones">
+            <SkeletonTable rows={4} />
+          </div>
         )}
 
         {!isLoading && zones.length === 0 && (
@@ -124,7 +125,7 @@ export function ZoneEditorPage() {
               <button
                 type="button"
                 onClick={() => setShowAdd(true)}
-                className="inline-flex items-center gap-1.5 h-9 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700"
+                className="inline-flex items-center gap-1.5 h-9 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800"
               >
                 <Plus className="h-4 w-4" aria-hidden="true" />
                 Add Zone
@@ -248,7 +249,7 @@ export function ZoneEditorPage() {
                 <button
                   type="submit"
                   disabled={createMutation.isPending}
-                  className="h-10 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                  className="h-10 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                 >
                   {createMutation.isPending ? 'Saving…' : 'Add Zone'}
                 </button>
@@ -311,7 +312,7 @@ export function ZoneEditorPage() {
                 <button
                   type="submit"
                   disabled={updateMutation.isPending}
-                  className="h-10 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                  className="h-10 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                 >
                   {updateMutation.isPending ? 'Saving…' : 'Save'}
                 </button>

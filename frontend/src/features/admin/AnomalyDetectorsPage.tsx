@@ -4,6 +4,7 @@ import { Zap } from 'lucide-react'
 import { api } from '@/shared/api/client'
 import type { AnomalyDetector } from '@/shared/api/types'
 import { EmptyState } from './components/EmptyState'
+import { SkeletonTable } from '@/shared/design-system/components/Skeleton'
 
 export function AnomalyDetectorsPage() {
   const queryClient = useQueryClient()
@@ -34,9 +35,9 @@ export function AnomalyDetectorsPage() {
         )}
 
         {isLoading && (
-          <p role="status" aria-label="Loading detectors" className="text-[14px] text-text-muted">
-            Loading…
-          </p>
+          <div role="status" aria-label="Loading detectors">
+            <SkeletonTable rows={6} />
+          </div>
         )}
 
         {!isLoading && detectors.length === 0 && (
@@ -89,8 +90,8 @@ export function AnomalyDetectorsPage() {
                           })
                         }
                         disabled={toggleMutation.isPending}
-                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 disabled:opacity-50 ${
-                          d.is_enabled ? 'bg-brand-500' : 'bg-surface-sunken border border-border'
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-action-700 focus-visible:ring-offset-1 disabled:opacity-50 ${
+                          d.is_enabled ? 'bg-action-700' : 'bg-surface-sunken border border-border'
                         }`}
                       >
                         <span

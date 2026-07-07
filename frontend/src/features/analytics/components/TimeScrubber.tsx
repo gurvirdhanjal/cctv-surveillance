@@ -85,7 +85,7 @@ export function TimeScrubber({ disabled = false }: TimeScrubberProps) {
             className={[
               'rounded-md px-2 py-1 text-[12px] transition-colors disabled:opacity-40',
               state.speed === s
-                ? 'bg-brand-500 text-text-inverse'
+                ? 'bg-action-700 text-text-inverse'
                 : 'border border hover:bg-surface-sunken',
             ].join(' ')}
           >

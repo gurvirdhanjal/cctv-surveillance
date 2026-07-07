@@ -33,10 +33,10 @@ describe('PersonDot', () => {
     expect(screen.getByLabelText('Person #42')).toBeInTheDocument()
   })
 
-  it('uses brand colour for known person', () => {
+  it('uses action colour for known person', () => {
     const { container } = render(<PersonDot location={makeLoc({ person_id: 5 })} />)
     const dot = container.querySelector('[data-track-id]')
-    expect(dot?.className).toMatch(/bg-brand-500/)
+    expect(dot?.className).toMatch(/bg-action-700/)
   })
 
   it('uses critical colour for unknown person', () => {

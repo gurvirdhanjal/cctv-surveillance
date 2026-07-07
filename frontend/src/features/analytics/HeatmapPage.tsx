@@ -31,7 +31,7 @@ export function HeatmapPage() {
                 className={[
                   'rounded-md px-3 py-1.5 text-[12px] capitalize transition-colors',
                   timeWindow === w
-                    ? 'bg-brand-500 text-white'
+                    ? 'bg-action-700 text-white'
                     : 'border border text-text-secondary hover:bg-surface-sunken',
                 ].join(' ')}
               >

@@ -8,6 +8,9 @@ import type { PersonResponse } from '@/shared/api/types'
 import { EnrolmentWizard } from './components/EnrolmentWizard'
 import { GdprDeleteDialog } from './components/GdprDeleteDialog'
 import { EmptyState } from './components/EmptyState'
+import { Button } from '@/shared/design-system/components/Button'
+import { PageHeader } from '@/shared/design-system/components/PageHeader'
+import { SkeletonTable } from '@/shared/design-system/components/Skeleton'
 
 type PersonExt = PersonResponse & { role?: string }
 
@@ -39,17 +42,14 @@ export function AdminPersonsPage() {
     <>
       <Helmet title="Persons — Admin" />
       <div className="p-6">
-        <div className="mb-5 flex items-center justify-between">
-          <h1 className="text-[22px] font-bold text-text-primary">Persons</h1>
-          <button
-            type="button"
-            onClick={() => setShowEnrol(true)}
-            className="inline-flex items-center gap-1.5 h-10 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
-          >
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            Enrol Person
-          </button>
-        </div>
+        <PageHeader
+          title="Persons"
+          actions={
+            <Button onClick={() => setShowEnrol(true)} icon={<Plus className="h-4 w-4" aria-hidden="true" />}>
+              Enrol Person
+            </Button>
+          }
+        />
 
         <input
           type="search"
@@ -61,9 +61,9 @@ export function AdminPersonsPage() {
         />
 
         {isLoading && (
-          <p role="status" aria-label="Loading persons" className="text-[14px] text-text-muted">
-            Loading…
-          </p>
+          <div role="status" aria-label="Loading persons">
+            <SkeletonTable rows={8} />
+          </div>
         )}
         {isError && (
           <p role="alert" className="text-[14px] text-error">
@@ -81,7 +81,7 @@ export function AdminPersonsPage() {
                 <button
                   type="button"
                   onClick={() => setShowEnrol(true)}
-                  className="inline-flex items-center gap-1.5 h-9 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700"
+                  className="inline-flex items-center gap-1.5 h-9 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800"
                 >
                   <Plus className="h-4 w-4" aria-hidden="true" />
                   Enrol Person

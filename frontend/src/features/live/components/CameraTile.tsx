@@ -10,7 +10,7 @@ interface CameraTileProps {
 }
 
 const tierColors: Record<string, string> = {
-  FULL: 'bg-brand-500 text-white',
+  FULL: 'bg-action-700 text-white',
   MID: 'bg-brand-300 text-brand-900',
   LOW: 'bg-surface-sunken text-text-muted border border-border',
 }

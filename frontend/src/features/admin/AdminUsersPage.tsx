@@ -1,6 +1,7 @@
 import { Helmet } from 'react-helmet-async'
 import { UserCog } from 'lucide-react'
 import { EmptyState } from './components/EmptyState'
+import { PageHeader } from '@/shared/design-system/components/PageHeader'
 
 /**
  * Users CRUD is blocked on the P3 pre-work sub-task: implement
@@ -13,7 +14,7 @@ export function AdminUsersPage() {
     <>
       <Helmet title="Users — Admin" />
       <div className="p-6">
-        <h1 className="mb-5 text-[22px] font-bold text-text-primary">Users</h1>
+        <PageHeader title="Users" />
         <div role="status" aria-label="Users API unavailable">
           <EmptyState
             icon={UserCog}

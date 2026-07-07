@@ -75,7 +75,7 @@ export function ForensicSearchPage() {
             <button
               type="submit"
               disabled={isClipBlocked || !filters.query.trim()}
-              className="rounded-md bg-brand-500 px-4 py-2 text-[13px] font-medium text-white hover:bg-brand-700 disabled:opacity-40"
+              className="rounded-md bg-action-700 px-4 py-2 text-[13px] font-medium text-white hover:bg-action-800 disabled:opacity-40"
             >
               Search
             </button>

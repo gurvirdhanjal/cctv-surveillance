@@ -14,6 +14,8 @@ import type {
   CameraFromCredentials,
   ProfileData,
 } from '@/shared/api/types'
+import { Button } from '@/shared/design-system/components/Button'
+import { PageHeader } from '@/shared/design-system/components/PageHeader'
 
 const TIER_COLORS: Record<CapabilityTier, string> = {
   FULL: 'bg-brand-100 text-brand-700',
@@ -167,17 +169,14 @@ export function AdminCamerasPage() {
           </p>
         )}
 
-        <div className="mb-5 flex items-center justify-between">
-          <h1 className="text-[22px] font-bold text-text-primary">Cameras</h1>
-          <button
-            type="button"
-            onClick={() => setShowAdd(true)}
-            className="inline-flex items-center gap-1.5 rounded-[10px] bg-brand-500 px-4 py-2 text-[13px] font-medium text-white hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
-          >
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            Add Camera
-          </button>
-        </div>
+        <PageHeader
+          title="Cameras"
+          actions={
+            <Button onClick={() => setShowAdd(true)} icon={<Plus className="h-4 w-4" aria-hidden="true" />}>
+              Add Camera
+            </Button>
+          }
+        />
 
         {isLoading && (
           <div
@@ -312,7 +311,7 @@ export function AdminCamerasPage() {
                       <div className="flex items-center gap-2">
                         <Link
                           to="/live"
-                          className="inline-flex items-center gap-1.5 rounded-[10px] bg-brand-500 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-brand-700 transition-colors"
+                          className="inline-flex items-center gap-1.5 rounded-[10px] bg-action-700 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-action-800 transition-colors"
                         >
                           <Radio className="h-3.5 w-3.5" aria-hidden="true" />
                           Live
@@ -506,7 +505,7 @@ export function AdminCamerasPage() {
                 <button
                   type="submit"
                   disabled={addMutation.isPending}
-                  className="h-10 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                  className="h-10 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                 >
                   {addMutation.isPending ? 'Adding…' : 'Add Camera'}
                 </button>

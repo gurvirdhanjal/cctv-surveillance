@@ -91,7 +91,7 @@ export function HomographyCalibrator({ cameraId: _cameraId, initialStep = 'start
           <button
             type="button"
             onClick={handleNext}
-            className="h-10 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+            className="h-10 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
           >
             Start calibration
           </button>
@@ -123,7 +123,7 @@ export function HomographyCalibrator({ cameraId: _cameraId, initialStep = 'start
             type="button"
             onClick={handleNext}
             disabled={framePoints.length < 4}
-            className="h-10 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+            className="h-10 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
           >
             Next
           </button>
@@ -155,7 +155,7 @@ export function HomographyCalibrator({ cameraId: _cameraId, initialStep = 'start
             type="button"
             onClick={handleNext}
             disabled={floorPoints.length < 4}
-            className="h-10 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+            className="h-10 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
           >
             Compute
           </button>
@@ -192,7 +192,7 @@ export function HomographyCalibrator({ cameraId: _cameraId, initialStep = 'start
               onClick={handleSave}
               disabled={!canSave}
               aria-disabled={!canSave}
-              className="h-10 rounded-[10px] bg-brand-500 px-4 text-[13px] font-medium text-white hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+              className="h-10 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
             >
               Save homography
             </button>
