@@ -12,16 +12,21 @@ import {
   type VisibilityState,
   type RowSelectionState,
 } from '@tanstack/react-table'
+import { AnimatePresence } from 'framer-motion'
+import { TableVirtuoso } from 'react-virtuoso'
 import { ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/shared/utils/cn'
 import { useTableLayout } from '@/shared/tables/useTableLayout'
 import { useAuthStore } from '@/stores/authStore'
+import { BulkActionsToolbar, type BulkAction } from '@/shared/tables/BulkActionsToolbar'
 
 const DENSITY_HEIGHTS: Record<string, string> = {
   compact: '32px',
   default: '40px',
   relaxed: '52px',
 }
+
+const VIRTUOSO_THRESHOLD = 100
 
 interface DensitySelectorProps {
   value: 'compact' | 'default' | 'relaxed'
@@ -67,7 +72,7 @@ interface DataTableProps<TData> {
   tableId: string
   columns: ColumnDef<TData, unknown>[]
   data: TData[]
-  /** Override density; if omitted, reads from persisted prefs (default: 'default') */
+  /** Override density; if omitted, reads from persisted prefs */
   density?: 'compact' | 'default' | 'relaxed'
   /** Show a global filter input above the table */
   filterPlaceholder?: string
@@ -77,6 +82,8 @@ interface DataTableProps<TData> {
   onRowSelectionChange?: (rows: TData[]) => void
   /** Called when Enter is pressed on a focused row */
   onRowOpen?: (row: TData) => void
+  /** Bulk actions shown in the toolbar when rows are selected */
+  bulkActions?: BulkAction[]
   /** className applied to the outer wrapper */
   className?: string
   /** Empty state content rendered when data is empty */
@@ -91,6 +98,8 @@ export function DataTable<TData>({
   filterPlaceholder = 'Filter...',
   pageSize = 20,
   onRowSelectionChange,
+  onRowOpen,
+  bulkActions,
   className,
   emptyContent,
 }: DataTableProps<TData>) {
@@ -104,6 +113,7 @@ export function DataTable<TData>({
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
   const [globalFilter, setGlobalFilter] = React.useState('')
+  const [activeRowIndex, setActiveRowIndex] = React.useState<number | null>(null)
 
   const table = useReactTable({
     data,
@@ -123,8 +133,7 @@ export function DataTable<TData>({
     onRowSelectionChange: setRowSelection,
     onGlobalFilterChange: setGlobalFilter,
     onColumnSizingChange: (updater) => {
-      const next =
-        typeof updater === 'function' ? updater(layout.columnSizing) : updater
+      const next = typeof updater === 'function' ? updater(layout.columnSizing) : updater
       layout.setColumnSizing(next)
     },
     onColumnOrderChange: (updater) => {
@@ -139,6 +148,7 @@ export function DataTable<TData>({
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     columnResizeMode: 'onChange',
+    enableRowSelection: true,
     initialState: { pagination: { pageSize } },
   })
 
@@ -147,6 +157,87 @@ export function DataTable<TData>({
     const selected = table.getSelectedRowModel().rows.map((r) => r.original)
     onRowSelectionChange(selected)
   }, [rowSelection, table, onRowSelectionChange])
+
+  const rows = table.getRowModel().rows
+  const selectedCount = Object.keys(rowSelection).length
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (rows.length === 0) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveRowIndex((i) => Math.min((i ?? -1) + 1, rows.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveRowIndex((i) => Math.max((i ?? 0) - 1, 0))
+    } else if (e.key === 'Enter' && activeRowIndex !== null) {
+      e.preventDefault()
+      onRowOpen?.(rows[activeRowIndex].original)
+    } else if (e.key === ' ' && activeRowIndex !== null) {
+      e.preventDefault()
+      rows[activeRowIndex].toggleSelected()
+    }
+  }
+
+  const useVirtuoso = data.length > VIRTUOSO_THRESHOLD
+
+  const headerContent = () => (
+    <tr className="border-b border-border bg-surface-raised">
+      {table.getHeaderGroups()[0]?.headers.map((header) => {
+        const canSort = header.column.getCanSort()
+        const sorted = header.column.getIsSorted()
+        return (
+          <th
+            key={header.id}
+            colSpan={header.colSpan}
+            style={{ width: header.getSize() }}
+            className={cn(
+              'px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted bg-surface-raised',
+              canSort && 'cursor-pointer select-none hover:text-text-primary transition-colors',
+            )}
+            onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+            aria-sort={
+              sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : undefined
+            }
+          >
+            <div className="flex items-center gap-1">
+              {header.isPlaceholder
+                ? null
+                : flexRender(header.column.columnDef.header, header.getContext())}
+              {canSort && (
+                <span className="text-text-muted/50">
+                  {sorted === 'asc' ? (
+                    <ChevronUp className="h-3 w-3" />
+                  ) : sorted === 'desc' ? (
+                    <ChevronDown className="h-3 w-3" />
+                  ) : (
+                    <ChevronsUpDown className="h-3 w-3" />
+                  )}
+                </span>
+              )}
+            </div>
+          </th>
+        )
+      })}
+    </tr>
+  )
+
+  function renderRow(row: (typeof rows)[0], index: number) {
+    return (
+      <tr
+        key={row.id}
+        data-selected={row.getIsSelected() || undefined}
+        data-active={activeRowIndex === index || undefined}
+        className="border-b border-border last:border-0 hover:bg-surface-sunken data-[selected]:bg-[var(--selected-row)] data-[active]:outline data-[active]:outline-2 data-[active]:outline-[var(--focus-ring)] transition-colors"
+        style={{ height: 'var(--table-row-h)' }}
+      >
+        {row.getVisibleCells().map((cell) => (
+          <td key={cell.id} className="px-3 text-text-primary">
+            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          </td>
+        ))}
+      </tr>
+    )
+  }
 
   return (
     <div
@@ -171,93 +262,106 @@ export function DataTable<TData>({
         <DensitySelector value={density} onChange={layout.setDensity} />
       </div>
 
+      {/* Bulk actions toolbar */}
+      <AnimatePresence>
+        {bulkActions && selectedCount > 0 && (
+          <BulkActionsToolbar selectedCount={selectedCount} actions={bulkActions} />
+        )}
+      </AnimatePresence>
+
       {/* Table */}
-      <div className="overflow-hidden rounded-xl border border-border">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 z-10 bg-surface-raised">
-              {table.getHeaderGroups().map((hg) => (
-                <tr key={hg.id} className="border-b border-border">
-                  {hg.headers.map((header) => {
-                    const canSort = header.column.getCanSort()
-                    const sorted = header.column.getIsSorted()
-                    return (
-                      <th
-                        key={header.id}
-                        colSpan={header.colSpan}
-                        style={{ width: header.getSize() }}
-                        className={cn(
-                          'px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted',
-                          canSort && 'cursor-pointer select-none hover:text-text-primary transition-colors',
-                        )}
-                        onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
-                        aria-sort={
-                          sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : undefined
-                        }
-                      >
-                        <div className="flex items-center gap-1">
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(header.column.columnDef.header, header.getContext())}
-                          {canSort && (
-                            <span className="text-text-muted/50">
-                              {sorted === 'asc' ? (
-                                <ChevronUp className="h-3 w-3" />
-                              ) : sorted === 'desc' ? (
-                                <ChevronDown className="h-3 w-3" />
-                              ) : (
-                                <ChevronsUpDown className="h-3 w-3" />
-                              )}
-                            </span>
-                          )}
-                        </div>
-                        {/* Resize handle */}
-                        {header.column.getCanResize() && (
-                          <div
-                            onMouseDown={header.getResizeHandler()}
-                            onTouchStart={header.getResizeHandler()}
-                            className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-border opacity-0 hover:opacity-100"
-                          />
-                        )}
-                      </th>
-                    )
-                  })}
-                </tr>
-              ))}
-            </thead>
-            <tbody>
-              {table.getRowModel().rows.length === 0 ? (
-                <tr>
+      <div
+        role="grid"
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        className="overflow-hidden rounded-xl border border-border focus:outline-none"
+        data-virtuoso={useVirtuoso ? '' : undefined}
+      >
+        {useVirtuoso ? (
+          <TableVirtuoso
+            style={{ height: Math.min(data.length * 40, 600) }}
+            data={rows}
+            fixedHeaderContent={headerContent}
+            itemContent={(index, row) => (
+              <>
+                {row.getVisibleCells().map((cell) => (
                   <td
-                    colSpan={columns.length}
-                    className="py-12 text-center text-sm text-text-muted"
-                  >
-                    {emptyContent ?? 'No data'}
-                  </td>
-                </tr>
-              ) : (
-                table.getRowModel().rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    data-selected={row.getIsSelected() || undefined}
-                    className="border-b border-border last:border-0 hover:bg-surface-sunken data-[selected]:bg-[var(--selected-row)] transition-colors duration-[var(--duration-fast)]"
+                    key={cell.id}
+                    className="px-3 text-text-primary border-b border-border"
                     style={{ height: 'var(--table-row-h)' }}
                   >
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-3 text-text-primary">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </>
+            )}
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 z-10 bg-surface-raised">
+                {table.getHeaderGroups().map((hg) => (
+                  <tr key={hg.id} className="border-b border-border">
+                    {hg.headers.map((header) => {
+                      const canSort = header.column.getCanSort()
+                      const sorted = header.column.getIsSorted()
+                      return (
+                        <th
+                          key={header.id}
+                          colSpan={header.colSpan}
+                          style={{ width: header.getSize() }}
+                          className={cn(
+                            'px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted',
+                            canSort && 'cursor-pointer select-none hover:text-text-primary transition-colors',
+                          )}
+                          onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                          aria-sort={
+                            sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : undefined
+                          }
+                        >
+                          <div className="flex items-center gap-1">
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(header.column.columnDef.header, header.getContext())}
+                            {canSort && (
+                              <span className="text-text-muted/50">
+                                {sorted === 'asc' ? (
+                                  <ChevronUp className="h-3 w-3" />
+                                ) : sorted === 'desc' ? (
+                                  <ChevronDown className="h-3 w-3" />
+                                ) : (
+                                  <ChevronsUpDown className="h-3 w-3" />
+                                )}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                      )
+                    })}
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </thead>
+              <tbody>
+                {rows.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={columns.length}
+                      className="py-12 text-center text-sm text-text-muted"
+                    >
+                      {emptyContent ?? 'No data'}
+                    </td>
+                  </tr>
+                ) : (
+                  rows.map((row, index) => renderRow(row, index))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      {/* Pagination */}
-      {table.getPageCount() > 1 && (
+      {/* Pagination — only for non-virtual tables */}
+      {!useVirtuoso && table.getPageCount() > 1 && (
         <div className="flex items-center justify-between">
           <span className="text-xs text-text-muted">
             Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
