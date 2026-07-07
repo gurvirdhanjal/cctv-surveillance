@@ -300,3 +300,40 @@
     outline-offset: 2px;
   }
 }
+
+/* ─── §M Glass/blur utilities (four permitted surfaces only) ─────── */
+/* Rule: blur is ONLY allowed on Dropdown, Command Palette, Floating Toolbar, Context Menu.
+   Cards, modals, panels, headers must NOT use these classes. */
+@layer utilities {
+  .glass-dropdown {
+    @apply backdrop-blur-md;
+    background-color: rgb(var(--surface-raised-rgb, 255 255 255) / 0.95);
+  }
+
+  .glass-cmdk {
+    @apply backdrop-blur-md;
+    background-color: rgb(var(--surface-raised-rgb, 255 255 255) / 0.95);
+  }
+
+  .glass-toolbar {
+    @apply backdrop-blur-md;
+    background-color: rgb(var(--surface-raised-rgb, 255 255 255) / 0.95);
+  }
+
+  .glass-context-menu {
+    @apply backdrop-blur-md;
+    background-color: rgb(var(--surface-raised-rgb, 255 255 255) / 0.95);
+  }
+
+  /* Reduced-transparency fallback: remove blur, use opaque surface */
+  @media (prefers-reduced-transparency: reduce) {
+    .glass-dropdown,
+    .glass-cmdk,
+    .glass-toolbar,
+    .glass-context-menu {
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      background-color: var(--surface-raised);
+    }
+  }
+}
