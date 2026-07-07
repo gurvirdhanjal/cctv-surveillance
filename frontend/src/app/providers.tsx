@@ -4,6 +4,7 @@ import { IntlProvider } from 'react-intl'
 import { HelmetProvider } from 'react-helmet-async'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { enMessages, DEFAULT_LOCALE } from '@/shared/i18n'
+import { VmsToaster } from '@/shared/design-system/components/VmsToaster'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,6 +23,7 @@ export function Providers({ children }: PropsWithChildren) {
           <ThemeProvider>{children}</ThemeProvider>
         </IntlProvider>
       </QueryClientProvider>
+      <VmsToaster />
     </HelmetProvider>
   )
 }
