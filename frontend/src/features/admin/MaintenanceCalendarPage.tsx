@@ -225,7 +225,7 @@ export function MaintenanceCalendarPage() {
                 <input
                   id="maint-name"
                   {...register('name')}
-                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
                   placeholder="Nightly backup window"
                 />
                 {errors.name && (
@@ -365,7 +365,7 @@ export function MaintenanceCalendarPage() {
                     <input
                       id="maint-cron"
                       {...register('cron_expr')}
-                      className="w-full border border-border rounded px-3 py-2 text-[14px] font-mono bg-surface-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      className="w-full border border-border rounded px-3 py-2 text-[14px] font-mono bg-surface-base focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
                       placeholder="0 2 * * *"
                     />
                     {errors.cron_expr && (

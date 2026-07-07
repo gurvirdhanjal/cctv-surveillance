@@ -165,7 +165,7 @@ export function ZoneEditorPage() {
                         type="button"
                         aria-label={`Edit ${zone.name}`}
                         onClick={() => handleEditClick(zone)}
-                        className="rounded-[10px] px-2 py-1 text-[13px] text-brand-500 hover:bg-brand-500/10 transition-colors"
+                        className="rounded-[10px] px-2 py-1 text-[13px] text-text-primary hover:bg-surface-raised transition-colors"
                       >
                         Edit
                       </button>

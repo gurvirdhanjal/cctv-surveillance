@@ -125,7 +125,7 @@ export function EnrolmentWizard({ onDone, onCancel }: Props) {
               <input
                 id="enrol-name"
                 {...register('name')}
-                className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
                 placeholder="Ranjeet Kumar"
               />
               {errors.name && (
@@ -144,7 +144,7 @@ export function EnrolmentWizard({ onDone, onCancel }: Props) {
               <input
                 id="enrol-emp-id"
                 {...register('employee_id')}
-                className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary font-mono focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
                 placeholder="EMP-001234"
               />
               {errors.employee_id && (

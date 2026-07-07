@@ -9,7 +9,7 @@ export function ClipResultCard({ clip, onClick }: ClipResultCardProps) {
   return (
     <button
       onClick={onClick}
-      className="w-full rounded-lg border border bg-surface-base text-left shadow-1 transition-shadow hover:shadow-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+      className="w-full rounded-lg border border bg-surface-base text-left shadow-1 transition-shadow hover:shadow-2 focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
       aria-label={`Clip from camera ${clip.camera_id}`}
     >
       <div className="aspect-video overflow-hidden rounded-t-lg bg-surface-sunken">

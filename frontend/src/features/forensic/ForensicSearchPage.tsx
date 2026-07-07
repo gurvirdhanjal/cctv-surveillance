@@ -70,7 +70,7 @@ export function ForensicSearchPage() {
               placeholder="Describe what you're looking for…"
               disabled={isClipBlocked}
               aria-label="Search query"
-              className="flex-1 rounded-md border border bg-surface-base px-3 py-2 text-[14px] placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex-1 rounded-md border border bg-surface-base px-3 py-2 text-[14px] placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-50"
             />
             <button
               type="submit"

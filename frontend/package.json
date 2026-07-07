@@ -14,7 +14,8 @@
     "build:check": "pnpm build && node scripts/check-bundle-size.mjs",
     "gen:types": "openapi-typescript http://localhost:8000/openapi.json -o src/shared/api/openapi.d.ts",
     "lint": "eslint src",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:restraint": "node scripts/check-visual-restraint.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
