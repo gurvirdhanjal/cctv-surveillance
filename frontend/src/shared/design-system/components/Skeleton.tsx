@@ -1,13 +1,16 @@
+import type { CSSProperties } from 'react'
 import { cn } from '@/shared/utils/cn'
 
 interface SkeletonProps {
   className?: string
+  style?: CSSProperties
 }
 
-export function Skeleton({ className }: SkeletonProps) {
+export function Skeleton({ className, style }: SkeletonProps) {
   return (
     <div
       className={cn('animate-pulse rounded bg-surface-raised', className)}
+      style={style}
       aria-hidden="true"
     />
   )
@@ -50,5 +53,73 @@ export function SkeletonKpiGrid({ cards = 4, className }: { cards?: number; clas
         </div>
       ))}
     </div>
+  )
+}
+
+// ─── §L spec composites ────────────────────────────────────────────
+
+/** §L KPI card skeleton — matches a single metric card (label + value + trend). */
+export function SkeletonKpiCard({ className }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={cn('rounded-xl bg-surface-raised p-4 space-y-3', className)}
+    >
+      <Skeleton className="h-3 w-2/5" />
+      <Skeleton className="h-7 w-1/2" />
+      <Skeleton className="h-2.5 w-1/3" />
+    </div>
+  )
+}
+
+/** §L camera card skeleton — matches a CameraCard layout (preview + meta). */
+export function SkeletonCameraCard({ className }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={cn('rounded-xl bg-surface-raised overflow-hidden', className)}
+    >
+      {/* preview area */}
+      <Skeleton className="h-36 w-full rounded-none" />
+      <div className="p-3 space-y-2">
+        <Skeleton className="h-3.5 w-3/4" />
+        <Skeleton className="h-3 w-1/2" />
+      </div>
+    </div>
+  )
+}
+
+/** §L table row skeleton — one bar per column at the hinted width. */
+export function SkeletonTableRow({
+  columnWidths,
+  className,
+}: {
+  columnWidths?: number[]
+  className?: string
+}) {
+  const cols = columnWidths ?? [120, 200, 80]
+  return (
+    <div
+      aria-hidden="true"
+      className={cn('flex items-center gap-4 px-4 py-2.5', className)}
+    >
+      {cols.map((w, i) => (
+        <Skeleton
+          key={i}
+          className="h-3 flex-shrink-0"
+          style={{ width: `${w}px` }}
+        />
+      ))}
+    </div>
+  )
+}
+
+/** §L avatar skeleton — circular, matches a user/person avatar. */
+export function SkeletonAvatar({ size = 32, className }: { size?: number; className?: string }) {
+  return (
+    <Skeleton
+      className={cn('rounded-full flex-shrink-0', className)}
+      style={{ width: size, height: size }}
+    />
   )
 }
