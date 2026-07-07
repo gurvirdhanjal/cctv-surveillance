@@ -42,8 +42,6 @@ describe('§M Glass/Blur — DropdownMenuContent wired', () => {
 })
 
 describe('§M Glass/Blur — forbidden surfaces guard', () => {
-  const MODAL_PATH = resolve(__dirname, '../../../features/auth/LoginPage.tsx')
-
   const FORBIDDEN_FILES = [
     resolve(__dirname, '../components/Card.tsx'),
   ]
