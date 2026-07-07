@@ -16,7 +16,7 @@ import type {
   ProfileData,
 } from '@/shared/api/types'
 import { Button } from '@/shared/design-system/components/Button'
-import { PageHeader } from '@/shared/design-system/components/PageHeader'
+import { ActionBar } from '@/shared/design-system/components/ActionBar'
 
 const TIER_COLORS: Record<CapabilityTier, string> = {
   FULL: 'bg-brand-100 text-brand-700',
@@ -170,13 +170,15 @@ export function AdminCamerasPage() {
           </p>
         )}
 
-        <PageHeader
-          title="Cameras"
-          actions={
+        <ActionBar
+          aria-label="Camera page actions"
+          left={<h1 className="text-[22px] font-bold leading-tight text-text-primary">Cameras</h1>}
+          right={
             <Button onClick={() => setShowAdd(true)} icon={<Icon.add className="h-4 w-4" aria-hidden="true" />}>
               Add Camera
             </Button>
           }
+          className="mb-6 rounded-xl"
         />
 
         {isLoading && (
