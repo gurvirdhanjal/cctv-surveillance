@@ -35,6 +35,34 @@
   --easing-emphasized: cubic-bezier(0.2, 0, 0, 1);
 }
 
+/* ─── §G Durations (canonical names, supersede --duration-* aliases above) */
+:root {
+  --dur-fast:   80ms;
+  --dur-normal: 120ms;
+  --dur-slow:   180ms;
+  --dur-xslow:  300ms;
+}
+
+/* ─── §G Radius (theme-invariant) ─────────────────────────────── */
+:root {
+  --radius-xs:   2px;
+  --radius-sm:   4px;
+  --radius-md:   6px;
+  --radius-lg:   8px;
+  --radius-xl:   12px;
+  --radius-2xl:  16px;
+  --radius-full: 9999px;
+}
+
+/* ─── §G Interaction states (theme-invariant) ──────────────────── */
+:root {
+  /* Charcoal-based focus ring — NEVER brand brass */
+  --state-focus-ring:      0 0 0 2px var(--surface-base), 0 0 0 4px var(--focus-ring);
+  --state-selection:       inset 0 0 0 2px var(--border-strong);
+  --state-hover-overlay:   rgba(15, 23, 42, 0.04);
+  --state-pressed-overlay: rgba(15, 23, 42, 0.08);
+}
+
 /* ─── Light theme (default / Manager / Admin) ────────────────────── */
 [data-theme='light'] {
   --text-primary: #0f172a;
@@ -80,9 +108,11 @@
   --overlay-scrim: rgba(15, 23, 42, 0.45);
   --selected-row: #f1f5f9;
 
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.06);
-  --shadow-2: 0 4px 6px rgba(0, 0, 0, 0.1);
-  --shadow-3: 0 10px 25px rgba(0, 0, 0, 0.2);
+  /* §G supersedes prior rgba(0,0,0,...) shadow values — use slate-900 for crisper falloff */
+  --shadow-1: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-2: 0 2px 6px rgba(15, 23, 42, 0.10);
+  --shadow-3: 0 8px 24px rgba(15, 23, 42, 0.14);
+  --shadow-4: 0 16px 48px rgba(15, 23, 42, 0.20);
 
   --body-letter-spacing: 0;
 }
@@ -131,9 +161,11 @@
   --overlay-scrim: rgba(2, 6, 23, 0.7);
   --selected-row: #1e293b;
 
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.024);
-  --shadow-2: 0 4px 6px rgba(0, 0, 0, 0.04);
-  --shadow-3: 0 10px 25px rgba(0, 0, 0, 0.08);
+  /* §G dark shadows — high-contrast falloff on near-black surfaces */
+  --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.25);
+  --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.40);
+  --shadow-3: 0 8px 24px rgba(0, 0, 0, 0.55);
+  --shadow-4: 0 16px 48px rgba(0, 0, 0, 0.65);
 
   /* Slightly wider letter-spacing aids legibility on dark backgrounds */
   --body-letter-spacing: 0.01em;

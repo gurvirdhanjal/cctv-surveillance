@@ -114,12 +114,40 @@ export const motion = {
   easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
 } as const
 
-/** Elevation shadows — matches the CSS vars in each theme block. */
+/** §G Radius scale — mirrors --radius-* CSS vars. */
+export const radius = {
+  xs:   '2px',
+  sm:   '4px',
+  md:   '6px',
+  lg:   '8px',
+  xl:   '12px',
+  '2xl':'16px',
+  full: '9999px',
+} as const
+
+/** §G Animation durations — mirrors --dur-* CSS vars (in ms strings). */
+export const durations = {
+  fast:   '80ms',
+  normal: '120ms',
+  slow:   '180ms',
+  xslow:  '300ms',
+} as const
+
+/** §G Interaction state token references (CSS var names — values are theme-driven). */
+export const interactionStates = {
+  focusRing:      'var(--state-focus-ring)',       // uses --focus-ring (charcoal), NOT brand brass
+  selection:      'var(--state-selection)',         // inset ring using --border-strong
+  hoverOverlay:   'rgba(15, 23, 42, 0.04)',
+  pressedOverlay: 'rgba(15, 23, 42, 0.08)',
+} as const
+
+/** Elevation shadows — §G values (light theme). Dark theme values are in index.css. */
 export const elevation = {
   0: 'none',
-  1: '0 1px 2px rgba(0,0,0,0.06)',
-  2: '0 4px 6px rgba(0,0,0,0.10)',
-  3: '0 10px 25px rgba(0,0,0,0.20)',
+  1: '0 1px 2px rgba(15,23,42,0.06)',
+  2: '0 2px 6px rgba(15,23,42,0.10)',
+  3: '0 8px 24px rgba(15,23,42,0.14)',
+  4: '0 16px 48px rgba(15,23,42,0.20)',
 } as const
 
 /** Typography scale — font-size in px, matching §3.1. */
