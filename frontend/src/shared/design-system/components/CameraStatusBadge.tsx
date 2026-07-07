@@ -1,35 +1,35 @@
-import {
-  Radio, Play, CheckCircle2, Cpu, Calendar, Moon,
-  RefreshCw, ShieldX, WifiOff, XCircle, Activity, MinusCircle,
-  type LucideIcon,
-} from 'lucide-react'
+import { Lock, Upload } from 'lucide-react'
+import { Icon } from '../icons'
 import { cn } from '@/shared/utils/cn'
 
+/** §K closed set — 13 camera/system states. */
 export type CameraStatus =
-  | 'recording' | 'streaming' | 'connected' | 'analytics'
-  | 'maintenance' | 'standby' | 'reconnecting' | 'unauthorized'
-  | 'unreachable' | 'offline' | 'recovering' | 'disabled'
+  | 'online' | 'recording' | 'streaming' | 'analytics' | 'maintenance'
+  | 'updating' | 'initializing' | 'disconnected' | 'unauthorized'
+  | 'syncing' | 'calibrating' | 'training' | 'importing'
 
 interface StatusConfig {
   label: string
   colorClass: string
-  Icon: LucideIcon
+  IconComponent: React.ElementType
   pulse: boolean
+  spin: boolean
 }
 
 const STATUS_CONFIG: Record<CameraStatus, StatusConfig> = {
-  recording:    { label: 'Recording',    colorClass: 'text-green-600',  Icon: Radio,        pulse: true  },
-  streaming:    { label: 'Streaming',    colorClass: 'text-green-500',  Icon: Play,         pulse: true  },
-  connected:    { label: 'Connected',    colorClass: 'text-green-400',  Icon: CheckCircle2, pulse: false },
-  analytics:    { label: 'Analytics',    colorClass: 'text-blue-500',   Icon: Cpu,          pulse: false },
-  maintenance:  { label: 'Maintenance',  colorClass: 'text-blue-400',   Icon: Calendar,     pulse: false },
-  standby:      { label: 'Standby',      colorClass: 'text-gray-400',   Icon: Moon,         pulse: false },
-  reconnecting: { label: 'Reconnecting', colorClass: 'text-amber-500',  Icon: RefreshCw,    pulse: true  },
-  unauthorized: { label: 'Unauthorized', colorClass: 'text-amber-600',  Icon: ShieldX,      pulse: false },
-  unreachable:  { label: 'Unreachable',  colorClass: 'text-gray-500',   Icon: WifiOff,      pulse: false },
-  offline:      { label: 'Offline',      colorClass: 'text-gray-500',   Icon: XCircle,      pulse: false },
-  recovering:   { label: 'Recovering',   colorClass: 'text-amber-400',  Icon: Activity,     pulse: true  },
-  disabled:     { label: 'Disabled',     colorClass: 'text-gray-300',   Icon: MinusCircle,  pulse: false },
+  online:       { label: 'Online',       colorClass: 'text-green-600',   IconComponent: Icon.camera,      pulse: false, spin: false },
+  recording:    { label: 'Recording',    colorClass: 'text-red-600',     IconComponent: Icon.recording,   pulse: true,  spin: false },
+  streaming:    { label: 'Streaming',    colorClass: 'text-blue-500',    IconComponent: Icon.live,         pulse: false, spin: false },
+  analytics:    { label: 'Analytics',    colorClass: 'text-purple-500',  IconComponent: Icon.analytics,   pulse: false, spin: false },
+  maintenance:  { label: 'Maintenance',  colorClass: 'text-amber-500',   IconComponent: Icon.calendar,    pulse: false, spin: false },
+  updating:     { label: 'Updating',     colorClass: 'text-blue-500',    IconComponent: Icon.sync,        pulse: false, spin: true  },
+  initializing: { label: 'Initializing', colorClass: 'text-gray-400',    IconComponent: Icon.sync,        pulse: true,  spin: false },
+  disconnected: { label: 'Disconnected', colorClass: 'text-red-400',     IconComponent: Icon.disconnected,pulse: false, spin: false },
+  unauthorized: { label: 'Unauthorized', colorClass: 'text-orange-500',  IconComponent: Lock,             pulse: false, spin: false },
+  syncing:      { label: 'Syncing',      colorClass: 'text-blue-400',    IconComponent: Icon.sync,        pulse: false, spin: true  },
+  calibrating:  { label: 'Calibrating',  colorClass: 'text-teal-500',    IconComponent: Icon.calibrate,   pulse: false, spin: false },
+  training:     { label: 'Training',     colorClass: 'text-violet-500',  IconComponent: Icon.ai,          pulse: true,  spin: false },
+  importing:    { label: 'Importing',    colorClass: 'text-blue-500',    IconComponent: Upload,           pulse: false, spin: false },
 }
 
 interface CameraStatusBadgeProps {
@@ -38,7 +38,7 @@ interface CameraStatusBadgeProps {
 }
 
 export function CameraStatusBadge({ status, className }: CameraStatusBadgeProps) {
-  const { label, colorClass, Icon, pulse } = STATUS_CONFIG[status]
+  const { label, colorClass, IconComponent, pulse, spin } = STATUS_CONFIG[status]
   return (
     <span
       role="status"
@@ -54,7 +54,10 @@ export function CameraStatusBadge({ status, className }: CameraStatusBadgeProps)
         )}
         <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-current" />
       </span>
-      <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+      <IconComponent
+        className={cn('h-3.5 w-3.5', spin && 'animate-spin')}
+        aria-hidden="true"
+      />
       {label}
     </span>
   )
