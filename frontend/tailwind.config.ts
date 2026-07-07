@@ -34,11 +34,16 @@ const config: Config = {
           low: 'var(--severity-low)',
         },
         brand: {
-          50:  '#fff1f0',
-          100: '#ffe4e1',
-          500: '#c0392b',
-          700: '#9b2226',
-          950: '#3b0a0a',
+          50:  '#fef9f0',
+          100: '#fdf3e3',
+          200: '#f0d8a8',
+          300: '#d4a855',
+          // brand-500 uses RGB channel variable so opacity modifiers (bg-brand-500/10) work
+          500: 'rgb(var(--brand-accent-rgb) / <alpha-value>)',
+          600: '#8f611f',
+          700: '#8f611f',
+          900: '#744e19',
+          950: '#2a2013',
         },
         action: {
           600: '#334155',

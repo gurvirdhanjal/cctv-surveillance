@@ -7,7 +7,7 @@ interface BoundingBoxOverlayProps {
 }
 
 // Color convention per plan §5 design rules
-const COLOR_KNOWN = '#c0392b'   // crimson — identified person
+const COLOR_KNOWN = 'var(--brand-accent)'  // brass — identified/verified person; resolves from dark-theme ancestor
 const COLOR_UNKNOWN = '#ef4444' // alarm red — unidentified
 const COLOR_FOLLOWED = '#facc15' // yellow — operator follow-mode
 

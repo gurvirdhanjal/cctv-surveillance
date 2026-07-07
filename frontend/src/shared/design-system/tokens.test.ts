@@ -27,13 +27,16 @@ describe('severity tokens', () => {
 })
 
 describe('brand tokens', () => {
-  it('has brand-500 as the primary brand color', () => {
-    expect(brand[500]).toBe('#2b6cb0')
+  it('has brand-500 as the light-theme brass primary', () => {
+    expect(brand[500]).toBe('#a8752c')
   })
 
-  it('has brand-950 for dark selected-row (introduced in design system §2.6)', () => {
-    expect(brand[950]).toBe('#0a1c33')
-    expect(darkTheme.selectedRow).toBe(brand[950])
+  it('has brand-950 as the darkest brass surface tint', () => {
+    expect(brand[950]).toBe('#2a2013')
+  })
+
+  it('dark selectedRow is action charcoal (not brand-950)', () => {
+    expect(darkTheme.selectedRow).toBe('#1e293b')
   })
 })
 
@@ -58,12 +61,12 @@ describe('theme shape', () => {
     expect(darkTheme).toHaveProperty('status')
   })
 
-  it('light focus ring is brand-500', () => {
-    expect(lightTheme.focus.ring).toBe(brand[500])
+  it('light focus ring is action charcoal (matches --focus-ring CSS var)', () => {
+    expect(lightTheme.focus.ring).toBe('#1e293b')
   })
 
-  it('dark focus ring is brand-300 (higher contrast on dark surface)', () => {
-    expect(darkTheme.focus.ring).toBe(brand[300])
+  it('dark focus ring is slate-400 for contrast on dark surfaces', () => {
+    expect(darkTheme.focus.ring).toBe('#94a3b8')
   })
 })
 

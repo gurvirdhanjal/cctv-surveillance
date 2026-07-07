@@ -8,10 +8,10 @@ import { useLiveStore } from '../store/liveStore'
 function VmsLogo() {
   return (
     <div
-      className="animate-logo-glow flex h-8 w-8 items-center justify-center rounded-lg border border-[#c0392b]/30 bg-[#120504]"
+      className="animate-logo-glow flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--brand-accent)]/30 bg-[#120504]"
       aria-hidden="true"
     >
-      <span className="font-display text-[13px] font-bold text-[#c0392b]">V</span>
+      <span className="font-display text-[13px] font-bold text-[var(--brand-accent)]">V</span>
     </div>
   )
 }

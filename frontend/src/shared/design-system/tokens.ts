@@ -6,13 +6,15 @@
  */
 
 export const brand = {
-  50: '#eef6ff',
-  100: '#d9eaff',
-  300: '#7eb0ff',
-  500: '#2b6cb0',
-  700: '#1a4480',
-  900: '#102a4c',
-  950: '#0a1c33',
+  50:  '#fef9f0',
+  100: '#fdf3e3',
+  200: '#f0d8a8',
+  300: '#d4a855',
+  500: '#a8752c', // light-theme value; dark theme uses #c8912f via --brand-accent CSS var
+  600: '#8f611f',
+  700: '#8f611f',
+  900: '#744e19',
+  950: '#2a2013',
 } as const
 
 export const severity = {
@@ -38,10 +40,10 @@ export const lightTheme = {
     default: '#e2e8f0',
     strong: '#cbd5e1',
   },
-  focus: { ring: '#2b6cb0' },
+  focus: { ring: '#1e293b' }, // action charcoal — matches --focus-ring light CSS var
   interactive: {
-    hover: '#1a4480',
-    active: '#102a4c',
+    hover: '#334155',
+    active: '#1e293b',
     disabledBg: '#e2e8f0',
     disabledText: '#94a3b8',
   },
@@ -60,7 +62,7 @@ export const lightTheme = {
   info: '#2563eb',
   warning: '#d97706',
   error: '#dc2626',
-  selectedRow: '#eef6ff',
+  selectedRow: '#f1f5f9',
 } as const
 
 export const darkTheme = {
@@ -79,10 +81,10 @@ export const darkTheme = {
     default: '#1f2937',
     strong: '#374151',
   },
-  focus: { ring: '#7eb0ff' },
+  focus: { ring: '#94a3b8' }, // slate-400 — visible against dark surfaces; matches --focus-ring dark CSS var
   interactive: {
-    hover: '#3b82f6',
-    active: '#2b6cb0',
+    hover: '#334155',
+    active: '#1e293b',
     disabledBg: '#1f2937',
     disabledText: '#4b5563',
   },
@@ -101,7 +103,7 @@ export const darkTheme = {
   info: '#3b82f6',
   warning: '#f59e0b',
   error: '#ef4444',
-  selectedRow: '#0a1c33',
+  selectedRow: '#1e293b',
 } as const
 
 /** Motion durations — used for CSS transition values. */

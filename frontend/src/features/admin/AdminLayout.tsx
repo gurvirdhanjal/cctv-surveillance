@@ -23,17 +23,13 @@ function VmsLogo() {
       aria-hidden="true"
     >
       <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-        {/* Outer ring */}
-        <circle cx="9" cy="9" r="7.5" stroke="#c0392b" strokeWidth="0.75" />
-        {/* Inner ring */}
-        <circle cx="9" cy="9" r="3.75" stroke="#c0392b" strokeWidth="0.75" />
-        {/* Center dot */}
-        <circle cx="9" cy="9" r="1.25" fill="#c0392b" />
-        {/* Cardinal ticks */}
-        <rect x="8.25" y="0.75" width="1.5" height="1.75" rx="0.5" fill="#c0392b" />
-        <rect x="8.25" y="15.5" width="1.5" height="1.75" rx="0.5" fill="#c0392b" />
-        <rect x="0.75" y="8.25" width="1.75" height="1.5" rx="0.5" fill="#c0392b" />
-        <rect x="15.5" y="8.25" width="1.75" height="1.5" rx="0.5" fill="#c0392b" />
+        <circle cx="9" cy="9" r="7.5" stroke="var(--brand-accent)" strokeWidth="0.75" />
+        <circle cx="9" cy="9" r="3.75" stroke="var(--brand-accent)" strokeWidth="0.75" />
+        <circle cx="9" cy="9" r="1.25" fill="var(--brand-accent)" />
+        <rect x="8.25" y="0.75" width="1.5" height="1.75" rx="0.5" fill="var(--brand-accent)" />
+        <rect x="8.25" y="15.5" width="1.5" height="1.75" rx="0.5" fill="var(--brand-accent)" />
+        <rect x="0.75" y="8.25" width="1.75" height="1.5" rx="0.5" fill="var(--brand-accent)" />
+        <rect x="15.5" y="8.25" width="1.75" height="1.5" rx="0.5" fill="var(--brand-accent)" />
       </svg>
     </div>
   )
