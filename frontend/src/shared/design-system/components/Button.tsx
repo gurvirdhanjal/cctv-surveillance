@@ -1,7 +1,12 @@
 import { forwardRef, type ButtonHTMLAttributes } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/shared/utils/cn'
 import { Spinner } from './Spinner'
+import { MOTION } from '@/shared/motion/motion'
+
+/** §O exact tap scale — do not change without spec approval. */
+export const BUTTON_TAP_SCALE = 0.97
 
 /** §A canonical Button variant set — no other variants may be added without spec approval. */
 const buttonVariants = cva(
@@ -106,17 +111,20 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref,
   ) => {
     const isDisabled = disabled || loading
+    const reducedMotion = useReducedMotion()
     const handleClick = variant === 'split' && onPrimary
       ? (e: React.MouseEvent<HTMLButtonElement>) => { onPrimary(); onClick?.(e) }
       : onClick
     return (
-      <button
+      <motion.button
         ref={ref}
         className={cn(buttonVariants({ variant, size }), className)}
         disabled={isDisabled}
         aria-disabled={isDisabled || undefined}
         aria-busy={loading || undefined}
         onClick={handleClick}
+        whileTap={reducedMotion ? undefined : { scale: BUTTON_TAP_SCALE }}
+        transition={MOTION.hover}
         {...props}
       >
         {loading ? (
@@ -125,7 +133,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           icon
         )}
         {children}
-      </button>
+      </motion.button>
     )
   },
 )

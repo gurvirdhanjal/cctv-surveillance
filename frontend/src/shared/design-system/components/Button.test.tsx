@@ -92,3 +92,16 @@ describe('Button', () => {
     expect(results.violations).toHaveLength(0)
   })
 })
+
+// §O micro-interaction tests
+import { BUTTON_TAP_SCALE } from './Button'
+
+describe('Button §O micro-interactions', () => {
+  it('tap scale constant is exactly 0.97', () => {
+    expect(BUTTON_TAP_SCALE).toBe(0.97)
+  })
+
+  it('renders without error as motion element', () => {
+    expect(() => render(<Button>Motion</Button>)).not.toThrow()
+  })
+})
