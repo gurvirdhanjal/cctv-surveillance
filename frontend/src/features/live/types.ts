@@ -26,4 +26,6 @@ export interface LiveAlert extends AlertResponse {
   /** Set from socket `alert_fired` event; null for REST-seeded alerts. */
   global_track_id: string | null
   snapshot_url: string | null
+  /** ISO deadline for operator SLA countdown; null = no SLA configured. */
+  sla_deadline?: string | null
 }

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use the `frontend-design` skill at the start of each implementation task to get aesthetic guidance for any new component being built. Run `pnpm lint && pnpm typecheck && pnpm test:run` after every task.
 
-**Status: NOT STARTED**
+**Status: COMPLETE**
 
 **Goal:** Build the premium dark operator console for `/live`: a three-column workstation (320px camera tree | 1fr focused view | 380px alert sidebar) with a live camera grid, HLS focused view with bounding-box overlay, an alarm sidebar with SLA countdowns and keyboard-driven acknowledge/resolve, a status strip, an offline/reconnect banner, a keyboard shortcut legend, clip export, and floor-plan/fullscreen toggles. This is the operator's primary surface; it must feel calm, dense, and instantly responsive.
 

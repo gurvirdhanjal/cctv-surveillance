@@ -49,7 +49,13 @@
   --border-default: #e2e8f0;
   --border-strong: #cbd5e1;
 
-  --brand-accent: #c0392b;
+  /* Brand: Brass / Vault Gold */
+  --brand-accent: #a8752c;
+  --brand-accent-hover: #8f611f;
+  --brand-accent-active: #744e19;
+  --brand-accent-subtle: #fdf3e3;
+  --brand-accent-rgb: 168, 117, 44;
+
   --interactive-primary: #1e293b;
   --focus-ring: #1e293b;
   --interactive-hover: #0f172a;
@@ -95,6 +101,13 @@
   --border-default: #1f2937;
   --border-strong: #374151;
 
+  /* Brand: Brass / Vault Gold — brighter for legibility on near-black */
+  --brand-accent: #c8912f;
+  --brand-accent-hover: #e0a83f;
+  --brand-accent-active: #f0ba52;
+  --brand-accent-subtle: #2a2013;
+  --brand-accent-rgb: 200, 145, 47;
+
   --focus-ring: #94a3b8;
   --interactive-hover: #3b82f6;
   --interactive-active: #2b6cb0;
@@ -136,14 +149,24 @@
   animation: status-pulse 2s ease-in-out infinite;
 }
 
+@keyframes severity-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.0); }
+  50%     { box-shadow: 0 0 0 3px rgba(220,38,38,0.45); }
+}
+
+.animate-severity-pulse { animation: severity-pulse 1.5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .animate-severity-pulse { animation: none; } }
+
+/* Logo glow — now driven by --brand-accent-rgb so it tracks brass in both themes */
 @keyframes logo-glow {
-  0%, 100% { box-shadow: 0 0 4px 1px rgba(192, 57, 43, 0.45); }
-  50%       { box-shadow: 0 0 12px 4px rgba(192, 57, 43, 0.75), 0 0 24px 8px rgba(192, 57, 43, 0.2); }
+  0%, 100% { box-shadow: 0 0 4px 1px rgba(var(--brand-accent-rgb), 0.45); }
+  50%       { box-shadow: 0 0 12px 4px rgba(var(--brand-accent-rgb), 0.75), 0 0 24px 8px rgba(var(--brand-accent-rgb), 0.2); }
 }
 
 .animate-logo-glow {
   animation: logo-glow 2.5s ease-in-out infinite;
 }
+@media (prefers-reduced-motion: reduce) { .animate-logo-glow { animation: none; } }
 
 /* ─── shadcn/ui compatibility layer ─────────────────────────────── */
 /*
@@ -151,6 +174,12 @@
  * etc.). Every value here is a pointer into a VMS design-system token.
  * No literal colors. VMS tokens are declared above and always win.
  * Dark values use [data-theme="dark"] — NOT .dark — to match VMS theme system.
+ *
+ * Note: --primary intentionally stays mapped to --interactive-primary (charcoal),
+ * not --brand-accent. Brass is a signature accent (logo, key CTAs, active nav) —
+ * not a workhorse button color. Use --brand-accent directly in components where
+ * you want the brand moment (e.g. `bg-[var(--brand-accent)]`), and reserve
+ * --primary for everyday buttons.
  */
 @layer base {
   :root {

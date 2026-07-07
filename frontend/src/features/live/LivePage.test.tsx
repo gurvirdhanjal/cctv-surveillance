@@ -19,20 +19,8 @@ vi.mock('./components/FocusedCamera', () => ({
   )),
 }))
 
-vi.mock('./components/CameraGrid', () => ({
-  CameraGrid: vi.fn(({ cameras, focusedCameraId, onCameraSelect }: {
-    cameras: CameraState[]
-    focusedCameraId: number | null
-    onCameraSelect: (id: number) => void
-  }) => (
-    <div data-testid="camera-grid" data-count={cameras.length} data-focused={focusedCameraId}>
-      {cameras.map((c) => (
-        <button key={c.camera_id} onClick={() => onCameraSelect(c.camera_id)}>
-          {c.name}
-        </button>
-      ))}
-    </div>
-  )),
+vi.mock('./components/CameraTree', () => ({
+  CameraTree: vi.fn(() => <div data-testid="camera-tree" />),
 }))
 
 vi.mock('./components/AlertSidebar', () => ({
@@ -41,6 +29,26 @@ vi.mock('./components/AlertSidebar', () => ({
 
 vi.mock('./components/TopBar', () => ({
   TopBar: vi.fn(() => <div data-testid="top-bar" />),
+}))
+
+vi.mock('./components/OfflineReconnectBanner', () => ({
+  OfflineReconnectBanner: vi.fn(() => null),
+}))
+
+vi.mock('./components/SystemStatusStrip', () => ({
+  SystemStatusStrip: vi.fn(() => <div data-testid="system-status-strip" />),
+}))
+
+vi.mock('./components/ShortcutLegend', () => ({
+  ShortcutLegend: vi.fn(() => null),
+}))
+
+vi.mock('./components/ClipExportDialog', () => ({
+  ClipExportDialog: vi.fn(() => null),
+}))
+
+vi.mock('./hooks/useLiveShortcuts', () => ({
+  useLiveShortcuts: vi.fn(),
 }))
 
 const mockApi = vi.mocked(client.api)
@@ -72,9 +80,9 @@ function makeCamera(id: number): CameraState {
 describe('LivePage', () => {
   it('renders all three columns', () => {
     render(<LivePage />, { wrapper: Wrapper })
-    expect(screen.getByLabelText('Camera grid')).toBeInTheDocument()
-    expect(screen.getByLabelText('Alert sidebar')).toBeInTheDocument()
-    expect(screen.getByTestId('focused-camera')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Camera list' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Alerts' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Focused camera' })).toBeInTheDocument()
     expect(screen.getByTestId('top-bar')).toBeInTheDocument()
   })
 
@@ -90,12 +98,8 @@ describe('LivePage', () => {
     expect(useLiveStore.getState().focusedCameraId).toBe(2)
   })
 
-  it('passes cameras and focusedCameraId to CameraGrid', () => {
-    const cameras = [makeCamera(1), makeCamera(2)]
-    useLiveStore.setState({ cameras, focusedCameraId: 1 })
+  it('renders CameraTree in left column', () => {
     render(<LivePage />, { wrapper: Wrapper })
-    const grid = screen.getByTestId('camera-grid')
-    expect(grid).toHaveAttribute('data-count', '2')
-    expect(grid).toHaveAttribute('data-focused', '1')
+    expect(screen.getByTestId('camera-tree')).toBeInTheDocument()
   })
 })

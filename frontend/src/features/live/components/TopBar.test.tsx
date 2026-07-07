@@ -1,29 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { TopBar } from './TopBar'
 import { useLiveStore } from '../store/liveStore'
-import * as client from '@/shared/api/client'
+import { useCommandPaletteStore } from '@/stores/commandPaletteStore'
 import type { LiveAlert } from '../types'
 
 vi.mock('@/shared/api/client', () => ({
   api: { get: vi.fn(), patch: vi.fn() },
 }))
 
-// Mock HeadCountBanner to avoid store noise
-vi.mock('./HeadCountBanner', () => ({
-  HeadCountBanner: () => <span data-testid="head-count-banner" />,
-}))
-
-const mockApi = vi.mocked(client.api)
-
-const initialState = useLiveStore.getState()
+const initialLive = useLiveStore.getState()
+const initialPalette = useCommandPaletteStore.getState()
 
 beforeEach(() => {
-  useLiveStore.setState(initialState, true)
-  mockApi.get.mockResolvedValue([])
+  useLiveStore.setState(initialLive, true)
+  useCommandPaletteStore.setState(initialPalette, true)
   vi.restoreAllMocks()
 })
 
@@ -59,26 +53,13 @@ describe('TopBar', () => {
     expect(screen.getByLabelText('Search persons')).toBeInTheDocument()
   })
 
-  it('opens search dialog on button click', () => {
+  it('clicking search trigger opens CommandPalette store', () => {
     render(<TopBar />, { wrapper: Wrapper })
     fireEvent.click(screen.getByLabelText('Search persons'))
-    expect(screen.getByRole('dialog', { name: 'Person search' })).toBeInTheDocument()
+    expect(useCommandPaletteStore.getState().open).toBe(true)
   })
 
-  it('opens search dialog on Ctrl+K', () => {
-    render(<TopBar />, { wrapper: Wrapper })
-    fireEvent.keyDown(window, { key: 'k', ctrlKey: true })
-    expect(screen.getByRole('dialog', { name: 'Person search' })).toBeInTheDocument()
-  })
-
-  it('closes search dialog on Escape', () => {
-    render(<TopBar />, { wrapper: Wrapper })
-    fireEvent.keyDown(window, { key: 'k', ctrlKey: true })
-    fireEvent.keyDown(window, { key: 'Escape' })
-    expect(screen.queryByRole('dialog')).toBeNull()
-  })
-
-  it('shows active alert count when there are open alerts', () => {
+  it('shows active alert count badge when there are open alerts', () => {
     useLiveStore.setState({ alerts: [makeAlert('OPEN'), makeAlert('OPEN')] })
     render(<TopBar />, { wrapper: Wrapper })
     expect(screen.getByLabelText('2 active alerts')).toBeInTheDocument()
@@ -90,17 +71,23 @@ describe('TopBar', () => {
     expect(screen.queryByLabelText(/active alerts/)).toBeNull()
   })
 
-  it('shows search results from /api/persons/search', async () => {
-    mockApi.get.mockResolvedValueOnce([
-      { person_id: 1, name: 'John Doe', employee_id: 'EMP-001', is_active: true },
-    ])
+  it('GPU bar width reflects gpuPct', () => {
+    useLiveStore.setState({ gpuPct: 75 })
     render(<TopBar />, { wrapper: Wrapper })
-    fireEvent.click(screen.getByLabelText('Search persons'))
-    fireEvent.change(screen.getByLabelText('Search persons', { selector: 'input' }), {
-      target: { value: 'John' },
-    })
-    await waitFor(() => {
-      expect(screen.getByText('John Doe')).toBeInTheDocument()
-    })
+    const bar = screen.getByRole('progressbar', { name: 'GPU 75%' })
+    expect(bar).toBeInTheDocument()
+    expect(bar).toHaveAttribute('aria-valuenow', '75')
+  })
+
+  it('GPU label shows percentage', () => {
+    useLiveStore.setState({ gpuPct: 42 })
+    render(<TopBar />, { wrapper: Wrapper })
+    expect(screen.getByText('42%')).toBeInTheDocument()
+  })
+
+  it('head count label shows total', () => {
+    useLiveStore.setState({ headCount: { total: 17, byZone: {} } })
+    render(<TopBar />, { wrapper: Wrapper })
+    expect(screen.getByLabelText('17 people on site')).toBeInTheDocument()
   })
 })

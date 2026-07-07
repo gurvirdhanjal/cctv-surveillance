@@ -7,14 +7,32 @@ interface HeadCountState {
   byZone: Record<number, number>
 }
 
+export interface LiveBookmark {
+  cameraId: number
+  tsMs: number
+  label?: string
+}
+
+export type WsStatus = 'connected' | 'reconnecting' | 'offline'
+
+const SEVERITY_ORDER: Record<string, number> = {
+  CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3,
+}
+
 interface LiveState {
   cameras: CameraState[]
   focusedCameraId: number | null
+  selectedCameraId: number | null
   followedTrackId: string | null
   alerts: LiveAlert[]
   trackedPersons: Map<string, PersonLocation>
   headCount: HeadCountState
   degraded: { connection?: string; redis?: string } | null
+  gridLayout: 1 | 4 | 9 | 16
+  wsStatus: WsStatus
+  bookmarks: LiveBookmark[]
+  floorPlanVisible: boolean
+  gpuPct: number
 
   reset: (snapshot: StateSnapshot) => void
   applyLocations: (locs: PersonLocation[]) => void
@@ -24,17 +42,33 @@ interface LiveState {
   applyCameraSnapshot: (cameraId: number, url: string) => void
   applyTrackCorrected: (globalTrackId: string, personId: number) => void
   setFocusedCamera: (id: number | null) => void
+  setSelectedCamera: (id: number | null) => void
   setFollowedTrack: (id: string | null) => void
+  setGridLayout: (layout: 1 | 4 | 9 | 16) => void
+  setWsStatus: (status: WsStatus) => void
+  toggleFloorPlan: () => void
+  addBookmark: (bookmark: LiveBookmark) => void
+  removeBookmark: (cameraId: number, tsMs: number) => void
+  upsertAlert: (alert: LiveAlert) => void
+  acknowledgeAlert: (id: number) => void
+  resolveAlert: (id: number) => void
+  setGpuPct: (pct: number) => void
 }
 
 export const useLiveStore = create<LiveState>((set) => ({
   cameras: [],
   focusedCameraId: null,
+  selectedCameraId: null,
   followedTrackId: null,
   alerts: [],
   trackedPersons: new Map(),
   headCount: { total: 0, byZone: {} },
   degraded: null,
+  gridLayout: 1,
+  wsStatus: 'offline',
+  bookmarks: [],
+  floorPlanVisible: false,
+  gpuPct: 0,
 
   reset: (snapshot) =>
     set({
@@ -100,5 +134,46 @@ export const useLiveStore = create<LiveState>((set) => ({
     }),
 
   setFocusedCamera: (id) => set({ focusedCameraId: id }),
+  setSelectedCamera: (id) => set({ selectedCameraId: id }),
   setFollowedTrack: (id) => set({ followedTrackId: id }),
+  setGridLayout: (layout) => set({ gridLayout: layout }),
+  setWsStatus: (status) => set({ wsStatus: status }),
+  toggleFloorPlan: () => set((s) => ({ floorPlanVisible: !s.floorPlanVisible })),
+  setGpuPct: (pct) => set({ gpuPct: pct }),
+
+  addBookmark: (bookmark) =>
+    set((s) => ({ bookmarks: [...s.bookmarks, bookmark] })),
+
+  removeBookmark: (cameraId, tsMs) =>
+    set((s) => ({
+      bookmarks: s.bookmarks.filter((b) => !(b.cameraId === cameraId && b.tsMs === tsMs)),
+    })),
+
+  upsertAlert: (alert) =>
+    set((s) => {
+      const existing = s.alerts.findIndex((a) => a.alert_id === alert.alert_id)
+      const next = existing >= 0
+        ? s.alerts.map((a) => (a.alert_id === alert.alert_id ? alert : a))
+        : [alert, ...s.alerts]
+      return {
+        alerts: [...next].sort((a, b) => {
+          const sd = (SEVERITY_ORDER[a.severity] ?? 99) - (SEVERITY_ORDER[b.severity] ?? 99)
+          return sd !== 0 ? sd : new Date(b.triggered_at).getTime() - new Date(a.triggered_at).getTime()
+        }),
+      }
+    }),
+
+  acknowledgeAlert: (id) =>
+    set((s) => ({
+      alerts: s.alerts.map((a) =>
+        a.alert_id === id ? { ...a, state: 'ACKNOWLEDGED' as AlertState } : a,
+      ),
+    })),
+
+  resolveAlert: (id) =>
+    set((s) => ({
+      alerts: s.alerts.map((a) =>
+        a.alert_id === id ? { ...a, state: 'RESOLVED' as AlertState } : a,
+      ),
+    })),
 }))

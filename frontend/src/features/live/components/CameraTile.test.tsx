@@ -37,27 +37,36 @@ describe('CameraTile', () => {
     expect(screen.getByText('MID')).toBeInTheDocument()
   })
 
-  it('applies brand border when focused', () => {
+  it('applies ring-white/40 when focused (dark console style)', () => {
     const { container } = render(
       <CameraTile camera={makeCamera()} isFocused={true} onSelect={vi.fn()} />,
     )
     const btn = container.querySelector('button')
-    expect(btn?.className).toMatch(/border-brand-500/)
+    expect(btn?.className).toContain('ring-white/40')
   })
 
-  it('applies amber border for auth_failed status when not focused', () => {
+  it('does not apply ring-white/40 when not focused', () => {
     const { container } = render(
-      <CameraTile camera={makeCamera({ status: 'auth_failed' })} isFocused={false} onSelect={vi.fn()} />,
+      <CameraTile camera={makeCamera()} isFocused={false} onSelect={vi.fn()} />,
     )
     const btn = container.querySelector('button')
-    expect(btn?.className).toMatch(/border-status-auth-failed/)
+    expect(btn?.className).not.toContain('ring-white/40')
   })
 
-  it('shows calendar icon for maintenance status', () => {
-    render(
+  it('applies alarming border when isAlarming=true', () => {
+    const { container } = render(
+      <CameraTile camera={makeCamera()} isFocused={false} isAlarming onSelect={vi.fn()} />,
+    )
+    const btn = container.querySelector('button')
+    expect(btn?.className).toContain('border-[#dc2626]')
+  })
+
+  it('applies reduced opacity for maintenance status', () => {
+    const { container } = render(
       <CameraTile camera={makeCamera({ status: 'maintenance' })} isFocused={false} onSelect={vi.fn()} />,
     )
-    expect(screen.getByLabelText('Under maintenance')).toBeInTheDocument()
+    const btn = container.querySelector('button')
+    expect(btn?.className).toContain('opacity-60')
   })
 
   it('calls onSelect when clicked', () => {
@@ -70,5 +79,10 @@ describe('CameraTile', () => {
   it('has aria-pressed=true when focused', () => {
     render(<CameraTile camera={makeCamera()} isFocused={true} onSelect={vi.fn()} />)
     expect(screen.getByRole('button')).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('has accessible label including camera name', () => {
+    render(<CameraTile camera={makeCamera()} isFocused={false} onSelect={vi.fn()} />)
+    expect(screen.getByLabelText('Focus camera Loading Bay')).toBeInTheDocument()
   })
 })

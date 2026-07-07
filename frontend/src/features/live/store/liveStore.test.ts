@@ -212,4 +212,91 @@ describe('liveStore', () => {
       expect(useLiveStore.getState().followedTrackId).toBeNull()
     })
   })
+
+  describe('setGridLayout', () => {
+    it('persists the layout value', () => {
+      useLiveStore.getState().setGridLayout(9)
+      expect(useLiveStore.getState().gridLayout).toBe(9)
+    })
+
+    it('can switch between valid values', () => {
+      useLiveStore.getState().setGridLayout(16)
+      expect(useLiveStore.getState().gridLayout).toBe(16)
+      useLiveStore.getState().setGridLayout(1)
+      expect(useLiveStore.getState().gridLayout).toBe(1)
+    })
+  })
+
+  describe('setWsStatus', () => {
+    it('transitions from offline to connected', () => {
+      useLiveStore.getState().setWsStatus('connected')
+      expect(useLiveStore.getState().wsStatus).toBe('connected')
+    })
+
+    it('transitions through reconnecting', () => {
+      useLiveStore.getState().setWsStatus('reconnecting')
+      expect(useLiveStore.getState().wsStatus).toBe('reconnecting')
+    })
+  })
+
+  describe('addBookmark / removeBookmark', () => {
+    it('addBookmark appends a new bookmark', () => {
+      useLiveStore.getState().addBookmark({ cameraId: 1, tsMs: 1000, label: 'test' })
+      useLiveStore.getState().addBookmark({ cameraId: 2, tsMs: 2000 })
+      expect(useLiveStore.getState().bookmarks).toHaveLength(2)
+    })
+
+    it('removeBookmark removes matching entry', () => {
+      useLiveStore.getState().addBookmark({ cameraId: 1, tsMs: 1000 })
+      useLiveStore.getState().addBookmark({ cameraId: 2, tsMs: 2000 })
+      useLiveStore.getState().removeBookmark(1, 1000)
+      const { bookmarks } = useLiveStore.getState()
+      expect(bookmarks).toHaveLength(1)
+      expect(bookmarks[0].cameraId).toBe(2)
+    })
+  })
+
+  describe('upsertAlert', () => {
+    it('inserts a new alert when id not present', () => {
+      useLiveStore.getState().upsertAlert(makeAlert(5))
+      expect(useLiveStore.getState().alerts).toHaveLength(1)
+    })
+
+    it('updates existing alert (dedups by id)', () => {
+      useLiveStore.getState().upsertAlert(makeAlert(5))
+      useLiveStore.getState().upsertAlert(makeAlert(5, { severity: 'CRITICAL' }))
+      const { alerts } = useLiveStore.getState()
+      expect(alerts).toHaveLength(1)
+      expect(alerts[0].severity).toBe('CRITICAL')
+    })
+
+    it('keeps list sorted by severity then recency', () => {
+      useLiveStore.getState().upsertAlert(makeAlert(1, { severity: 'LOW', triggered_at: '2026-07-07T10:00:00Z' }))
+      useLiveStore.getState().upsertAlert(makeAlert(2, { severity: 'CRITICAL', triggered_at: '2026-07-07T09:00:00Z' }))
+      const { alerts } = useLiveStore.getState()
+      expect(alerts[0].severity).toBe('CRITICAL')
+      expect(alerts[1].severity).toBe('LOW')
+    })
+  })
+
+  describe('acknowledgeAlert / resolveAlert', () => {
+    it('acknowledgeAlert sets state to ACKNOWLEDGED', () => {
+      useLiveStore.getState().upsertAlert(makeAlert(7))
+      useLiveStore.getState().acknowledgeAlert(7)
+      expect(useLiveStore.getState().alerts[0].state).toBe('ACKNOWLEDGED')
+    })
+
+    it('resolveAlert sets state to RESOLVED', () => {
+      useLiveStore.getState().upsertAlert(makeAlert(8))
+      useLiveStore.getState().resolveAlert(8)
+      expect(useLiveStore.getState().alerts[0].state).toBe('RESOLVED')
+    })
+
+    it('leaves other alerts unchanged', () => {
+      useLiveStore.getState().upsertAlert(makeAlert(10))
+      useLiveStore.getState().upsertAlert(makeAlert(11))
+      useLiveStore.getState().acknowledgeAlert(10)
+      expect(useLiveStore.getState().alerts.find((a) => a.alert_id === 11)?.state).toBe('OPEN')
+    })
+  })
 })

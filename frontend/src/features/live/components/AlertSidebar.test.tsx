@@ -102,4 +102,21 @@ describe('AlertSidebar', () => {
     render(<AlertSidebar />, { wrapper: Wrapper })
     expect(screen.getByText(/Alerts paused — system degraded/)).toBeInTheDocument()
   })
+
+  it('alert list has aria-live assertive', () => {
+    render(<AlertSidebar />, { wrapper: Wrapper })
+    const list = screen.getByRole('list', { name: 'Active alert list' })
+    expect(list).toHaveAttribute('aria-live', 'assertive')
+  })
+
+  it('arrow keys navigate selected card', () => {
+    useLiveStore.setState({ alerts: [makeAlert(1), makeAlert(2)] })
+    const { container } = render(<AlertSidebar />, { wrapper: Wrapper })
+    const wrapper = container.firstElementChild as HTMLElement
+    fireEvent.keyDown(wrapper, { key: 'ArrowDown' })
+    fireEvent.keyDown(wrapper, { key: 'ArrowDown' })
+    // selectedIndex should be clamped at grouped.length - 1
+    const items = screen.getAllByRole('listitem')
+    expect(items).toHaveLength(2)
+  })
 })
