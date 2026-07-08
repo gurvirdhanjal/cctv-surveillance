@@ -1,12 +1,4 @@
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-} from 'recharts'
+import { EChartsWrapper, useChartTheme } from '@/shared/charts/EChartsWrapper'
 import type { HeadCountPoint } from '@/shared/api/types'
 
 interface HeadCountChartProps {
@@ -15,6 +7,8 @@ interface HeadCountChartProps {
 }
 
 export function HeadCountChart({ data, loading = false }: HeadCountChartProps) {
+  const theme = useChartTheme()
+
   if (loading) {
     return (
       <div
@@ -25,33 +19,49 @@ export function HeadCountChart({ data, loading = false }: HeadCountChartProps) {
     )
   }
 
+  const option = {
+    grid: { top: 8, right: 16, bottom: 28, left: 8, containLabel: true },
+    tooltip: { trigger: 'axis' as const, textStyle: { fontSize: 12 } },
+    legend: { data: ['Peak', 'Avg'], bottom: 0, textStyle: { color: theme.mutedColor, fontSize: 11 } },
+    xAxis: {
+      type: 'category' as const,
+      data: data.map((d) => d.date),
+      axisTick: { show: false },
+      axisLine: { show: false },
+      axisLabel: { color: theme.mutedColor, fontSize: 12 },
+    },
+    yAxis: {
+      type: 'value' as const,
+      axisTick: { show: false },
+      axisLine: { show: false },
+      splitLine: { lineStyle: { color: theme.borderColor } },
+      axisLabel: { color: theme.mutedColor, fontSize: 12 },
+    },
+    series: [
+      {
+        type: 'line' as const,
+        name: 'Peak',
+        data: data.map((d) => d.peak),
+        smooth: true,
+        symbol: 'none',
+        lineStyle: { color: '#2b6cb0', width: 2 },
+        itemStyle: { color: '#2b6cb0' },
+      },
+      {
+        type: 'line' as const,
+        name: 'Avg',
+        data: data.map((d) => d.avg),
+        smooth: true,
+        symbol: 'none',
+        lineStyle: { color: '#7eb0ff', width: 2, type: 'dashed' as const },
+        itemStyle: { color: '#7eb0ff' },
+      },
+    ],
+  }
+
   return (
     <div aria-label="Head count over 7 days" className="h-48 w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 4, right: 16, bottom: 4, left: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-default)" />
-          <XAxis dataKey="date" tick={{ fontSize: 12, fill: 'var(--text-muted)' }} tickLine={false} />
-          <YAxis tick={{ fontSize: 12, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-          <Tooltip contentStyle={{ fontSize: 12 }} />
-          <Line
-            type="monotone"
-            dataKey="peak"
-            stroke="#2b6cb0"
-            strokeWidth={2}
-            dot={false}
-            name="Peak"
-          />
-          <Line
-            type="monotone"
-            dataKey="avg"
-            stroke="#7eb0ff"
-            strokeWidth={2}
-            dot={false}
-            name="Avg"
-            strokeDasharray="4 2"
-          />
-        </LineChart>
-      </ResponsiveContainer>
+      <EChartsWrapper option={option} style={{ height: '100%', width: '100%' }} />
     </div>
   )
 }

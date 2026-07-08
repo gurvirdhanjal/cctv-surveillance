@@ -2,19 +2,11 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import type { AlertCountByType } from '@/shared/api/types'
 
-vi.mock('recharts', () => ({
-  ResponsiveContainer: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="recharts-container">{children}</div>
+vi.mock('@/shared/charts/EChartsWrapper', () => ({
+  EChartsWrapper: ({ option }: { option: { series?: Array<{ type?: string }> } }) => (
+    <div data-testid="echarts-wrapper" data-series-type={option?.series?.[0]?.type} />
   ),
-  BarChart: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="bar-chart">{children}</div>
-  ),
-  Bar: () => null,
-  Cell: () => null,
-  XAxis: () => null,
-  YAxis: () => null,
-  CartesianGrid: () => null,
-  Tooltip: () => null,
+  useChartTheme: () => ({ textColor: '#e2e8f0', mutedColor: '#64748b', borderColor: '#1e293b', backgroundColor: '#1a2234' }),
 }))
 
 const { AlertVolumeChart } = await import('./AlertVolumeChart')
@@ -29,9 +21,10 @@ const sampleData: AlertCountByType[] = [
 ]
 
 describe('AlertVolumeChart', () => {
-  it('renders bar chart', () => {
+  it('renders ECharts bar chart', () => {
     render(<AlertVolumeChart data={sampleData} />)
-    expect(screen.getByTestId('bar-chart')).toBeInTheDocument()
+    expect(screen.getByTestId('echarts-wrapper')).toBeInTheDocument()
+    expect(screen.getByTestId('echarts-wrapper').getAttribute('data-series-type')).toBe('bar')
   })
 
   it('renders loading skeleton when loading', () => {
@@ -42,5 +35,10 @@ describe('AlertVolumeChart', () => {
   it('has accessible label', () => {
     render(<AlertVolumeChart data={sampleData} />)
     expect(screen.getByLabelText('Alert volume by type')).toBeInTheDocument()
+  })
+
+  it('does not render recharts-wrapper element', () => {
+    const { container } = render(<AlertVolumeChart data={sampleData} />)
+    expect(container.querySelector('.recharts-wrapper')).toBeNull()
   })
 })

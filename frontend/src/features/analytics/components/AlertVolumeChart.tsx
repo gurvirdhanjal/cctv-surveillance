@@ -1,13 +1,4 @@
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Cell,
-} from 'recharts'
+import { EChartsWrapper, useChartTheme } from '@/shared/charts/EChartsWrapper'
 import type { AlertCountByType } from '@/shared/api/types'
 
 const ALERT_COLORS: Record<string, string> = {
@@ -25,6 +16,8 @@ interface AlertVolumeChartProps {
 }
 
 export function AlertVolumeChart({ data, loading = false }: AlertVolumeChartProps) {
+  const theme = useChartTheme()
+
   if (loading) {
     return (
       <div
@@ -37,30 +30,39 @@ export function AlertVolumeChart({ data, loading = false }: AlertVolumeChartProp
 
   const top5 = [...data].sort((a, b) => b.count - a.count).slice(0, 5)
 
+  const option = {
+    grid: { top: 8, right: 16, bottom: 28, left: 8, containLabel: true },
+    tooltip: { trigger: 'axis' as const, textStyle: { fontSize: 12 } },
+    xAxis: {
+      type: 'category' as const,
+      data: top5.map((d) => d.alert_type.replace(/_/g, ' ')),
+      axisTick: { show: false },
+      axisLine: { show: false },
+      axisLabel: { color: theme.mutedColor, fontSize: 11 },
+    },
+    yAxis: {
+      type: 'value' as const,
+      axisTick: { show: false },
+      axisLine: { show: false },
+      splitLine: { lineStyle: { color: theme.borderColor } },
+      axisLabel: { color: theme.mutedColor, fontSize: 12 },
+    },
+    series: [
+      {
+        type: 'bar' as const,
+        data: top5.map((d) => ({
+          value: d.count,
+          itemStyle: { color: ALERT_COLORS[d.alert_type] ?? '#2b6cb0', borderRadius: [3, 3, 0, 0] },
+        })),
+        name: 'Count',
+        barMaxWidth: 40,
+      },
+    ],
+  }
+
   return (
     <div aria-label="Alert volume by type" className="h-48 w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={top5} margin={{ top: 4, right: 16, bottom: 4, left: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-default)" vertical={false} />
-          <XAxis
-            dataKey="alert_type"
-            tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
-            tickLine={false}
-            tickFormatter={(v: string) => v.replace(/_/g, ' ')}
-          />
-          <YAxis
-            tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
-            axisLine={false}
-            tickLine={false}
-          />
-          <Tooltip contentStyle={{ fontSize: 12 }} />
-          <Bar dataKey="count" name="Count" radius={[3, 3, 0, 0]}>
-            {top5.map((entry) => (
-              <Cell key={entry.alert_type} fill={ALERT_COLORS[entry.alert_type] ?? '#2b6cb0'} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+      <EChartsWrapper option={option} style={{ height: '100%', width: '100%' }} />
     </div>
   )
 }

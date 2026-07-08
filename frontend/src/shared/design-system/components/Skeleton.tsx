@@ -124,6 +124,18 @@ export function SkeletonAvatar({ size = 32, className }: { size?: number; classN
   )
 }
 
+/** §V.2 chart skeleton — full-width shimmer block matching ECharts container height. */
+export function SkeletonChart({ className, style }: { className?: string; style?: CSSProperties }) {
+  return (
+    <div
+      role="status"
+      aria-label="Loading chart"
+      className={cn('animate-pulse rounded-xl bg-surface-raised w-full', className)}
+      style={{ height: 192, ...style }}
+    />
+  )
+}
+
 /** §Q camera tree skeleton — 3 group headers + 4 camera-row skeletons. */
 export function SkeletonCameraTree({ className }: { className?: string }) {
   return (

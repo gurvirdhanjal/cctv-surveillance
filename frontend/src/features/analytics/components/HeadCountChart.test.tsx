@@ -2,18 +2,11 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import type { HeadCountPoint } from '@/shared/api/types'
 
-vi.mock('recharts', () => ({
-  ResponsiveContainer: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="recharts-container">{children}</div>
+vi.mock('@/shared/charts/EChartsWrapper', () => ({
+  EChartsWrapper: ({ option }: { option: { series?: Array<{ type?: string }> } }) => (
+    <div data-testid="echarts-wrapper" data-series-type={option?.series?.[0]?.type} />
   ),
-  LineChart: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="line-chart">{children}</div>
-  ),
-  Line: () => null,
-  XAxis: () => null,
-  YAxis: () => null,
-  CartesianGrid: () => null,
-  Tooltip: () => null,
+  useChartTheme: () => ({ textColor: '#e2e8f0', mutedColor: '#64748b', borderColor: '#1e293b', backgroundColor: '#1a2234' }),
 }))
 
 const { HeadCountChart } = await import('./HeadCountChart')
@@ -24,9 +17,10 @@ const sampleData: HeadCountPoint[] = [
 ]
 
 describe('HeadCountChart', () => {
-  it('renders line chart with data', () => {
+  it('renders ECharts line chart with data', () => {
     render(<HeadCountChart data={sampleData} />)
-    expect(screen.getByTestId('line-chart')).toBeInTheDocument()
+    expect(screen.getByTestId('echarts-wrapper')).toBeInTheDocument()
+    expect(screen.getByTestId('echarts-wrapper').getAttribute('data-series-type')).toBe('line')
   })
 
   it('renders loading skeleton when loading', () => {
@@ -37,5 +31,10 @@ describe('HeadCountChart', () => {
   it('has accessible container label', () => {
     render(<HeadCountChart data={sampleData} />)
     expect(screen.getByLabelText('Head count over 7 days')).toBeInTheDocument()
+  })
+
+  it('does not render recharts-wrapper element', () => {
+    const { container } = render(<HeadCountChart data={sampleData} />)
+    expect(container.querySelector('.recharts-wrapper')).toBeNull()
   })
 })

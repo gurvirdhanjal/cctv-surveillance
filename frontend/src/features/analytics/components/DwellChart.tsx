@@ -1,12 +1,4 @@
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-} from 'recharts'
+import { EChartsWrapper, useChartTheme } from '@/shared/charts/EChartsWrapper'
 
 interface DwellEntry {
   zone_name: string
@@ -19,6 +11,8 @@ interface DwellChartProps {
 }
 
 export function DwellChart({ data, loading = false }: DwellChartProps) {
+  const theme = useChartTheme()
+
   if (loading) {
     return (
       <div
@@ -29,32 +23,37 @@ export function DwellChart({ data, loading = false }: DwellChartProps) {
     )
   }
 
+  const option = {
+    grid: { top: 8, right: 24, bottom: 8, left: 60, containLabel: false },
+    tooltip: { trigger: 'axis' as const, textStyle: { fontSize: 12 }, formatter: '{b}: {c} min' },
+    xAxis: {
+      type: 'value' as const,
+      axisTick: { show: false },
+      axisLine: { show: false },
+      splitLine: { lineStyle: { color: theme.borderColor } },
+      axisLabel: { color: theme.mutedColor, fontSize: 11, formatter: '{value} min' },
+    },
+    yAxis: {
+      type: 'category' as const,
+      data: data.map((d) => d.zone_name),
+      axisTick: { show: false },
+      axisLine: { show: false },
+      axisLabel: { color: theme.textColor, fontSize: 12 },
+    },
+    series: [
+      {
+        type: 'bar' as const,
+        data: data.map((d) => d.dwell_minutes),
+        name: 'Dwell (min)',
+        barMaxWidth: 32,
+        itemStyle: { color: '#2b6cb0', borderRadius: [0, 3, 3, 0] },
+      },
+    ],
+  }
+
   return (
     <div aria-label="Zone dwell times" className="h-40 w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={data}
-          layout="vertical"
-          margin={{ top: 4, right: 24, bottom: 4, left: 60 }}
-        >
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border-default)" />
-          <XAxis
-            type="number"
-            unit=" min"
-            tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
-            tickLine={false}
-          />
-          <YAxis
-            dataKey="zone_name"
-            type="category"
-            tick={{ fontSize: 12, fill: 'var(--text-primary)' }}
-            axisLine={false}
-            tickLine={false}
-          />
-          <Tooltip contentStyle={{ fontSize: 12 }} />
-          <Bar dataKey="dwell_minutes" fill="#2b6cb0" radius={[0, 3, 3, 0]} name="Dwell (min)" />
-        </BarChart>
-      </ResponsiveContainer>
+      <EChartsWrapper option={option} style={{ height: '100%', width: '100%' }} />
     </div>
   )
 }
