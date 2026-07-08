@@ -57,6 +57,14 @@ const config: Config = {
           'auth-failed': 'var(--status-auth-failed)',
           maintenance: 'var(--status-maintenance)',
         },
+        interactive: {
+          primary: 'var(--interactive-primary)',
+          hover: 'var(--interactive-hover)',
+          active: 'var(--interactive-active)',
+        },
+        focus: {
+          ring: 'var(--focus-ring)',
+        },
         success: 'var(--success)',
         info: 'var(--info)',
         warning: 'var(--warning)',

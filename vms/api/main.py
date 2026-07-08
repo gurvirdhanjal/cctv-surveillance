@@ -83,13 +83,18 @@ def _apply_media_mount(app: FastAPI, settings: Settings) -> None:
         )
 
 
+def _call_ensure_future_partitions() -> None:
+    """Thin wrapper so tests can assert partition creation is triggered on startup."""
+    ensure_future_partitions(engine, months_ahead=3)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from vms.api.deps import get_api_redis
     from vms.dispatcher.worker import AlertDispatcher
 
     try:
-        ensure_future_partitions(engine, months_ahead=3)
+        _call_ensure_future_partitions()
     except Exception:
         logger.warning(
             "Could not create tracking_events partitions on startup — DB may not be ready yet",

@@ -44,14 +44,17 @@ def test_get_settings_is_cached() -> None:
 def test_missing_required_raises() -> None:
     from pydantic_core import ValidationError
 
+    # clear=True removes os.environ overrides; _env_file=None blocks dotenv loading
+    # so Settings() has no db_url / jwt_secret and must raise.
     with patch.dict(os.environ, {}, clear=True), pytest.raises(ValidationError):
-        Settings()  # type: ignore[call-arg]
+        Settings(_env_file=None)  # type: ignore[call-arg]
 
 
 def test_phase6a_config_defaults() -> None:
     _required = {"VMS_DB_URL": "postgresql://x/y", "VMS_JWT_SECRET": "s"}
+    # _env_file=None prevents .env from overriding GPU defaults under test
     with patch.dict(os.environ, _required, clear=True):
-        s = Settings()
+        s = Settings(_env_file=None)  # type: ignore[call-arg]
     assert s.gpu_tensorrt_enabled is False
     assert s.gpu_tensorrt_fp16 is True
     assert s.gpu_tensorrt_int8 is False
@@ -139,7 +142,8 @@ def test_settings_ppe_defaults() -> None:
 
 
 def test_phase2d_config_defaults() -> None:
-    s = Settings(db_url="postgresql://x", jwt_secret="x")  # type: ignore[call-arg]
+    # _env_file=None prevents .env from overriding yolov8x_pose_model to .engine
+    s = Settings(db_url="postgresql://x", jwt_secret="x", _env_file=None)  # type: ignore[call-arg]
     assert s.botsort_config == "botsort_custom.yaml"
     assert s.yolov8x_pose_model == "models/yolo26m-pose.pt"
     assert not hasattr(s, "osnet_ain_model")

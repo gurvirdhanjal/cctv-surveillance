@@ -17,6 +17,8 @@ import { ClipExportDialog } from './components/ClipExportDialog'
 import { useLiveShortcuts } from './hooks/useLiveShortcuts'
 
 const PANEL_KEY = 'live-main'
+// Must match the id= props on the three <Panel> elements below.
+const PANEL_IDS = ['camera-tree', 'focused', 'alerts'] as const
 
 export function LivePage() {
   const cameras = useLiveStore((s) => s.cameras)
@@ -48,12 +50,19 @@ export function LivePage() {
       ? `/api/cameras/${focusedCameraId}/mjpeg?token=${encodeURIComponent(token)}`
       : null
 
+  // v4: Layout = { [panelId]: sizePercent } — an object, not an array.
   const handleLayout = useCallback(
-    (layout: Array<{ sizePixels: number; sizePercentage: number }>) => {
-      setPanelLayout(PANEL_KEY, layout.map((l) => l.sizePercentage))
+    (layout: Record<string, number>) => {
+      setPanelLayout(PANEL_KEY, PANEL_IDS.map((id) => layout[id] ?? 0))
     },
     [setPanelLayout],
   )
+
+  // Reconstruct the v4 Layout object from the persisted number[] (or skip if nothing saved).
+  const defaultLayout: Record<string, number> | undefined =
+    savedPanelSizes?.length === PANEL_IDS.length
+      ? Object.fromEntries(PANEL_IDS.map((id, i) => [id, savedPanelSizes[i]!]))
+      : undefined
 
   return (
     <>
@@ -69,7 +78,7 @@ export function LivePage() {
           <Group
             orientation="horizontal"
             onLayoutChange={handleLayout}
-            {...(savedPanelSizes ? { defaultLayout: savedPanelSizes } : {})}
+            {...(defaultLayout ? { defaultLayout } : {})}
             style={{ height: '100%' }}
           >
             <Panel

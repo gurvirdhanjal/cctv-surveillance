@@ -23,14 +23,17 @@ def _make_engine(fake_redis: fake_aioredis.FakeRedis) -> InferenceEngine:
     embedder = MagicMock()
     tracker = MagicMock()
     tracker.update.return_value = []
-    return InferenceEngine(
-        camera_ids=[1],
-        worker_group=1,
-        detector=detector,
-        embedder=embedder,
-        trackers={1: tracker},
-        redis_client=fake_redis,
-    )
+    mock_backend = MagicMock()
+    # Bypass _build_inference_backend so tests never try to connect to Triton
+    with patch("vms.inference.engine._build_inference_backend", return_value=mock_backend):
+        return InferenceEngine(
+            camera_ids=[1],
+            worker_group=1,
+            detector=detector,
+            embedder=embedder,
+            trackers={1: tracker},
+            redis_client=fake_redis,
+        )
 
 
 @pytest.mark.asyncio
