@@ -4,6 +4,7 @@ import { LoginPage } from '@/features/auth/LoginPage'
 import { NotFoundPage } from '@/features/errors/NotFoundPage'
 import { ForbiddenPage } from '@/features/errors/ForbiddenPage'
 import { RoleGuard } from './RoleGuard'
+import { WorkspaceShell } from '@/shared/workspace/WorkspaceShell'
 
 // Code-split top-level pages — loaded only when the route is first visited
 const GuardView = lazy(() =>
@@ -93,7 +94,9 @@ export function AppRoutes() {
           path="/live"
           element={
             <RoleGuard allow={['guard', 'manager', 'admin']}>
-              <LivePage />
+              <WorkspaceShell workspaceId="operator">
+                <LivePage />
+              </WorkspaceShell>
             </RoleGuard>
           }
         />
@@ -119,7 +122,9 @@ export function AppRoutes() {
           path="/analytics"
           element={
             <RoleGuard allow={['manager', 'admin']}>
-              <AnalyticsLayout />
+              <WorkspaceShell workspaceId="analytics">
+                <AnalyticsLayout />
+              </WorkspaceShell>
             </RoleGuard>
           }
         >
@@ -133,7 +138,9 @@ export function AppRoutes() {
           path="/forensic"
           element={
             <RoleGuard allow={['manager', 'admin']}>
-              <ForensicSearchPage />
+              <WorkspaceShell workspaceId="investigation">
+                <ForensicSearchPage />
+              </WorkspaceShell>
             </RoleGuard>
           }
         />
@@ -143,7 +150,9 @@ export function AppRoutes() {
           path="/admin/*"
           element={
             <RoleGuard allow={['admin']}>
-              <AdminPage />
+              <WorkspaceShell workspaceId="administration">
+                <AdminPage />
+              </WorkspaceShell>
             </RoleGuard>
           }
         />
