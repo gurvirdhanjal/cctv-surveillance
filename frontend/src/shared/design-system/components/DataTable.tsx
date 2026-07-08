@@ -282,7 +282,7 @@ export function DataTable<TData>({
             style={{ height: Math.min(data.length * 40, 600) }}
             data={rows}
             fixedHeaderContent={headerContent}
-            itemContent={(index, row) => (
+            itemContent={(_index, row) => (
               <>
                 {row.getVisibleCells().map((cell) => (
                   <td

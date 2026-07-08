@@ -104,6 +104,7 @@ export function AdminPersonsPage() {
 
         {!isLoading && !isError && (
           <DataTable
+            tableId="admin-persons"
             columns={columns}
             data={persons}
             filterPlaceholder="Filter by name or employee ID…"
@@ -113,7 +114,7 @@ export function AdminPersonsPage() {
                 icon={Icon.users}
                 title="No persons enrolled"
                 description="Use the enrolment wizard to add the first person."
-                action={
+                cta={
                   <button
                     type="button"
                     onClick={() => setShowEnrol(true)}

@@ -61,6 +61,7 @@ export function HardwareTab({ cameraId }: Props) {
           icon={Cpu}
           title="No profile data yet"
           description="Run the profiler to characterise this camera's hardware properties."
+          cta={<span className="text-xs text-text-muted">Run the camera profiler to populate this section</span>}
         />
       )}
 

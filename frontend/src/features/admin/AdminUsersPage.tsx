@@ -20,6 +20,7 @@ export function AdminUsersPage() {
             icon={UserCog}
             title="Users management coming soon"
             description="The /api/users backend endpoint is required before this page can be used. Tracked: plan 2026-06-24-vms-phase4-frontend.md — pre-work P3."
+            cta={<span className="text-xs text-text-muted">Backend endpoint required — see plan P3</span>}
           />
         </div>
       </div>

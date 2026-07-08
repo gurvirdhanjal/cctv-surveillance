@@ -194,7 +194,7 @@ export function AlertRoutingPage() {
             icon={Icon.alert}
             title="No routing rules configured"
             description="Create a rule to route alerts to email, Slack, Telegram, or webhook."
-            action={
+            cta={
               <Button onClick={() => setShowAdd(true)} icon={<Icon.add className="h-4 w-4" aria-hidden="true" />}>
                 Add Rule
               </Button>
@@ -204,6 +204,7 @@ export function AlertRoutingPage() {
 
         {!isLoading && rules.length > 0 && (
           <DataTable
+            tableId="alert-routing"
             columns={columns}
             data={rules}
             filterPlaceholder="Filter routing rules…"

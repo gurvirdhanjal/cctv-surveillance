@@ -67,6 +67,7 @@ const AUDIT_COLUMNS: ColumnDef<AuditLogEntry, unknown>[] = [
 function AuditTable({ entries }: { entries: AuditLogEntry[] }) {
   return (
     <DataTable
+      tableId="audit-log"
       columns={AUDIT_COLUMNS}
       data={entries}
       filterPlaceholder="Filter by event type or actor…"
@@ -168,6 +169,7 @@ export function AuditLogViewerPage() {
             icon={Icon.audit}
             title="No audit entries found."
             description="Events appear here as the system processes requests and state changes."
+            cta={<span className="text-xs text-text-muted">Events are recorded automatically</span>}
           />
         )}
 

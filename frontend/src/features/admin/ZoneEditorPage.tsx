@@ -122,7 +122,7 @@ export function ZoneEditorPage() {
             icon={MapPin}
             title="No zones defined"
             description="Draw zones on the floor plan to track dwell time and restrict access."
-            action={
+            cta={
               <button
                 type="button"
                 onClick={() => setShowAdd(true)}

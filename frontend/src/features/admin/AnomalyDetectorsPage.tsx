@@ -96,11 +96,13 @@ export function AnomalyDetectorsPage() {
             icon={Zap}
             title="No anomaly detectors configured"
             description="Detectors are registered by the backend on startup. Check the server configuration."
+            cta={<span className="text-xs text-text-muted">Registered automatically on backend startup</span>}
           />
         )}
 
         {!isLoading && detectors.length > 0 && (
           <DataTable
+            tableId="anomaly-detectors"
             columns={columns}
             data={detectors}
             filterPlaceholder="Filter detectors…"

@@ -1,11 +1,12 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Camera as CameraIcon } from 'lucide-react'
+import { type ColumnDef } from '@tanstack/react-table'
 import { Icon } from '@/shared/design-system/icons'
 import { api } from '@/shared/api/client'
 import { useAuthStore } from '@/stores/authStore'
@@ -17,6 +18,9 @@ import type {
 } from '@/shared/api/types'
 import { Button } from '@/shared/design-system/components/Button'
 import { ActionBar } from '@/shared/design-system/components/ActionBar'
+import { DataTable } from '@/shared/design-system/components/DataTable'
+import { EmptyState } from './components/EmptyState'
+import { SkeletonTable } from '@/shared/design-system/components/Skeleton'
 
 const TIER_COLORS: Record<CapabilityTier, string> = {
   FULL: 'bg-brand-100 text-brand-700',
@@ -64,37 +68,49 @@ function parseProfile(raw: string | null): ProfileData | null {
   }
 }
 
-function CameraStatusBadge({
-  cam,
-}: {
-  cam: CameraResponse
-}) {
+function StatusChip({ cam }: { cam: CameraResponse }) {
   if (cam.recalibrate_required_at) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-warning/85 px-2 py-0.5 text-[11px] font-semibold text-white backdrop-blur-sm">
-        <span className="h-1.5 w-1.5 rounded-full bg-white/80" />
+      <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-[11px] font-semibold text-warning">
         Calibration
       </span>
     )
   }
   if (cam.is_active) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-success/85 px-2 py-0.5 text-[11px] font-semibold text-white backdrop-blur-sm">
-        <span className="h-1.5 w-1.5 animate-status-pulse rounded-full bg-white" />
+      <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
+        <span className="h-1.5 w-1.5 animate-status-pulse rounded-full bg-success" />
         Online
       </span>
     )
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-semibold text-white/70 backdrop-blur-sm">
-      <span className="h-1.5 w-1.5 rounded-full bg-white/40" />
+    <span className="inline-flex items-center gap-1 rounded-full bg-surface-sunken px-2 py-0.5 text-[11px] font-semibold text-text-muted">
       Offline
     </span>
   )
 }
 
+function SnapshotThumb({ cameraId, token, name }: { cameraId: number; token: string | null; name: string }) {
+  if (!token) {
+    return <div className="h-8 w-12 rounded bg-surface-sunken flex items-center justify-center"><CameraIcon className="h-3 w-3 text-text-muted opacity-30" aria-hidden="true" /></div>
+  }
+  return (
+    <div className="relative h-8 w-12 overflow-hidden rounded bg-surface-sunken">
+      <img
+        className="h-full w-full object-cover"
+        src={`/api/cameras/${cameraId}/snapshot?token=${encodeURIComponent(token)}`}
+        alt={`${name} snapshot`}
+        loading="lazy"
+        onError={(e) => { e.currentTarget.style.display = 'none' }}
+      />
+    </div>
+  )
+}
+
 export function AdminCamerasPage() {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const token = useAuthStore((s) => s.token)
   const [showAdd, setShowAdd] = useState(false)
   const [manufacturer, setManufacturer] = useState('generic')
@@ -133,6 +149,140 @@ export function AdminCamerasPage() {
       void queryClient.invalidateQueries({ queryKey: ['admin', 'cameras'] })
     },
   })
+
+  const columns = useMemo<ColumnDef<CameraResponse, unknown>[]>(
+    () => [
+      {
+        id: 'thumb',
+        header: '',
+        enableSorting: false,
+        size: 72,
+        cell: ({ row }) => (
+          <SnapshotThumb cameraId={row.original.camera_id} token={token} name={row.original.name} />
+        ),
+      },
+      {
+        accessorKey: 'name',
+        header: 'Name',
+        cell: ({ getValue }) => (
+          <span className="font-medium text-text-primary">{getValue() as string}</span>
+        ),
+      },
+      {
+        id: 'status',
+        header: 'Status',
+        enableSorting: false,
+        cell: ({ row }) => <StatusChip cam={row.original} />,
+      },
+      {
+        accessorKey: 'capability_tier',
+        header: 'Tier',
+        cell: ({ getValue, row }) => {
+          const tier = getValue() as CapabilityTier
+          return (
+            <span
+              data-testid={`tier-badge-${row.original.camera_id}`}
+              className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                TIER_COLORS[tier] ?? TIER_COLORS.LOW
+              }`}
+            >
+              {tier}
+            </span>
+          )
+        },
+      },
+      {
+        id: 'capabilities',
+        header: 'Capabilities',
+        enableSorting: false,
+        cell: ({ row }) => {
+          const tier = row.original.capability_tier
+          return (
+            <span className="text-[12px] text-text-muted">
+              {tier === 'FULL'
+                ? 'Face · Body · Anomaly'
+                : tier === 'MID'
+                  ? 'Face · Body'
+                  : 'Body only'}
+            </span>
+          )
+        },
+      },
+      {
+        id: 'resolution',
+        header: 'Resolution',
+        enableSorting: false,
+        cell: ({ row }) => {
+          const pd = parseProfile(row.original.profile_data)
+          if (!pd?.resolution_w || !pd?.resolution_h) return <span className="text-[12px] text-text-muted">—</span>
+          return (
+            <span className="font-mono text-[12px] text-text-secondary">
+              {pd.resolution_w}×{pd.resolution_h}
+              {pd.fps_measured != null && ` · ${Math.round(pd.fps_measured)}fps`}
+            </span>
+          )
+        },
+      },
+      {
+        id: 'actions',
+        header: '',
+        enableSorting: false,
+        cell: ({ row }) => {
+          const cam = row.original
+          if (confirmDeleteId === cam.camera_id) {
+            return (
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => deleteMutation.mutate(cam.camera_id)}
+                  disabled={deleteMutation.isPending}
+                  className="text-[13px] font-medium text-error hover:underline disabled:opacity-50"
+                >
+                  {deleteMutation.isPending ? 'Deleting…' : 'Confirm'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDeleteId(null)}
+                  className="text-[13px] text-text-muted hover:text-text-primary"
+                >
+                  Cancel
+                </button>
+              </div>
+            )
+          }
+          return (
+            <div className="flex items-center gap-2">
+              <Link
+                to="/live"
+                className="inline-flex items-center gap-1 rounded-[8px] bg-action-700 px-2 py-1 text-[12px] font-medium text-white hover:bg-action-800 transition-colors"
+                aria-label={`Live view ${cam.name}`}
+              >
+                <Icon.live className="h-3 w-3" aria-hidden="true" />
+                Live
+              </Link>
+              <Link
+                to={`/admin/cameras/${cam.camera_id}`}
+                className="inline-flex items-center gap-1 rounded-[8px] border border-border px-2 py-1 text-[12px] font-medium text-text-secondary hover:border-brand-500/40 hover:text-text-primary transition-colors"
+                aria-label={`Settings ${cam.name}`}
+              >
+                <Icon.settings className="h-3 w-3" aria-hidden="true" />
+                Settings
+              </Link>
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteId(cam.camera_id)}
+                className="rounded-[8px] p-1 text-text-muted hover:bg-error/10 hover:text-error transition-colors"
+                aria-label={`Delete ${cam.name}`}
+              >
+                <Icon.delete className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            </div>
+          )
+        },
+      },
+    ],
+    [token, confirmDeleteId, deleteMutation],
+  )
 
   function onManufacturerChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const key = e.target.value
@@ -182,27 +332,8 @@ export function AdminCamerasPage() {
         />
 
         {isLoading && (
-          <div
-            className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
-            role="status"
-            aria-label="Loading cameras"
-          >
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="overflow-hidden rounded-xl border border-border bg-surface-base animate-pulse"
-              >
-                <div className="aspect-video bg-surface-sunken" />
-                <div className="p-5 space-y-3">
-                  <div className="h-4 w-2/3 rounded-lg bg-surface-sunken" />
-                  <div className="h-3 w-1/3 rounded-lg bg-surface-sunken" />
-                  <div className="flex gap-2 pt-1">
-                    <div className="h-8 w-16 rounded-lg bg-surface-sunken" />
-                    <div className="h-8 w-16 rounded-lg bg-surface-sunken" />
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div role="status" aria-label="Loading cameras">
+            <SkeletonTable rows={6} />
           </div>
         )}
 
@@ -213,135 +344,31 @@ export function AdminCamerasPage() {
         )}
 
         {!isLoading && !isError && cameras.length === 0 && (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-surface-base py-20 text-center">
-            <CameraIcon className="mb-4 h-10 w-10 text-text-muted opacity-30" aria-hidden="true" />
-            <p className="text-[15px] font-semibold text-text-secondary">No cameras configured</p>
-            <p className="mt-1 text-[13px] text-text-muted">
-              Add your first camera to get started.
-            </p>
-          </div>
+          <EmptyState
+            icon={CameraIcon}
+            title="No cameras configured"
+            description="Add your first camera to get started."
+            cta={
+              <Button
+                onClick={() => setShowAdd(true)}
+                icon={<Icon.add className="h-4 w-4" aria-hidden="true" />}
+              >
+                Add Camera
+              </Button>
+            }
+          />
         )}
 
         {!isLoading && !isError && cameras.length > 0 && (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {cameras.map((cam) => {
-              const profile = parseProfile(cam.profile_data)
-              return (
-                <div
-                  key={cam.camera_id}
-                  className="overflow-hidden rounded-xl border border-border bg-surface-base transition-shadow hover:shadow-[var(--shadow-2)]"
-                >
-                  {/* Snapshot thumbnail */}
-                  <div className="relative aspect-video bg-surface-sunken">
-                    {token && (
-                      <img
-                        className="absolute inset-0 h-full w-full object-cover"
-                        src={`/api/cameras/${cam.camera_id}/snapshot?token=${encodeURIComponent(token)}`}
-                        alt={`${cam.name} snapshot`}
-                        loading="lazy"
-                        onError={(e) => {
-                          ;(e.currentTarget as HTMLImageElement).style.display = 'none'
-                        }}
-                      />
-                    )}
-                    {/* Placeholder icon — shown when no token or img errors */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <CameraIcon className="h-8 w-8 text-text-muted opacity-20" aria-hidden="true" />
-                    </div>
-                    <span className="absolute left-2 top-2">
-                      <CameraStatusBadge cam={cam} />
-                    </span>
-                    {/* Profile metadata overlay */}
-                    {profile && (
-                      <div className="absolute bottom-2 right-2 flex items-center gap-1.5 rounded-lg bg-black/60 px-2 py-1 text-[11px] font-medium text-white backdrop-blur-sm">
-                        {profile.fps_measured != null && (
-                          <span>{Math.round(profile.fps_measured)}fps</span>
-                        )}
-                        {profile.resolution_w != null && profile.resolution_h != null && (
-                          <>
-                            {profile.fps_measured != null && <span className="text-white/40">·</span>}
-                            <span>{profile.resolution_w}×{profile.resolution_h}</span>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Card body */}
-                  <div className="p-5">
-                    <div className="mb-3 flex items-start justify-between gap-2">
-                      <p className="text-[14px] font-semibold leading-snug text-text-primary">
-                        {cam.name}
-                      </p>
-                      <span
-                        data-testid={`tier-badge-${cam.camera_id}`}
-                        className={`shrink-0 inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                          TIER_COLORS[cam.capability_tier as CapabilityTier] ?? TIER_COLORS.LOW
-                        }`}
-                      >
-                        {cam.capability_tier}
-                      </span>
-                    </div>
-
-                    {/* AI capability indicator */}
-                    <p className="mb-4 text-[12px] text-text-muted">
-                      {cam.capability_tier === 'FULL'
-                        ? 'Face · Body · Anomaly'
-                        : cam.capability_tier === 'MID'
-                          ? 'Face · Body'
-                          : 'Body only'}
-                    </p>
-
-                    {confirmDeleteId === cam.camera_id ? (
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => deleteMutation.mutate(cam.camera_id)}
-                          disabled={deleteMutation.isPending}
-                          className="text-[13px] font-medium text-error hover:underline disabled:opacity-50"
-                        >
-                          {deleteMutation.isPending ? 'Deleting…' : 'Confirm delete'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDeleteId(null)}
-                          className="text-[13px] text-text-muted hover:text-text-primary"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <Link
-                          to="/live"
-                          className="inline-flex items-center gap-1.5 rounded-[10px] bg-action-700 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-action-800 transition-colors"
-                        >
-                          <Icon.live className="h-3.5 w-3.5" aria-hidden="true" />
-                          Live
-                        </Link>
-                        <Link
-                          to={`/admin/cameras/${cam.camera_id}`}
-                          className="inline-flex items-center gap-1.5 rounded-[10px] border border-border px-3 py-1.5 text-[12px] font-medium text-text-secondary hover:border-brand-500/40 hover:text-text-primary transition-colors"
-                          aria-label={`Settings ${cam.name}`}
-                        >
-                          <Icon.settings className="h-3.5 w-3.5" aria-hidden="true" />
-                          Settings
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDeleteId(cam.camera_id)}
-                          className="ml-auto rounded-[10px] p-1.5 text-text-muted hover:bg-error/10 hover:text-error transition-colors"
-                          aria-label={`Delete ${cam.name}`}
-                        >
-                          <Icon.delete className="h-4 w-4" aria-hidden="true" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+          <DataTable
+            tableId="admin-cameras"
+            columns={columns}
+            data={cameras}
+            density="compact"
+            filterPlaceholder="Filter cameras…"
+            pageSize={25}
+            onRowOpen={(cam) => navigate(`/admin/cameras/${cam.camera_id}`)}
+          />
         )}
       </div>
 
