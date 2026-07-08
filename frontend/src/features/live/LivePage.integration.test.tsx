@@ -1,5 +1,6 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { render, screen, act } from '@testing-library/react'
+import React from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { HelmetProvider } from 'react-helmet-async'
@@ -46,6 +47,22 @@ vi.mock('./components/ShortcutLegend', () => ({
 
 vi.mock('./components/ClipExportDialog', () => ({
   ClipExportDialog: () => null,
+}))
+
+vi.mock('./components/AlertTimeline', () => ({
+  AlertTimeline: () => <div data-testid="alert-timeline" />,
+}))
+
+vi.mock('react-resizable-panels', () => ({
+  Group: ({ children, orientation }: { children: React.ReactNode; orientation?: string; onLayoutChange?: unknown; defaultLayout?: unknown; style?: unknown }) => (
+    <div data-orientation={orientation ?? 'horizontal'}>{children}</div>
+  ),
+  Panel: ({ children, id }: { children: React.ReactNode; id?: string; defaultSize?: number; minSize?: number }) => (
+    <div data-panel={id ?? ''}>{children}</div>
+  ),
+  Separator: ({ className }: { className?: string }) => (
+    <div data-separator="" className={className} role="separator" />
+  ),
 }))
 
 import { api } from '@/shared/api/client'

@@ -1,17 +1,22 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Helmet } from 'react-helmet-async'
+import { Group, Panel, Separator } from 'react-resizable-panels'
 import { useLiveStore } from './store/liveStore'
 import { useSocketConnection } from './hooks/useSocketConnection'
 import { useAuthStore } from '@/stores/authStore'
+import { useWorkspacePrefs } from '@/shared/workspace/useWorkspacePrefs'
 import { CameraTree } from './components/CameraTree'
 import { FocusedCamera } from './components/FocusedCamera'
 import { AlertSidebar } from './components/AlertSidebar'
+import { AlertTimeline } from './components/AlertTimeline'
 import { TopBar } from './components/TopBar'
 import { OfflineReconnectBanner } from './components/OfflineReconnectBanner'
 import { SystemStatusStrip } from './components/SystemStatusStrip'
 import { ShortcutLegend } from './components/ShortcutLegend'
 import { ClipExportDialog } from './components/ClipExportDialog'
 import { useLiveShortcuts } from './hooks/useLiveShortcuts'
+
+const PANEL_KEY = 'live-main'
 
 export function LivePage() {
   const cameras = useLiveStore((s) => s.cameras)
@@ -22,9 +27,11 @@ export function LivePage() {
   const [legendOpen, setLegendOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
 
+  const savedPanelSizes = useWorkspacePrefs((s) => s.panelLayouts[PANEL_KEY])
+  const setPanelLayout = useWorkspacePrefs((s) => s.setPanelLayout)
+
   useSocketConnection()
 
-  // Auto-focus first camera when none is selected
   useEffect(() => {
     if (focusedCameraId === null && cameras.length > 0) {
       setFocusedCamera(cameras[0].camera_id)
@@ -41,10 +48,16 @@ export function LivePage() {
       ? `/api/cameras/${focusedCameraId}/mjpeg?token=${encodeURIComponent(token)}`
       : null
 
+  const handleLayout = useCallback(
+    (layout: Array<{ sizePixels: number; sizePercentage: number }>) => {
+      setPanelLayout(PANEL_KEY, layout.map((l) => l.sizePercentage))
+    },
+    [setPanelLayout],
+  )
+
   return (
     <>
       <Helmet title="Live" />
-      {/* Forced-dark console — overrides global theme toggle */}
       <div
         data-theme="dark"
         className="flex h-screen flex-col overflow-hidden bg-[#0a0e1a] text-slate-100"
@@ -52,35 +65,60 @@ export function LivePage() {
         <TopBar />
         <OfflineReconnectBanner />
 
-        <div className="grid min-h-0 flex-1" style={{ gridTemplateColumns: '320px 1fr 380px' }}>
-          {/* Left: Camera tree */}
-          <section
-            aria-label="Camera list"
-            className="overflow-hidden border-r border-[#1e293b] bg-[#111827]"
+        <div className="min-h-0 flex-1">
+          <Group
+            orientation="horizontal"
+            onLayoutChange={handleLayout}
+            {...(savedPanelSizes ? { defaultLayout: savedPanelSizes } : {})}
+            style={{ height: '100%' }}
           >
-            <CameraTree />
-          </section>
+            <Panel
+              id="camera-tree"
+              defaultSize={22}
+              minSize={16}
+            >
+              <section
+                aria-label="Camera list"
+                className="h-full overflow-hidden border-r border-[#1e293b] bg-[#111827]"
+              >
+                <CameraTree />
+              </section>
+            </Panel>
 
-          {/* Center: Focused camera */}
-          <section
-            aria-label="Focused camera"
-            className="relative min-w-0 bg-[#0a0e1a]"
-          >
-            <FocusedCamera cameraId={focusedCameraId} mjpegUrl={focusedMjpegUrl} />
-          </section>
+            <Separator className="w-px bg-[#1e293b] hover:bg-brand-500/60 transition-colors" />
 
-          {/* Right: Alert sidebar */}
-          <section
-            aria-label="Alerts"
-            className="overflow-hidden border-l border-[#1e293b] bg-[#111827]"
-          >
-            <AlertSidebar />
-          </section>
+            <Panel id="focused">
+              <section
+                aria-label="Focused camera"
+                className="relative h-full min-w-0 bg-[#0a0e1a]"
+              >
+                <FocusedCamera cameraId={focusedCameraId} mjpegUrl={focusedMjpegUrl} />
+              </section>
+            </Panel>
+
+            <Separator className="w-px bg-[#1e293b] hover:bg-brand-500/60 transition-colors" />
+
+            <Panel
+              id="alerts"
+              defaultSize={26}
+              minSize={20}
+            >
+              <section
+                aria-label="Alerts"
+                className="h-full overflow-hidden border-l border-[#1e293b] bg-[#111827]"
+              >
+                <AlertSidebar />
+              </section>
+            </Panel>
+          </Group>
         </div>
 
+        {/* §I: 120px alert timeline row */}
+        <AlertTimeline />
+
+        {/* §I: 28px status bar */}
         <SystemStatusStrip />
 
-        {/* Skip link target */}
         <div id="alert-sidebar-anchor" className="sr-only" tabIndex={-1} />
       </div>
 

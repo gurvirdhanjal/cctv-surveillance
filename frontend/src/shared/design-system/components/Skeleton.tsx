@@ -123,3 +123,23 @@ export function SkeletonAvatar({ size = 32, className }: { size?: number; classN
     />
   )
 }
+
+/** §I alert timeline skeleton — full-width bar with 8 evenly-spaced marks. */
+export function SkeletonTimeline({ className }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={cn('relative w-full overflow-hidden', className)}
+      style={{ height: '120px' }}
+    >
+      <Skeleton className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 rounded-none" />
+      {Array.from({ length: 8 }, (_, i) => (
+        <Skeleton
+          key={i}
+          className="absolute top-1/2 -translate-y-1/2 w-0.5 h-12"
+          style={{ left: `${(i + 1) * (100 / 9)}%` }}
+        />
+      ))}
+    </div>
+  )
+}

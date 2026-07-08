@@ -13,6 +13,18 @@ vi.mock('@/shared/api/client', () => ({
   api: { get: vi.fn(), patch: vi.fn() },
 }))
 
+vi.mock('react-resizable-panels', () => ({
+  Group: vi.fn(({ children, orientation }: React.PropsWithChildren<{ orientation?: string; onLayoutChange?: unknown; defaultLayout?: unknown; style?: unknown }>) => (
+    <div data-orientation={orientation ?? 'horizontal'}>{children}</div>
+  )),
+  Panel: vi.fn(({ children, id }: React.PropsWithChildren<{ id?: string; defaultSize?: number; minSize?: number }>) => (
+    <div data-panel={id ?? ''}>{children}</div>
+  )),
+  Separator: vi.fn(({ className }: { className?: string }) => (
+    <div data-separator="" className={className} role="separator" />
+  )),
+}))
+
 vi.mock('./components/FocusedCamera', () => ({
   FocusedCamera: vi.fn(({ cameraId }: { cameraId: number | null }) => (
     <div data-testid="focused-camera" data-camera-id={cameraId} />
@@ -49,6 +61,10 @@ vi.mock('./components/ClipExportDialog', () => ({
 
 vi.mock('./hooks/useLiveShortcuts', () => ({
   useLiveShortcuts: vi.fn(),
+}))
+
+vi.mock('./components/AlertTimeline', () => ({
+  AlertTimeline: vi.fn(() => <div data-testid="alert-timeline" style={{ height: '120px' }} />),
 }))
 
 const mockApi = vi.mocked(client.api)
@@ -101,5 +117,28 @@ describe('LivePage', () => {
   it('renders CameraTree in left column', () => {
     render(<LivePage />, { wrapper: Wrapper })
     expect(screen.getByTestId('camera-tree')).toBeInTheDocument()
+  })
+
+  it('renders PanelGroup with horizontal orientation', () => {
+    const { container } = render(<LivePage />, { wrapper: Wrapper })
+    const panelGroup = container.querySelector('[data-orientation="horizontal"]')
+    expect(panelGroup).not.toBeNull()
+  })
+
+  it('renders three panels', () => {
+    const { container } = render(<LivePage />, { wrapper: Wrapper })
+    const panels = container.querySelectorAll('[data-panel]')
+    expect(panels.length).toBe(3)
+  })
+
+  it('renders two resize separators', () => {
+    const { container } = render(<LivePage />, { wrapper: Wrapper })
+    const handles = container.querySelectorAll('[data-separator]')
+    expect(handles.length).toBe(2)
+  })
+
+  it('renders alert timeline row', () => {
+    render(<LivePage />, { wrapper: Wrapper })
+    expect(screen.getByTestId('alert-timeline')).toBeInTheDocument()
   })
 })
