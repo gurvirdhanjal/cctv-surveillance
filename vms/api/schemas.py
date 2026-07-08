@@ -304,6 +304,9 @@ class CameraUpdate(BaseModel):
     capability_tier: str | None = None
     shutter_type: str | None = None
     worker_group: int | None = None
+    site_name: str | None = Field(None, max_length=200)
+    building_name: str | None = Field(None, max_length=200)
+    floor_name: str | None = Field(None, max_length=200)
 
     @field_validator("capability_tier")
     @classmethod
@@ -371,6 +374,9 @@ class CameraResponse(BaseModel):
     model_overrides: str | None
     worker_group: int | None
     recalibrate_required_at: datetime | None = None
+    site_name: str | None = None
+    building_name: str | None = None
+    floor_name: str | None = None
 
     @field_validator("rtsp_url")
     @classmethod

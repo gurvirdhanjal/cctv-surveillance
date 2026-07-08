@@ -62,7 +62,49 @@ def test_camera_response_from_orm() -> None:
         profiled_at = None
         model_overrides = None
         worker_group = None
+        site_name = None
+        building_name = None
+        floor_name = None
 
     resp = CameraResponse.model_validate(_FakeCam())
     assert resp.camera_id == 1
     assert resp.shutter_type == "rolling"
+    assert resp.site_name is None
+    assert resp.building_name is None
+    assert resp.floor_name is None
+
+
+def test_camera_response_hierarchy_fields_populated() -> None:
+    class _FakeCam:
+        camera_id = 2
+        name = "Bay 3"
+        rtsp_url = "rtsp://host/bay3"
+        is_active = True
+        capability_tier = "MID"
+        shutter_type = "global"
+        profile_data = None
+        profiled_at = None
+        model_overrides = None
+        worker_group = None
+        site_name = "Plant A"
+        building_name = "Block 1"
+        floor_name = "Ground Floor"
+
+    resp = CameraResponse.model_validate(_FakeCam())
+    assert resp.site_name == "Plant A"
+    assert resp.building_name == "Block 1"
+    assert resp.floor_name == "Ground Floor"
+
+
+def test_camera_update_includes_hierarchy_fields() -> None:
+    u = CameraUpdate(site_name="Plant A", building_name="Block 1", floor_name="Ground Floor")
+    assert u.site_name == "Plant A"
+    assert u.building_name == "Block 1"
+    assert u.floor_name == "Ground Floor"
+
+
+def test_camera_update_hierarchy_fields_optional() -> None:
+    u = CameraUpdate()
+    assert u.site_name is None
+    assert u.building_name is None
+    assert u.floor_name is None

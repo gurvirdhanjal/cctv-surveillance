@@ -9,6 +9,10 @@ export interface CameraState {
   status: CameraStatus
   is_active: boolean
   snapshotUrl: string | null
+  // §Q hierarchy — null = use fallback label
+  site_name?: string | null
+  building_name?: string | null
+  floor_name?: string | null
 }
 
 export interface PersonLocation {

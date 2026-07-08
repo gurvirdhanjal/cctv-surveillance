@@ -124,6 +124,31 @@ export function SkeletonAvatar({ size = 32, className }: { size?: number; classN
   )
 }
 
+/** §Q camera tree skeleton — 3 group headers + 4 camera-row skeletons. */
+export function SkeletonCameraTree({ className }: { className?: string }) {
+  return (
+    <div className={cn('space-y-1 p-2', className)} aria-hidden="true">
+      {Array.from({ length: 3 }, (_, g) => (
+        <div key={g} className="space-y-1">
+          {/* Group header */}
+          <div className="flex items-center gap-2 px-2 py-1">
+            <Skeleton className="h-3 w-3 rounded-sm flex-shrink-0" />
+            <Skeleton className={cn('h-3', g === 0 ? 'w-24' : g === 1 ? 'w-20' : 'w-28')} />
+          </div>
+          {/* Camera rows (only first group shows rows) */}
+          {g === 0 &&
+            Array.from({ length: 4 }, (_, r) => (
+              <div key={r} className="flex items-center gap-2 px-4 py-0.5">
+                <Skeleton className="h-2 w-2 rounded-full flex-shrink-0" />
+                <Skeleton className={cn('h-3', r % 2 === 0 ? 'w-32' : 'w-24')} />
+              </div>
+            ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 /** §I alert timeline skeleton — full-width bar with 8 evenly-spaced marks. */
 export function SkeletonTimeline({ className }: { className?: string }) {
   return (

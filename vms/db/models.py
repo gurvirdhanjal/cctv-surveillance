@@ -60,6 +60,10 @@ class Camera(Base):
     # Sub-stream URL for analytics ingestion (§6.7 dual-stream). When set, the ingestion
     # worker opens this instead of rtsp_url. rtsp_url is kept for recording/clip use.
     analytics_rtsp_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # §Q site hierarchy — nullable; frontend groups NULL as "Default Site" / etc.
+    site_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    building_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    floor_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
 
 class Zone(Base):
