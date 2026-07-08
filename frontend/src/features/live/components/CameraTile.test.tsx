@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { CameraTile } from './CameraTile'
+import { CameraTile, CAMERA_TILE_HOVER_SCALE } from './CameraTile'
 import { useLiveStore } from '../store/liveStore'
 import type { CameraState } from '../types'
 
@@ -84,5 +84,47 @@ describe('CameraTile', () => {
   it('has accessible label including camera name', () => {
     render(<CameraTile camera={makeCamera()} isFocused={false} onSelect={vi.fn()} />)
     expect(screen.getByLabelText('Focus camera Loading Bay')).toBeInTheDocument()
+  })
+
+  it('exports CAMERA_TILE_HOVER_SCALE === 1.02', () => {
+    expect(CAMERA_TILE_HOVER_SCALE).toBe(1.02)
+  })
+
+  it('shows REC badge when recording=true', () => {
+    render(<CameraTile camera={makeCamera()} isFocused={false} onSelect={vi.fn()} recording={true} />)
+    expect(screen.getByLabelText('Recording')).toBeInTheDocument()
+  })
+
+  it('does not show REC badge when recording=false', () => {
+    render(<CameraTile camera={makeCamera()} isFocused={false} onSelect={vi.fn()} />)
+    expect(screen.queryByLabelText('Recording')).not.toBeInTheDocument()
+  })
+
+  it('PTZ button is disabled for non-FULL tier', () => {
+    render(
+      <CameraTile
+        camera={makeCamera({ capability_tier: 'MID' })}
+        isFocused={false}
+        onSelect={vi.fn()}
+      />,
+    )
+    const tileEl = screen.getByLabelText('Focus camera Loading Bay').closest('div')!
+    fireEvent.mouseEnter(tileEl)
+    const ptzBtn = screen.getByRole('button', { name: 'PTZ' })
+    expect(ptzBtn).toBeDisabled()
+  })
+
+  it('PTZ button is enabled for FULL tier', () => {
+    render(
+      <CameraTile
+        camera={makeCamera({ capability_tier: 'FULL' })}
+        isFocused={false}
+        onSelect={vi.fn()}
+      />,
+    )
+    const tileEl = screen.getByLabelText('Focus camera Loading Bay').closest('div')!
+    fireEvent.mouseEnter(tileEl)
+    const ptzBtn = screen.getByRole('button', { name: 'PTZ' })
+    expect(ptzBtn).not.toBeDisabled()
   })
 })
