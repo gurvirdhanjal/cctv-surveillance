@@ -23,6 +23,15 @@ if (!Element.prototype.releasePointerCapture) {
   Element.prototype.releasePointerCapture = () => undefined
 }
 
+// Stub ResizeObserver (not implemented in jsdom; required by cmdk and react-resizable-panels)
+if (!window.ResizeObserver) {
+  window.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+}
+
 // Stub matchMedia (not implemented in jsdom)
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
