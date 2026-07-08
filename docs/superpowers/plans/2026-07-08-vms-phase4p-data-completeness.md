@@ -55,15 +55,19 @@ schemas in `vms/api/schemas.py`, ≥1 positive + ≥1 negative test, no bare num
 
 ## Task 1 — `GET /api/persons/{person_id}`
 
-- [ ] Failing tests: 200 with full schema (spec §8.1: person_id, full_name, role,
+- [x] Failing tests: 200 with full schema (spec §8.1: person_id, full_name, role,
       created_at, embedding_count, last_seen_at, last_seen_camera_id, thumbnail_url|null);
       404 for absent AND for purged person; 403 for role below manager.
       `last_seen_*` from an indexed `tracking_events` lookup (person's latest event —
       verify index exists; add via migration if not).
-- [ ] Implement in `routes/persons.py`. Route order: define BEFORE `/api/persons/search`
+      → `tests/test_api_persons_detail.py` (8 tests); composite index
+      `ix_tracking_events_person_ts` added via migration `d5e6f7a8b9c0` (round-trip tested).
+      `role` returns null — persons have no designation column (noted for frontend).
+- [x] Implement in `routes/persons.py`. Route order: define BEFORE `/api/persons/search`
       conflicts — FastAPI matches `/search` first only if declared first; add a test
       locking that `/api/persons/search` still resolves (regression guard).
-- [ ] Verify: gate green.
+      → detail route declared after `search_persons`; regression test included.
+- [x] Verify: gate green. (837 passed, 2026-07-08)
 
 ## Task 1b — `GET /api/persons/{person_id}/timeline` (person sightings)
 

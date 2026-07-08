@@ -30,6 +30,17 @@ class PersonListResponse(BaseModel):
     offset: int
 
 
+class PersonDetailResponse(BaseModel):
+    person_id: int
+    full_name: str
+    role: str | None = None
+    created_at: datetime
+    embedding_count: int
+    last_seen_at: datetime | None
+    last_seen_camera_id: int | None
+    thumbnail_url: str | None
+
+
 class EmbeddingCreate(BaseModel):
     embedding: list[float] = Field(..., min_length=512, max_length=512)
     quality_score: float = Field(..., ge=0.0, le=1.0)

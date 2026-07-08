@@ -326,6 +326,8 @@ class TrackingEvent(Base):
         Index("ix_tracking_events_person_id", "person_id"),
         Index("ix_tracking_events_camera_id", "camera_id"),
         Index("ix_tracking_events_event_ts", "event_ts"),
+        # Serves "latest sighting" + person-timeline windows without a sort node
+        Index("ix_tracking_events_person_ts", "person_id", "event_ts"),
     )
 
     event_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)

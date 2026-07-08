@@ -17,6 +17,7 @@ from vms.api.schemas import (
     EmbeddingCreate,
     EmbeddingResponse,
     PersonCreate,
+    PersonDetailResponse,
     PersonListResponse,
     PersonResponse,
     PurgeRequest,
@@ -156,6 +157,44 @@ def search_persons(
         .filter(Person.name.ilike(f"%{q}%") | Person.employee_id.ilike(f"%{q}%"))
         .limit(50)
         .all()
+    )
+
+
+# Declared after /persons/search so the literal path wins route matching.
+@router.get("/persons/{person_id}", response_model=PersonDetailResponse)
+def get_person_detail(
+    person_id: int,
+    db: Session = Depends(get_db),  # noqa: B008
+    user: dict[str, Any] = Depends(get_current_user),  # noqa: B008
+) -> PersonDetailResponse:
+    _require_manager(user)
+    person = db.get(Person, person_id)
+    if person is None or not person.is_active:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Person not found")
+
+    embedding_count: int = db.execute(
+        select(func.count())
+        .select_from(PersonEmbedding)
+        .where(PersonEmbedding.person_id == person_id)
+    ).scalar_one()
+
+    last_seen = db.execute(
+        select(TrackingEvent.event_ts, TrackingEvent.camera_id)
+        .where(TrackingEvent.person_id == person_id)
+        .order_by(TrackingEvent.event_ts.desc())
+        .limit(1)
+    ).first()
+
+    return PersonDetailResponse(
+        person_id=person.person_id,
+        full_name=person.name,
+        # persons carry no designation/role column yet — spec §8.1 field kept nullable
+        role=None,
+        created_at=person.created_at,
+        embedding_count=embedding_count,
+        last_seen_at=last_seen.event_ts if last_seen else None,
+        last_seen_camera_id=last_seen.camera_id if last_seen else None,
+        thumbnail_url=f"/media/{person.thumbnail_path}" if person.thumbnail_path else None,
     )
 
 
