@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Sun, Moon } from 'lucide-react'
-import { useWorkspacePrefs } from './useWorkspacePrefs'
+import { useWorkspacePrefs, type WorkspaceTheme } from './useWorkspacePrefs'
 
 export type WorkspaceId =
   | 'operator'
@@ -14,7 +14,22 @@ interface WorkspaceShellProps {
   workspaceId: WorkspaceId
   toolbar?: ReactNode
   children: ReactNode
-  defaultTheme?: 'light' | 'dark'
+  defaultTheme?: WorkspaceTheme
+}
+
+function useSystemTheme(): 'light' | 'dark' {
+  const [sys, setSys] = useState<'light' | 'dark'>(() =>
+    typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'dark'
+      : 'light',
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const handler = (e: MediaQueryListEvent) => setSys(e.matches ? 'dark' : 'light')
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+  return sys
 }
 
 export function WorkspaceShell({
@@ -25,18 +40,20 @@ export function WorkspaceShell({
 }: WorkspaceShellProps) {
   const storedTheme = useWorkspacePrefs((s) => s.workspaceThemes[workspaceId])
   const setWorkspaceTheme = useWorkspacePrefs((s) => s.setWorkspaceTheme)
+  const systemTheme = useSystemTheme()
 
   const isOperator = workspaceId === 'operator'
-  const theme = isOperator ? 'dark' : (storedTheme ?? defaultTheme)
+  const pref: WorkspaceTheme = isOperator ? 'dark' : (storedTheme ?? defaultTheme)
+  const resolvedTheme: 'light' | 'dark' = pref === 'system' ? systemTheme : pref
 
   function toggleTheme() {
-    setWorkspaceTheme(workspaceId, theme === 'dark' ? 'light' : 'dark')
+    setWorkspaceTheme(workspaceId, resolvedTheme === 'dark' ? 'light' : 'dark')
   }
 
   return (
     <div
       data-workspace-id={workspaceId}
-      data-theme={theme}
+      data-theme={resolvedTheme}
       className="contents"
     >
       {!isOperator && (
@@ -46,7 +63,7 @@ export function WorkspaceShell({
             aria-label="Toggle theme"
             onClick={toggleTheme}
           >
-            {theme === 'dark' ? (
+            {resolvedTheme === 'dark' ? (
               <Sun className="h-4 w-4" aria-hidden="true" />
             ) : (
               <Moon className="h-4 w-4" aria-hidden="true" />

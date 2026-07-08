@@ -19,10 +19,12 @@ export interface CmdkRecentItem {
   path?: string
 }
 
+export type WorkspaceTheme = 'light' | 'dark' | 'system'
+
 export interface WorkspacePrefs {
   version: number
   tableLayouts: Record<string, TableLayoutPrefs>
-  workspaceThemes: Record<string, 'light' | 'dark'>
+  workspaceThemes: Record<string, WorkspaceTheme>
   sidebarOpen: boolean
   favoriteCameraIds: number[]
   defaultGridLayout: string
@@ -38,7 +40,7 @@ interface WorkspacePrefsActions {
   pushRecentCamera: (id: number) => void
   pushCmdkRecent: (item: CmdkRecentItem) => void
   setTableLayout: (tableId: string, layout: Partial<TableLayoutPrefs>) => void
-  setWorkspaceTheme: (workspaceId: string, theme: 'light' | 'dark') => void
+  setWorkspaceTheme: (workspaceId: string, theme: WorkspaceTheme) => void
   setSidebarOpen: (open: boolean) => void
   setTreeExpansion: (nodeId: string, expanded: boolean) => void
   setTreeOrder: (zoneId: string, cameraIds: number[]) => void

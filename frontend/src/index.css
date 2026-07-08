@@ -138,9 +138,11 @@
   --brand-accent-subtle: #2a2013;
   --brand-accent-rgb: 200, 145, 47;
 
+  /* Dark mode: brass/gold as primary interactive — visible on near-black surfaces */
+  --interactive-primary: var(--brand-accent);        /* #c8912f brass */
+  --interactive-hover:   var(--brand-accent-hover);  /* #e0a83f brighter brass */
+  --interactive-active:  var(--brand-accent-active); /* #f0ba52 lightest brass */
   --focus-ring: #94a3b8;
-  --interactive-hover: #3b82f6;
-  --interactive-active: #2b6cb0;
   --disabled-bg: #1f2937;
   --disabled-text: #4b5563;
 

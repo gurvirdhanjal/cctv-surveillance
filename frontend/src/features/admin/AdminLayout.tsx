@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
@@ -13,6 +14,7 @@ import {
   ExternalLink,
 } from 'lucide-react'
 import { Icon } from '@/shared/design-system/icons'
+import { ProfileDialog } from '@/shared/workspace/ProfileDialog'
 
 function VmsLogo() {
   return (
@@ -95,6 +97,7 @@ export function AdminLayout() {
   const logout = useAuthStore((s) => s.logout)
   const user = useAuthStore((s) => s.user)
   const pageTitle = useAdminPageTitle()
+  const [profileOpen, setProfileOpen] = useState(false)
 
   useRouteTheme('light')
 
@@ -190,11 +193,27 @@ export function AdminLayout() {
             </span>
             <div className="flex-1" />
             {user && (
-              <span className="rounded-full bg-surface-sunken px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-text-muted select-none">
-                {user.role}
-              </span>
+              <motion.button
+                type="button"
+                onClick={() => setProfileOpen(true)}
+                aria-label="Open profile settings"
+                aria-expanded={profileOpen}
+                whileHover={{ scale: 1.06 }}
+                whileTap={{ scale: 0.94 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-text-inverse select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-1"
+                style={{ background: 'var(--brand-accent)' }}
+              >
+                {user.userId.slice(0, 2).toUpperCase()}
+              </motion.button>
             )}
           </header>
+
+          <ProfileDialog
+            open={profileOpen}
+            onClose={() => setProfileOpen(false)}
+            workspaceId="administration"
+          />
 
           <main className="min-w-0 flex-1 overflow-auto">
             <Outlet />

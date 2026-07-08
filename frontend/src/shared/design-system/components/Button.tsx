@@ -22,11 +22,11 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        /** @role Action — charcoal primary CTA */
+        /** @role Action — charcoal on light, brass on dark (via --interactive-primary) */
         primary: [
-          'bg-action-700 text-text-inverse shadow-1',
-          'hover:bg-action-800',
-          'active:bg-action-900',
+          'bg-[var(--interactive-primary)] text-text-inverse shadow-1',
+          'hover:bg-[var(--interactive-hover)]',
+          'active:bg-[var(--interactive-active)]',
         ],
         /** @role Action — outlined secondary */
         secondary: [
@@ -61,9 +61,9 @@ const buttonVariants = cva(
         ],
         /** @role Action — primary action + split dropdown chevron */
         split: [
-          'bg-action-700 text-text-inverse shadow-1 rounded-md',
-          'hover:bg-action-800',
-          'active:bg-action-900',
+          'bg-[var(--interactive-primary)] text-text-inverse shadow-1 rounded-md',
+          'hover:bg-[var(--interactive-hover)]',
+          'active:bg-[var(--interactive-active)]',
         ],
       },
       size: {
