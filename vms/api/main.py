@@ -91,7 +91,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     try:
         ensure_future_partitions(engine, months_ahead=3)
     except Exception:
-        logger.warning("Could not create tracking_events partitions on startup — DB may not be ready yet", exc_info=True)
+        logger.warning(
+            "Could not create tracking_events partitions on startup — DB may not be ready yet",
+            exc_info=True,
+        )
 
     redis = get_api_redis()
     dispatcher = AlertDispatcher.from_settings(
