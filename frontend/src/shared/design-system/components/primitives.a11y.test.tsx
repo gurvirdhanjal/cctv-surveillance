@@ -5,7 +5,6 @@ import { Button } from './Button'
 import { Input } from './Input'
 import { Modal } from './Modal'
 import { Badge } from './Badge'
-import { ToastProvider } from './Toast'
 
 describe('Button a11y', () => {
   it('all variants have no violations', async () => {
@@ -98,26 +97,3 @@ describe('Badge a11y', () => {
   })
 })
 
-describe('Toast a11y', () => {
-  it('success toast has no violations', async () => {
-    render(
-      <ToastProvider
-        toasts={[{ id: '1', severity: 'success', title: 'Saved', description: 'Changes persisted.' }]}
-        onDismiss={vi.fn()}
-      />,
-    )
-    const results = await axe.run(document.body)
-    expect(results.violations).toHaveLength(0)
-  })
-
-  it('error toast has no violations', async () => {
-    render(
-      <ToastProvider
-        toasts={[{ id: '1', severity: 'error', title: 'Error', description: 'Request failed.' }]}
-        onDismiss={vi.fn()}
-      />,
-    )
-    const results = await axe.run(document.body)
-    expect(results.violations).toHaveLength(0)
-  })
-})

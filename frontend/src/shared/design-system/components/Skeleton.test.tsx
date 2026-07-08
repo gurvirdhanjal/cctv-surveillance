@@ -3,6 +3,7 @@ import { render } from '@testing-library/react'
 import {
   Skeleton, SkeletonText, SkeletonTable, SkeletonKpiGrid,
   SkeletonKpiCard, SkeletonCameraCard, SkeletonTableRow, SkeletonAvatar,
+  SkeletonTimeline, SkeletonCameraTree, SkeletonChart,
 } from './Skeleton'
 
 describe('Skeleton', () => {
@@ -104,5 +105,57 @@ describe('SkeletonAvatar (§L supplement)', () => {
   it('is circular', () => {
     const { container } = render(<SkeletonAvatar />)
     expect((container.firstElementChild as HTMLElement).className).toContain('rounded-full')
+  })
+})
+
+describe('SkeletonTimeline (§I)', () => {
+  it('renders with 120px height', () => {
+    const { container } = render(<SkeletonTimeline />)
+    const el = container.firstElementChild as HTMLElement
+    expect(el.style.height).toBe('120px')
+  })
+
+  it('renders 8 mark skeletons', () => {
+    const { container } = render(<SkeletonTimeline />)
+    // base bar + 8 marks = 9 animate-pulse children
+    const pulses = container.querySelectorAll('.animate-pulse')
+    expect(pulses.length).toBe(9)
+  })
+
+  it('is aria-hidden', () => {
+    const { container } = render(<SkeletonTimeline />)
+    expect(container.firstElementChild).toHaveAttribute('aria-hidden', 'true')
+  })
+})
+
+describe('SkeletonCameraTree (§Q)', () => {
+  it('renders without error', () => {
+    expect(() => render(<SkeletonCameraTree />)).not.toThrow()
+  })
+
+  it('renders group header skeletons', () => {
+    const { container } = render(<SkeletonCameraTree />)
+    // 3 groups each with a header → at least 3 aria-hidden els
+    const hidden = container.querySelectorAll('[aria-hidden="true"]')
+    expect(hidden.length).toBeGreaterThanOrEqual(3)
+  })
+})
+
+describe('SkeletonChart (§V.2)', () => {
+  it('renders with status role and accessible label', () => {
+    const { getByRole } = render(<SkeletonChart />)
+    expect(getByRole('status', { name: 'Loading chart' })).toBeInTheDocument()
+  })
+
+  it('applies default height of 192px', () => {
+    const { container } = render(<SkeletonChart />)
+    const el = container.firstElementChild as HTMLElement
+    expect(el.style.height).toBe('192px')
+  })
+
+  it('accepts custom style override', () => {
+    const { container } = render(<SkeletonChart style={{ height: 120 }} />)
+    const el = container.firstElementChild as HTMLElement
+    expect(el.style.height).toBe('120px')
   })
 })
