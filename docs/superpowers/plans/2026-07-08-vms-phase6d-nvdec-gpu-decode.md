@@ -238,21 +238,24 @@ ffmpeg -f lavfi -i testsrc2=size=1280x720:rate=15:duration=4 -c:v libx264 -pix_f
 ffmpeg -f lavfi -i testsrc2=size=1280x720:rate=15:duration=4 -c:v libx265 -pix_fmt yuv420p {tmp}/ref_hevc.mp4   # skipped if libx265 absent
 ```
 
-- [ ] Failing test — H.264 parity: decode `ref_h264.mp4` fully through `NvdecDecoder`
+- [x] Failing test — H.264 parity: decode `ref_h264.mp4` fully through `NvdecDecoder`
       (file input) and `OpenCvDecoder`; assert identical frame count, identical shape
       `(720, 1280, 3)`, and per-frame mean absolute pixel difference below a small
       tolerance (cuvid vs software YUV→BGR conversion differs by a few LSBs; the
       tolerance is a named constant in the test with a comment, not a config value).
-- [ ] Failing test — HEVC parity: same via `hevc_cuvid` (skipped when the encoder or
+- [x] Failing test — HEVC parity: same via `hevc_cuvid` (skipped when the encoder or
       decoder is unavailable, with an explicit skip reason).
-- [ ] Failing test — resize parity: decode with `-resize 640x360` → frames arrive
+- [x] Failing test — resize parity: decode with `-resize 640x360` → frames arrive
       pre-sized `(360, 640, 3)`; content matches an OpenCV decode + `cv2.resize` of the
       same clip within a looser tolerance (different scalers).
-- [ ] Failing test — lifecycle under load: open 4 concurrent `NvdecDecoder`s on the same
+- [x] Failing test — lifecycle under load: open 4 concurrent `NvdecDecoder`s on the same
       file, read all frames, release; ledger returns to zero; no zombie ffmpeg processes
       remain (enumerate child processes via psutil before/after).
-- [ ] Verify: `pytest -m integration tests/ingestion/` green on the GPU workstation;
-      full gate green.
+- [x] Verify: green ON THIS GPU WORKSTATION (RTX 2000 Ada, gyan ffmpeg
+      release-essentials in tools/ffmpeg/bin): 4/4 in 4.6s — h264 + hevc parity
+      (MAD < 3 LSB vs OpenCV), NVDEC -resize pre-sized frames, full-ladder 4
+      concurrent sessions with ledger drain + zero leaked ffmpeg children.
+      Full gate green (966 passed, 2026-07-09).
 
 ## Task 8 — Hardware validation session (the §6.3 gates + capacity probe)
 
