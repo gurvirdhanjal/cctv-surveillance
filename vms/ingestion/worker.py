@@ -14,6 +14,7 @@ import redis.asyncio as aioredis
 from sqlalchemy.orm import Session
 
 from vms.config import get_settings
+from vms.ingestion.decoder import DecodeBackend, OpenCvDecoder
 from vms.ingestion.messages import FramePointer
 from vms.ingestion.shm import SHMSlot
 from vms.redis_client import stream_add
@@ -43,14 +44,16 @@ class IngestionWorker:
         redis_client: aioredis.Redis,
         session_factory: Callable[[], Session] | None = None,
         executor: ThreadPoolExecutor | None = None,
+        decoder_factory: Callable[[str], DecodeBackend] = OpenCvDecoder,
     ) -> None:
         self._camera = camera
         self._redis = redis_client
         self._session_factory = session_factory
         # Caller should pass a shared executor sized to the total camera count so that
-        # all cap.read() calls can block concurrently without hitting the default pool
-        # ceiling (min(32, cpu_count+4)), which causes queuing lag at 20+ cameras.
+        # all decoder.read() calls can block concurrently without hitting the default
+        # pool ceiling (min(32, cpu_count+4)), which causes queuing lag at 20+ cameras.
         self._executor = executor
+        self._decoder_factory = decoder_factory
         self._seq_id: int = 0
         self._running: bool = False
         self._slot: SHMSlot | None = None
@@ -128,16 +131,12 @@ class IngestionWorker:
                 "camera_id=%d opening analytics substream (main stream reserved for recording)",
                 self._camera.camera_id,
             )
-        cap = cv2.VideoCapture(_stream_url)
-        # Limit OpenCV's internal RTSP buffer to 1 frame so stale frames are dropped
-        # automatically when the consumer falls behind, keeping display at real-time.
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        decoder = self._decoder_factory(_stream_url)
 
         # Validate resolution — sub-streams below 640px degrade YOLO accuracy silently.
-        # CAP_PROP_FRAME_WIDTH is best-effort for RTSP; returns 0 on cameras that don't
-        # report it before the first frame (check is skipped, not a startup blocker).
-        _w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        _h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        # Resolution is best-effort for RTSP; (0, 0) means the stream didn't report it
+        # before the first frame (check is skipped, not a startup blocker).
+        _w, _h = decoder.get_resolution()
         if _w > 0 and _h > 0:
             logger.info("camera_id=%d stream resolution %dx%d", self._camera.camera_id, _w, _h)
             if _using_analytics and min(_w, _h) < 640:
@@ -148,10 +147,9 @@ class IngestionWorker:
                     _w,
                     _h,
                 )
-                cap.release()
+                decoder.release()
                 _using_analytics = False
-                cap = cv2.VideoCapture(self._camera.rtsp_url)
-                cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                decoder = self._decoder_factory(self._camera.rtsp_url)
 
         stream_name = f"frames:group{self._camera.worker_group}"
         settings = get_settings()
@@ -163,7 +161,7 @@ class IngestionWorker:
                 # coroutines are not starved, and so the pool does not become the
                 # bottleneck when camera count exceeds the default pool ceiling.
                 loop = asyncio.get_running_loop()
-                ret, frame = await loop.run_in_executor(self._executor, cap.read)
+                ret, frame = await loop.run_in_executor(self._executor, decoder.read)
                 if not ret:
                     self._consecutive_failures += 1
                     delay = backoff_delays[
@@ -211,4 +209,4 @@ class IngestionWorker:
                 self._seq_id += 1
                 await asyncio.sleep(0)  # yield to event loop
         finally:
-            cap.release()
+            decoder.release()

@@ -79,3 +79,6 @@ data/test_videos/
 *.avi
 *.mov
 *.mkv
+
+# Phase 6d: local cuvid-enabled FFmpeg build (never commit binaries)
+tools/

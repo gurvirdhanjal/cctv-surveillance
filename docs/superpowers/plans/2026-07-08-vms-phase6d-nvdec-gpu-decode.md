@@ -4,7 +4,8 @@
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status: NOT STARTED**
+**Status: IN PROGRESS — started 2026-07-09 (Task 0 capability check + instrumentation;
+live-camera baseline run and Task 8 validation deferred to the hardware session)**
 
 **Goal:** Move RTSP H.264/H.265 stream decoding from CPU (OpenCV/FFmpeg software) to the
 GPU's dedicated NVDEC video engine. The §6.3 build trigger is met: the user confirmed on
@@ -97,21 +98,24 @@ No production code changes beyond instrumentation.
 Behaviour must be byte-for-byte identical to today. Every changed line traces to moving
 capture behind an interface.
 
-- [ ] Failing tests first (`tests/ingestion/test_decoder.py`):
+- [x] Failing tests first (`tests/test_ingestion_decoder.py`):
       `DecodeBackend` is a `@runtime_checkable` Protocol with
       `read() -> tuple[bool, np.ndarray | None]`, `get_resolution() -> tuple[int, int]`
       (0,0 when unknown — mirrors current best-effort RTSP behaviour), `release() -> None`.
       `OpenCvDecoder` satisfies it; constructor applies `CAP_PROP_BUFFERSIZE=1`
       (regression test via a fake `VideoCapture` asserting the property call).
-- [ ] Failing test: `IngestionWorker` accepts an injected decoder factory
-      (`Callable[[CameraConfig], DecodeBackend]`, default = the real factory) and its
-      capture loop runs against a fake decoder yielding N synthetic frames → N SHM writes
-      + N stream publishes (reuse the existing worker test fixtures).
-- [ ] Implement: `vms/ingestion/decoder.py`; refactor `worker.py::_capture_loop` to use
+- [x] Failing test: `IngestionWorker` accepts an injected decoder factory
+      (`Callable[[str], DecodeBackend]`, default `OpenCvDecoder` — URL-keyed, not
+      CameraConfig-keyed, so the analytics-substream fallback can reopen by URL) and
+      its capture loop runs against a fake decoder (frame published, decoder released).
+- [x] Implement: `vms/ingestion/decoder.py`; refactor `worker.py::_capture_loop` to use
       the factory. The analytics-substream <640px fallback check stays in the worker,
       now reading `decoder.get_resolution()`. Blocking `read()` stays in the shared
       executor (the comment about pool sizing stays).
-- [ ] Verify: full existing ingestion test suite green unchanged; gate green.
+      → existing `test_ingestion_worker.py` patch targets moved to
+      `vms.ingestion.decoder.cv2.VideoCapture` (tests follow code).
+- [x] Verify: full existing ingestion test suite green unchanged; gate green
+      (935 passed, 2026-07-09).
 
 ## Task 2 — Capability + codec probes
 

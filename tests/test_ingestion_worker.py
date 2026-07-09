@@ -40,7 +40,7 @@ async def test_ingestion_worker_publishes_frame_pointer(
     worker = IngestionWorker(camera_cfg, fake_redis)
 
     with (
-        patch("vms.ingestion.worker.cv2.VideoCapture", return_value=mock_cap),
+        patch("vms.ingestion.decoder.cv2.VideoCapture", return_value=mock_cap),
         patch("vms.ingestion.worker.stream_add", side_effect=capture_stream_add),
         patch("vms.ingestion.worker.SHMSlot.create") as mock_create,
     ):
@@ -84,7 +84,7 @@ async def test_ingestion_worker_skips_failed_read(
     worker = IngestionWorker(camera_cfg, fake_redis)
 
     with (
-        patch("vms.ingestion.worker.cv2.VideoCapture", return_value=mock_cap),
+        patch("vms.ingestion.decoder.cv2.VideoCapture", return_value=mock_cap),
         patch("vms.ingestion.worker.stream_add", side_effect=capture_stream_add),
         patch("vms.ingestion.worker.SHMSlot.create") as mock_create,
     ):
@@ -119,7 +119,7 @@ async def test_ingestion_worker_backoff_delays_increase_with_failures(
             worker._running = False
 
     with (
-        patch("vms.ingestion.worker.cv2.VideoCapture", return_value=mock_cap),
+        patch("vms.ingestion.decoder.cv2.VideoCapture", return_value=mock_cap),
         patch("asyncio.sleep", side_effect=fake_sleep),
         patch("vms.ingestion.worker.get_settings") as mock_cfg,
         patch("vms.ingestion.worker.SHMSlot.create") as mock_create,
@@ -159,7 +159,7 @@ async def test_rtsp_threshold_reads_from_config(
     worker._session_factory = session_factory
 
     with (
-        patch("vms.ingestion.worker.cv2.VideoCapture", return_value=mock_cap),
+        patch("vms.ingestion.decoder.cv2.VideoCapture", return_value=mock_cap),
         patch("asyncio.sleep", new_callable=AsyncMock),
         patch("vms.ingestion.worker.get_settings") as mock_cfg,
         patch("vms.ingestion.worker.SHMSlot.create") as mock_create,
@@ -190,7 +190,7 @@ async def test_ingestion_worker_marks_camera_inactive_after_failure_threshold(
     worker = IngestionWorker(camera_cfg, fake_redis, session_factory=session_factory)
 
     with (
-        patch("vms.ingestion.worker.cv2.VideoCapture", return_value=mock_cap),
+        patch("vms.ingestion.decoder.cv2.VideoCapture", return_value=mock_cap),
         patch("asyncio.sleep", new_callable=AsyncMock),
         patch("vms.ingestion.worker.get_settings") as mock_cfg,
         patch("vms.ingestion.worker.SHMSlot.create") as mock_create,
@@ -268,7 +268,7 @@ async def test_stream_add_retry_does_not_kill_capture_loop(
         raise ConnectionError("Redis down")
 
     with (
-        patch("vms.ingestion.worker.cv2.VideoCapture", return_value=mock_cap),
+        patch("vms.ingestion.decoder.cv2.VideoCapture", return_value=mock_cap),
         patch("vms.ingestion.worker.stream_add", side_effect=failing_stream_add),
         patch("vms.ingestion.worker.SHMSlot.create") as mock_create,
         patch("asyncio.sleep", new_callable=AsyncMock),
