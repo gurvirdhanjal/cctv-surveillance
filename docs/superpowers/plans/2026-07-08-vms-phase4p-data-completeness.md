@@ -75,41 +75,44 @@ Canonical contract: model-stack spec §9.2. This is the "where was person X at t
 query — the day-one requirement. No migration needed; reads `tracking_events` via the
 `(person_id, event_ts)` index Task 1 guarantees.
 
-- [ ] Config first: `VMS_TIMELINE_GAP_S` (default 10) and `VMS_TIMELINE_MAX_SPANS`
+- [x] Config first: `VMS_TIMELINE_GAP_S` (default 10) and `VMS_TIMELINE_MAX_SPANS`
       (default 500) in `config.py` — no bare literals in the route.
-- [ ] Failing tests — coalescing correctness (real test DB, deterministic fixture):
+- [x] Failing tests — coalescing correctness (real test DB, deterministic fixture):
       seed per-frame `tracking_events` for one person across 3 cameras with known gaps;
       assert events on the same `(camera_id, global_track_id)` separated by
       < `VMS_TIMELINE_GAP_S` coalesce into one `{from_ts, to_ts}` visit span, a gap ≥
       threshold splits spans, and a camera change always splits. Exact expected span
       list asserted, ordered by `from_ts` DESC.
-- [ ] Failing tests — span payload: each span carries `camera_id`, `camera_name`,
+- [x] Failing tests — span payload: each span carries `camera_id`, `camera_name`,
       `zone_id`, `zone_name` (nullable), `global_track_id`, `resolved_via`
       (strongest in span: face ≻ body ≻ ble ≻ unknown — test asserts face wins on a
       mixed span), `floor_x`/`floor_y` (latest non-null in span, else null),
       `thumbnail_url|null`.
-- [ ] Failing tests — filters + limits: default window last-24h; honors `from=`/`to=`;
+- [x] Failing tests — filters + limits: default window last-24h; honors `from=`/`to=`;
       optional `camera_id`/`zone_id` filters; 422 when `limit` >
       `VMS_TIMELINE_MAX_SPANS` or `from >= to`.
-- [ ] Failing tests — authz: role gate manager+; **camera-permission filtering** — a
+- [x] Failing tests — authz: role gate manager+; **camera-permission filtering** — a
       manager lacking permission on camera B receives only camera-A spans (rows
       filtered, NOT 403; test with a two-camera fixture and a scoped
       `user_camera_permissions` row).
-- [ ] Failing tests — GDPR + audit: purged person (embeddings blanked, `person_id`
+- [x] Failing tests — GDPR + audit: purged person (embeddings blanked, `person_id`
       SET NULL in `tracking_events`) → 200 with empty list; 404 for a person_id that
       never existed; every request writes `PERSON_TIMELINE_QUERIED` via
       `write_audit_event` (actor, target person_id, window) — assert the audit row
       exists AND the hash chain still verifies.
-- [ ] Implement in `routes/persons.py`: coalescing in SQL — `LAG(event_ts)` window
+      → chain assertion done per-row via `compute_row_hash` (full `/api/audit/verify`
+      sweep is order-dependent in the shared test DB — tamper tests commit broken rows).
+- [x] Implement in `routes/persons.py`: coalescing in SQL — `LAG(event_ts)` window
       function partitioned by `(camera_id, global_track_id)` → gap flag → running
       `SUM` as span id → outer `GROUP BY`. No Python row loops over raw events.
       EXPLAIN recorded in the implementation notes; the plan must show the
       `(person_id, event_ts)` index, never a seq scan of `tracking_events` (§0.6).
-- [ ] `@pytest.mark.integration` volume test: seed ≥50k events for one person on the
+      → EXPLAIN ANALYZE at 200k rows/partition: Index Scan, 16.9 ms (see notes).
+- [x] `@pytest.mark.integration` volume test: seed ≥50k events for one person on the
       real test DB; endpoint answers a 24h window in < 500 ms and returns ≤
       `VMS_TIMELINE_MAX_SPANS` spans (truncation is explicit: response carries
       `truncated: true`).
-- [ ] Verify: gate green.
+- [x] Verify: gate green. (851 passed, 2026-07-09; `tests/test_api_persons_timeline.py`, 14 tests)
 
 ## Task 2 — `camera_status_events` + real uptime foundation
 

@@ -41,6 +41,25 @@ class PersonDetailResponse(BaseModel):
     thumbnail_url: str | None
 
 
+class TimelineSpan(BaseModel):
+    from_ts: datetime
+    to_ts: datetime
+    camera_id: int
+    camera_name: str
+    zone_id: int | None
+    zone_name: str | None
+    global_track_id: str
+    resolved_via: str
+    floor_x: float | None
+    floor_y: float | None
+    thumbnail_url: str | None
+
+
+class PersonTimelineResponse(BaseModel):
+    spans: list[TimelineSpan]
+    truncated: bool
+
+
 class EmbeddingCreate(BaseModel):
     embedding: list[float] = Field(..., min_length=512, max_length=512)
     quality_score: float = Field(..., ge=0.0, le=1.0)

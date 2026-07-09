@@ -194,6 +194,11 @@ class Settings(BaseSettings):
     # audit export
     audit_export_max_rows: int = Field(default=100_000, ge=1)
 
+    # person timeline (phase 4P task 1b, model-stack spec §9.2)
+    # events on the same (camera, track) closer than this coalesce into one visit span
+    timeline_gap_s: float = Field(default=10.0, gt=0.0)
+    timeline_max_spans: int = Field(default=500, ge=1)
+
     # phase 6 — gpu acceleration (§5 of 2026-06-13-vms-gpu-acceleration.md)
     # master switch; False = current CUDA/CPU path (no change to existing deployments)
     gpu_tensorrt_enabled: bool = False

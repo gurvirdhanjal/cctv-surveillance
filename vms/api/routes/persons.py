@@ -1,15 +1,16 @@
-"""Person enrollment and search endpoints."""
+"""Person enrollment, search, detail and timeline endpoints."""
 
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse, Response
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.orm import Session
 
 from vms.api.deps import get_api_redis, get_current_user, get_db
@@ -20,11 +21,19 @@ from vms.api.schemas import (
     PersonDetailResponse,
     PersonListResponse,
     PersonResponse,
+    PersonTimelineResponse,
     PurgeRequest,
+    TimelineSpan,
 )
 from vms.config import get_settings
 from vms.db.audit import write_audit_event
-from vms.db.models import Person, PersonClipEmbedding, PersonEmbedding, TrackingEvent
+from vms.db.models import (
+    Person,
+    PersonClipEmbedding,
+    PersonEmbedding,
+    TrackingEvent,
+    UserCameraPermission,
+)
 from vms.db.models import User as DBUser
 from vms.identity import faiss_dirty
 from vms.storage.factory import get_storage
@@ -196,6 +205,182 @@ def get_person_detail(
         last_seen_camera_id=last_seen.camera_id if last_seen else None,
         thumbnail_url=f"/media/{person.thumbnail_path}" if person.thumbnail_path else None,
     )
+
+
+_RESOLVED_VIA_BY_RANK = {1: "face", 2: "body", 3: "ble", 4: "unknown"}
+
+# Coalesces per-frame tracking events into visit spans in SQL (no Python row loops):
+# LAG flags gaps >= :gap_s per (camera, track); running SUM numbers the spans;
+# GROUP BY collapses them. Latest non-null zone/floor values win within a span.
+_TIMELINE_SQL = """
+WITH events AS (
+    SELECT camera_id, global_track_id, event_ts, zone_id, resolved_via, floor_x, floor_y,
+           LAG(event_ts) OVER (
+               PARTITION BY camera_id, global_track_id ORDER BY event_ts
+           ) AS prev_ts
+    FROM tracking_events
+    WHERE person_id = :person_id
+      AND event_ts >= :from_ts
+      AND event_ts <= :to_ts
+      {extra_filters}
+),
+numbered AS (
+    SELECT *,
+           SUM(CASE WHEN prev_ts IS NULL
+                         OR EXTRACT(EPOCH FROM (event_ts - prev_ts)) >= :gap_s
+                    THEN 1 ELSE 0 END)
+               OVER (PARTITION BY camera_id, global_track_id ORDER BY event_ts) AS span_seq
+    FROM events
+),
+spans AS (
+    SELECT camera_id, global_track_id,
+           MIN(event_ts) AS from_ts,
+           MAX(event_ts) AS to_ts,
+           MIN(CASE resolved_via WHEN 'face' THEN 1 WHEN 'body' THEN 2
+                                 WHEN 'ble' THEN 3 ELSE 4 END) AS via_rank,
+           (array_agg(zone_id ORDER BY event_ts DESC)
+                FILTER (WHERE zone_id IS NOT NULL))[1] AS zone_id,
+           (array_agg(floor_x ORDER BY event_ts DESC)
+                FILTER (WHERE floor_x IS NOT NULL))[1] AS floor_x,
+           (array_agg(floor_y ORDER BY event_ts DESC)
+                FILTER (WHERE floor_y IS NOT NULL))[1] AS floor_y
+    FROM numbered
+    GROUP BY camera_id, global_track_id, span_seq
+)
+SELECT s.camera_id, s.global_track_id::text AS global_track_id,
+       s.from_ts, s.to_ts, s.via_rank, s.zone_id, s.floor_x, s.floor_y,
+       c.name AS camera_name, z.name AS zone_name
+FROM spans s
+JOIN cameras c ON c.camera_id = s.camera_id
+LEFT JOIN zones z ON z.zone_id = s.zone_id
+ORDER BY s.from_ts DESC
+LIMIT :limit_plus_one
+"""
+
+
+def _timeline_thumbnails(db: Session, gid_strs: list[str]) -> dict[str, str]:
+    """Best-effort snapshot per global track id, newest clip first."""
+    if not gid_strs:
+        return {}
+    gids = [uuid.UUID(g) for g in gid_strs]
+    rows = db.execute(
+        select(PersonClipEmbedding.global_track_id, PersonClipEmbedding.snapshot_path)
+        .where(PersonClipEmbedding.global_track_id.in_(gids))
+        .distinct(PersonClipEmbedding.global_track_id)
+        .order_by(PersonClipEmbedding.global_track_id, PersonClipEmbedding.event_ts.desc())
+    ).all()
+    return {str(gid): f"/media/{path}" for gid, path in rows}
+
+
+@router.get("/persons/{person_id}/timeline", response_model=PersonTimelineResponse)
+def get_person_timeline(
+    person_id: int,
+    from_ts: datetime | None = Query(default=None, alias="from"),  # noqa: B008
+    to_ts: datetime | None = Query(default=None, alias="to"),  # noqa: B008
+    camera_id: int | None = Query(default=None),
+    zone_id: int | None = Query(default=None),
+    limit: int | None = Query(default=None, ge=1),
+    db: Session = Depends(get_db),  # noqa: B008
+    user: dict[str, Any] = Depends(get_current_user),  # noqa: B008
+) -> PersonTimelineResponse:
+    _require_manager(user)
+    settings = get_settings()
+    max_spans = settings.timeline_max_spans
+    effective_limit = max_spans if limit is None else limit
+    if effective_limit > max_spans:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"limit must be <= {max_spans}",
+        )
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    window_to = to_ts if to_ts is not None else now
+    window_from = from_ts if from_ts is not None else window_to - timedelta(hours=24)
+    if window_from >= window_to:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="'from' must be earlier than 'to'",
+        )
+
+    person = db.get(Person, person_id)
+    if person is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Person not found")
+
+    spans: list[TimelineSpan] = []
+    truncated = False
+    # Purged persons return an empty timeline: movement history is no longer
+    # queryable after a GDPR purge even though raw rows may still exist.
+    if person.is_active:
+        extra_filters = ""
+        params: dict[str, Any] = {
+            "person_id": person_id,
+            "from_ts": window_from,
+            "to_ts": window_to,
+            "gap_s": settings.timeline_gap_s,
+            "limit_plus_one": effective_limit + 1,
+        }
+        if camera_id is not None:
+            extra_filters += " AND camera_id = :camera_id"
+            params["camera_id"] = camera_id
+        if zone_id is not None:
+            extra_filters += " AND zone_id = :zone_id"
+            params["zone_id"] = zone_id
+        if user.get("role") != "admin":
+            perm_camera_ids = (
+                db.execute(
+                    select(UserCameraPermission.camera_id).where(
+                        UserCameraPermission.user_id == int(user["sub"])
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            # Zero rows = camera scoping not configured for this user -> unrestricted
+            if perm_camera_ids:
+                extra_filters += " AND camera_id = ANY(:perm_camera_ids)"
+                params["perm_camera_ids"] = list(perm_camera_ids)
+
+        rows = db.execute(text(_TIMELINE_SQL.format(extra_filters=extra_filters)), params).all()
+        truncated = len(rows) > effective_limit
+        rows = rows[:effective_limit]
+        thumbnails = _timeline_thumbnails(db, [r.global_track_id for r in rows])
+        spans = [
+            TimelineSpan(
+                from_ts=r.from_ts,
+                to_ts=r.to_ts,
+                camera_id=r.camera_id,
+                camera_name=r.camera_name,
+                zone_id=r.zone_id,
+                zone_name=r.zone_name,
+                global_track_id=r.global_track_id,
+                resolved_via=_RESOLVED_VIA_BY_RANK[r.via_rank],
+                floor_x=r.floor_x,
+                floor_y=r.floor_y,
+                thumbnail_url=thumbnails.get(r.global_track_id),
+            )
+            for r in rows
+        ]
+
+    actor_id: int | None = int(user["sub"])
+    if db.get(DBUser, actor_id) is None:
+        actor_id = None
+    # Timeline lookups are surveillance queries -- always audited (spec §9.2)
+    write_audit_event(
+        db,
+        event_type="PERSON_TIMELINE_QUERIED",
+        actor_user_id=actor_id,
+        target_type="person",
+        target_id=str(person_id),
+        payload=json.dumps(
+            {
+                "from": window_from.isoformat(),
+                "to": window_to.isoformat(),
+                "camera_id": camera_id,
+                "zone_id": zone_id,
+            }
+        ),
+    )
+
+    return PersonTimelineResponse(spans=spans, truncated=truncated)
 
 
 @router.delete("/persons/{person_id}")
