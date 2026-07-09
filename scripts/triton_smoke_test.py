@@ -45,6 +45,7 @@ if _trt_libs.is_dir():
 
 try:
     from dotenv import load_dotenv  # type: ignore[import-untyped]
+
     load_dotenv(_PROJECT_ROOT / ".env")
 except ImportError:
     pass
@@ -86,11 +87,13 @@ def _body_crops(n: int) -> list[np.ndarray[Any, Any]]:
 
 def _prep_face(crop: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
     from vms.inference.embedder import adaface_preprocess
+
     return adaface_preprocess(crop)
 
 
 def _prep_body(crop: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
     from vms.inference.body_embedder import transreid_preprocess
+
     return transreid_preprocess(crop)
 
 
@@ -101,6 +104,7 @@ def _prep_body(crop: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
 
 def _ort_session(model_path: str) -> Any:
     import onnxruntime as ort  # type: ignore[import-untyped]
+
     return ort.InferenceSession(
         model_path,
         providers=["CUDAExecutionProvider", "CPUExecutionProvider"],
@@ -155,7 +159,10 @@ def gate_health(triton_url: str) -> bool:
     logger.info("=== Gate 1: Triton health check (%s) ===", triton_url)
     try:
         import urllib.request
-        req = urllib.request.urlopen(f"http://{triton_url.replace('8001', '8000')}/v2/health/ready", timeout=5)
+
+        req = urllib.request.urlopen(
+            f"http://{triton_url.replace('8001', '8000')}/v2/health/ready", timeout=5
+        )
         if req.status != 200:
             logger.error("Health endpoint returned %d", req.status)
             return False
@@ -167,6 +174,7 @@ def gate_health(triton_url: str) -> bool:
     try:
         import json
         import urllib.request
+
         http_url = triton_url.replace("8001", "8000")
         req2 = urllib.request.Request(
             f"http://{http_url}/v2/repository/index",
@@ -230,17 +238,25 @@ def gate_identity(
             if (i + 1) % 25 == 0 or i == len(crops) - 1:
                 logger.info(
                     "  %s: %d/%d  mean=%.6f  min=%.6f",
-                    label, i + 1, len(crops), float(np.mean(sims)), float(np.min(sims)),
+                    label,
+                    i + 1,
+                    len(crops),
+                    float(np.mean(sims)),
+                    float(np.min(sims)),
                 )
         return float(np.mean(sims)), float(np.min(sims))
 
     results: dict[str, tuple[float, float]] = {}
 
     logger.info("Running AdaFace (face embedding) comparison...")
-    results["adaface"] = _run_comparison(face_crops, _prep_face, adaface_ort, adaface_tri, "adaface")
+    results["adaface"] = _run_comparison(
+        face_crops, _prep_face, adaface_ort, adaface_tri, "adaface"
+    )
 
     logger.info("Running TransReID (body embedding) comparison...")
-    results["transreid"] = _run_comparison(body_crops, _prep_body, transreid_ort, transreid_tri, "transreid")
+    results["transreid"] = _run_comparison(
+        body_crops, _prep_body, transreid_ort, transreid_tri, "transreid"
+    )
 
     print()
     print("  Identity gate (ORT vs Triton cosine similarity):")
@@ -324,6 +340,7 @@ def gate_failfast(dead_url: str) -> bool:
     logger.info("=== Gate 4: Fail-fast check (dead port %s) ===", dead_url)
     try:
         from vms.inference.backend import TritonInferenceBackend
+
         TritonInferenceBackend(dead_url)
         logger.error("FAIL — TritonInferenceBackend did NOT raise on dead port %s", dead_url)
         return False
@@ -340,11 +357,16 @@ def gate_failfast(dead_url: str) -> bool:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--triton-url", default="localhost:8001", help="Triton gRPC host:port")
-    parser.add_argument("--n-crops", type=int, default=50, help="Synthetic crops for identity + throughput gates")
-    parser.add_argument("--skip-failfast", action="store_true", help="Skip fail-fast gate (if port 9999 is in use)")
+    parser.add_argument(
+        "--n-crops", type=int, default=50, help="Synthetic crops for identity + throughput gates"
+    )
+    parser.add_argument(
+        "--skip-failfast", action="store_true", help="Skip fail-fast gate (if port 9999 is in use)"
+    )
     args = parser.parse_args()
 
     from vms.config import get_settings
+
     settings = get_settings()
     adaface_path = settings.adaface_model
     transreid_path = settings.transreid_body_model

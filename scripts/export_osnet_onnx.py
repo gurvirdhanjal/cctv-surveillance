@@ -55,15 +55,13 @@ def export_and_validate(
         import onnxruntime as ort
     except ImportError as exc:
         raise RuntimeError(
-            f"Missing dependency: {exc}. "
-            "pip install torch torchreid onnxruntime"
+            f"Missing dependency: {exc}. " "pip install torch torchreid onnxruntime"
         ) from exc
 
     weights_p = Path(weights_path)
     if not weights_p.exists():
         raise FileNotFoundError(
-            f"Weights not found: {weights_p}. "
-            "Run: python scripts/download_osnet_ain_msmt17.py"
+            f"Weights not found: {weights_p}. " "Run: python scripts/download_osnet_ain_msmt17.py"
         )
 
     print(f"Loading osnet_ain_x1_0 from {weights_p} ...")
@@ -104,9 +102,7 @@ def export_and_validate(
     sess = ort.InferenceSession(str(out_p), providers=["CPUExecutionProvider"])
     ort_out = sess.run(None, {"input": dummy.numpy()})[0][0]
 
-    cosine = float(
-        np.dot(torch_out / np.linalg.norm(torch_out), ort_out / np.linalg.norm(ort_out))
-    )
+    cosine = float(np.dot(torch_out / np.linalg.norm(torch_out), ort_out / np.linalg.norm(ort_out)))
     print(f"Cosine (torch vs ort): {cosine:.7f}")
 
     if not cosine_passes(torch_out, ort_out):

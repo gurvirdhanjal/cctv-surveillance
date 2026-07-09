@@ -34,6 +34,7 @@ if _env_file.exists():
         if _k not in _SKIP_KEYS:
             os.environ.setdefault(_k, _v.strip())
 
+
 # ── camera definitions ──────────────────────────────────────────────────────
 # URL decode percent-encoded passwords from .env so we can pass them as plain
 # text to the from-credentials endpoint (the endpoint re-encodes them).
@@ -58,11 +59,11 @@ def _cam(name: str, env_var: str, tier: str = "FULL") -> dict:
 
 
 CAMERAS = [
-    _cam("Back Gate",  "VMS_CAM_GATE_BACK_URL"),
+    _cam("Back Gate", "VMS_CAM_GATE_BACK_URL"),
     _cam("Front Gate", "VMS_CAM_GATE_FRONT_URL"),
-    _cam("Gate 4",     "VMS_CAM_GATE_4_URL"),
-    _cam("Indoor 2",   "VMS_CAM_INDOOR_2_URL"),
-    _cam("ANPR Gate",  "VMS_CAM_ANPR_URL"),
+    _cam("Gate 4", "VMS_CAM_GATE_4_URL"),
+    _cam("Indoor 2", "VMS_CAM_INDOOR_2_URL"),
+    _cam("ANPR Gate", "VMS_CAM_ANPR_URL"),
 ]
 
 
@@ -72,8 +73,9 @@ def _api(api_base: str, path: str, payload: dict | None = None, token: str = "")
     headers = {"Content-Type": "application/json"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
-    req = urllib.request.Request(url, data=data, headers=headers,
-                                 method="POST" if payload is not None else "GET")
+    req = urllib.request.Request(
+        url, data=data, headers=headers, method="POST" if payload is not None else "GET"
+    )
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             return json.loads(resp.read())
@@ -92,7 +94,9 @@ def main(api_base: str, username: str, password: str, dry_run: bool) -> None:
     if dry_run:
         print("Dry run — no API calls will be made.\n")
         for cam in CAMERAS:
-            print(f"  Would add: {cam['name']} ({cam['host']}:{cam['port']}) path={cam['stream_path']}")
+            print(
+                f"  Would add: {cam['name']} ({cam['host']}:{cam['port']}) path={cam['stream_path']}"
+            )
         return
 
     # Login
@@ -106,7 +110,9 @@ def main(api_base: str, username: str, password: str, dry_run: bool) -> None:
 
     # Fetch existing cameras
     existing_resp = _api(api_base, "/api/cameras", token=token)
-    existing_names = {c.get("name") for c in (existing_resp if isinstance(existing_resp, list) else [])}
+    existing_names = {
+        c.get("name") for c in (existing_resp if isinstance(existing_resp, list) else [])
+    }
 
     added = 0
     for cam in CAMERAS:

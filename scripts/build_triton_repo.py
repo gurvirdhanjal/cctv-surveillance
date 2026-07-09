@@ -127,7 +127,9 @@ def build_repo(
 
         dynamic = _has_dynamic_batch(onnx_src)
         effective = max_batch_size if dynamic else 0
-        print(f"  {spec.model_dir}: max_batch_size={effective} ({'dynamic' if dynamic else 'fixed'})")
+        print(
+            f"  {spec.model_dir}: max_batch_size={effective} ({'dynamic' if dynamic else 'fixed'})"
+        )
 
     print(f"Triton repo written to {out_dir} ({len(_MODEL_SPECS)} models)")
 
