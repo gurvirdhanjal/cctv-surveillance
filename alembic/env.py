@@ -12,7 +12,9 @@ from vms.db.session import Base
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # disable_existing_loggers=False: without it, running migrations silences every
+    # already-imported vms.* logger (breaks caplog assertions and in-process logging)
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 

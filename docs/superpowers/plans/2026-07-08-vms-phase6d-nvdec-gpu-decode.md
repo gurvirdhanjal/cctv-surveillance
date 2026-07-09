@@ -119,21 +119,27 @@ capture behind an interface.
 
 ## Task 2 — Capability + codec probes
 
-- [ ] Failing tests (all subprocess calls stubbed — CI has no GPU/FFmpeg):
+- [x] Failing tests (all subprocess calls stubbed — CI has no GPU/FFmpeg):
       `nvdec_available(settings) -> bool` is True only when (a) `ffmpeg -decoders`
       output contains `h264_cuvid` AND (b) `detect_gpu_profile().nvdec_units >= 1`;
       result `lru_cache`d; FFmpeg binary missing → False + one WARNING (not an exception).
-- [ ] Failing tests: `probe_codec(rtsp_url, settings) -> str | None` runs ffprobe
+- [x] Failing tests: `probe_codec(rtsp_url, settings) -> str | None` runs ffprobe
       (`-select_streams v:0 -show_entries stream=codec_name`) with
       `nvdec_probe_timeout_s`; returns `"h264"` / `"hevc"`; timeout, non-zero exit, or
       unknown codec → `None`.
-- [ ] Security tests (§7.2): capture logs during both probes with a URL containing
+- [x] Security tests (§7.2): capture logs during both probes with a URL containing
       `user:secret@host` — assert `secret` appears in NO log record at any level; log
       lines carry `camera_id` only. (ffprobe argv contains the URL by necessity; the
       assertion is about our log output.)
-- [ ] Implement in `vms/ingestion/decoder.py` with a small `_mask_url()` helper used by
+- [x] Implement in `vms/ingestion/decoder.py` with a small `_mask_url()` helper used by
       every log call in this module.
-- [ ] Verify: gate green.
+      → config settings (`VMS_NVDEC_FFMPEG_PATH`/`FFPROBE_PATH`/`PROBE_TIMEOUT_S`/
+      `MAX_SESSIONS`/`RESTART_AFTER_FAILURES`) added here since the probes consume them.
+      → **Suite-wide fix found:** `alembic/env.py` `fileConfig()` was silencing all
+      pre-imported `vms.*` loggers (`disable_existing_loggers` defaulted True) — caplog
+      assertions were impossible and earlier log-absence tests passed vacuously. Fixed
+      with `disable_existing_loggers=False`.
+- [x] Verify: gate green (943 passed, 2026-07-09).
 
 ## Task 3 — `NvdecDecoder` (FFmpeg subprocess)
 

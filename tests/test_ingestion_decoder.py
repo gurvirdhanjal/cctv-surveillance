@@ -1,14 +1,44 @@
-"""Tests for the DecodeBackend protocol + OpenCvDecoder (Phase 6d Task 1)."""
+"""Tests for the DecodeBackend protocol + decode probes (Phase 6d Tasks 1-2)."""
 
 from __future__ import annotations
 
+import subprocess
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
 import pytest
 
-from vms.ingestion.decoder import DecodeBackend, OpenCvDecoder
+from vms.ingestion.decoder import (
+    DecodeBackend,
+    OpenCvDecoder,
+    _mask_url,
+    nvdec_available,
+    probe_codec,
+)
 from vms.ingestion.worker import CameraConfig, IngestionWorker
+
+_SECRET_URL = "rtsp://admin:secret123@10.0.0.5:554/Streaming/Channels/101"
+
+
+@pytest.fixture(autouse=True)
+def _clear_probe_caches() -> Any:
+    nvdec_available.cache_clear()
+    yield
+    nvdec_available.cache_clear()
+
+
+def _gpu_profile(nvdec_units: int = 1) -> Any:
+    from vms.inference.gpu_profile import GpuProfile
+
+    return GpuProfile(
+        arch="Ada",
+        compute_cap=8.9,
+        vram_gb=16.0,
+        nvdec_units=nvdec_units,
+        supports_fp16=True,
+        supports_int8=True,
+    )
 
 
 class _FakeDecoder:
@@ -94,3 +124,94 @@ async def test_worker_uses_injected_decoder_factory() -> None:
     assert factory_urls == ["rtsp://x"]
     assert len(published) == 1
     assert decoder.released is True
+
+
+# -- capability probe (Task 2) --------------------------------------------------
+
+
+def test_nvdec_available_true_when_gpu_and_cuvid_present() -> None:
+    run_result = MagicMock(stdout="V..... h264_cuvid  Nvidia CUVID H264 decoder", returncode=0)
+    with (
+        patch("vms.ingestion.decoder.detect_gpu_profile", return_value=_gpu_profile()),
+        patch("vms.ingestion.decoder.subprocess.run", return_value=run_result) as mock_run,
+    ):
+        assert nvdec_available() is True
+        # lru-cached: a second call must not re-run ffmpeg
+        assert nvdec_available() is True
+    assert mock_run.call_count == 1
+
+
+def test_nvdec_available_false_without_gpu_skips_ffmpeg() -> None:
+    with (
+        patch("vms.ingestion.decoder.detect_gpu_profile", return_value=None),
+        patch("vms.ingestion.decoder.subprocess.run") as mock_run,
+    ):
+        assert nvdec_available() is False
+    mock_run.assert_not_called()
+
+
+def test_nvdec_available_false_when_ffmpeg_missing_logs_warning(caplog: Any) -> None:
+    with (
+        patch("vms.ingestion.decoder.detect_gpu_profile", return_value=_gpu_profile()),
+        patch("vms.ingestion.decoder.subprocess.run", side_effect=FileNotFoundError),
+        caplog.at_level("WARNING"),
+    ):
+        assert nvdec_available() is False
+    assert any("ffmpeg" in r.getMessage().lower() for r in caplog.records)
+
+
+def test_nvdec_available_false_when_build_lacks_cuvid() -> None:
+    run_result = MagicMock(stdout="V..... h264  plain decoder", returncode=0)
+    with (
+        patch("vms.ingestion.decoder.detect_gpu_profile", return_value=_gpu_profile()),
+        patch("vms.ingestion.decoder.subprocess.run", return_value=run_result),
+    ):
+        assert nvdec_available() is False
+
+
+# -- codec probe (Task 2) --------------------------------------------------------
+
+
+def test_probe_codec_returns_h264_and_hevc() -> None:
+    for codec in ("h264", "hevc"):
+        run_result = MagicMock(stdout=f"{codec}\n", returncode=0)
+        with patch("vms.ingestion.decoder.subprocess.run", return_value=run_result):
+            assert probe_codec(_SECRET_URL) == codec
+
+
+def test_probe_codec_none_on_failure_timeout_or_unknown() -> None:
+    fail = MagicMock(stdout="", returncode=1)
+    with patch("vms.ingestion.decoder.subprocess.run", return_value=fail):
+        assert probe_codec(_SECRET_URL) is None
+    with patch(
+        "vms.ingestion.decoder.subprocess.run",
+        side_effect=subprocess.TimeoutExpired(cmd="ffprobe", timeout=10),
+    ):
+        assert probe_codec(_SECRET_URL) is None
+    unknown = MagicMock(stdout="mjpeg\n", returncode=0)
+    with patch("vms.ingestion.decoder.subprocess.run", return_value=unknown):
+        assert probe_codec(_SECRET_URL) is None
+
+
+def test_probe_failures_never_log_credentials(caplog: Any) -> None:
+    fail = MagicMock(stdout="", returncode=1)
+    with (
+        patch("vms.ingestion.decoder.subprocess.run", return_value=fail),
+        caplog.at_level("DEBUG"),
+    ):
+        probe_codec(_SECRET_URL)
+    with (
+        patch("vms.ingestion.decoder.detect_gpu_profile", return_value=_gpu_profile()),
+        patch("vms.ingestion.decoder.subprocess.run", side_effect=FileNotFoundError),
+        caplog.at_level("DEBUG"),
+    ):
+        nvdec_available()
+    for record in caplog.records:
+        assert "secret123" not in record.getMessage()
+        assert "admin:" not in record.getMessage()
+
+
+def test_mask_url_strips_credentials() -> None:
+    assert _mask_url(_SECRET_URL) == "rtsp://***@10.0.0.5:554/Streaming/Channels/101"
+    assert _mask_url("rtsp://10.0.0.5/ch1") == "rtsp://10.0.0.5/ch1"
+    assert _mask_url("file.mp4") == "file.mp4"

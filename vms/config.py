@@ -230,6 +230,14 @@ class Settings(BaseSettings):
     gpu_int8_calibration_dir: str = ""
     # NVDEC hardware decode — moves RTSP H.264 decode from CPU to GPU video engine (§6.3)
     gpu_nvdec_enabled: bool = False
+    # phase 6d: FFmpeg build with h264_cuvid/hevc_cuvid (side-by-side install allowed)
+    nvdec_ffmpeg_path: str = "ffmpeg"
+    nvdec_ffprobe_path: str = "ffprobe"
+    nvdec_probe_timeout_s: int = Field(default=10, ge=1)
+    # concurrent NVDEC decoder cap; conservative until the Task 8 capacity probe measures
+    nvdec_max_sessions: int = Field(default=12, ge=0)
+    # consecutive short-reads before NvdecDecoder transparently restarts its subprocess
+    nvdec_restart_after_failures: int = Field(default=3, ge=1)
     # Triton Inference Server URL (§6.4); empty = in-process ORT EP (default)
     gpu_triton_url: str = ""
     # 1 = detect every frame (current behaviour). N>1 = YOLO runs every N frames,
