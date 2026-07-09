@@ -30,6 +30,7 @@ from vms.api.schemas import (
     ResolvedSettingItem,
 )
 from vms.db.audit import write_audit_event
+from vms.db.camera_status import record_camera_status_transition
 from vms.db.models import Camera
 from vms.db.models import User as DBUser
 from vms.db.session import SessionLocal
@@ -167,6 +168,10 @@ def update_camera(
     if body.rtsp_url is not None:
         cam.rtsp_url = body.rtsp_url
     if body.is_active is not None:
+        if bool(cam.is_active) != body.is_active:
+            record_camera_status_transition(
+                db, camera_id=camera_id, status="online" if body.is_active else "offline"
+            )
         cam.is_active = body.is_active
     if body.capability_tier is not None:
         cam.capability_tier = body.capability_tier

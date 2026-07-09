@@ -66,6 +66,23 @@ class Camera(Base):
     floor_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
 
+class CameraStatusEvent(Base):
+    """Online/offline transition history — the basis for real uptime (Phase 4P)."""
+
+    __tablename__ = "camera_status_events"
+    __table_args__ = (
+        CheckConstraint("status IN ('online', 'offline')", name="chk_camera_status_event"),
+        Index("ix_camera_status_events_camera_at", "camera_id", "at"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    camera_id: Mapped[int] = mapped_column(
+        ForeignKey("cameras.camera_id", ondelete="CASCADE"), nullable=False
+    )
+    status: Mapped[str] = mapped_column(String(10), nullable=False)
+    at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow_naive)
+
+
 class Zone(Base):
     __tablename__ = "zones"
     __table_args__ = (

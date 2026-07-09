@@ -62,6 +62,22 @@ The plan says what to do; this file records what actually happened and why.
 - Thumbnails: best-effort `DISTINCT ON (global_track_id)` lookup into
   `person_clip_embeddings` for the returned spans only (≤ limit rows).
 
+## Task 2 — `camera_status_events` + transition writer (2026-07-09)
+
+- **Plan deviation:** the plan (and spec §8.2) said "written by the existing health
+  scheduler job" — no such job exists. Camera status changes at exactly two places
+  today, and both now call `record_camera_status_transition()`:
+  `IngestionWorker._mark_camera_inactive()` (RTSP failure threshold → 'offline') and
+  `PATCH /api/cameras/{id}` (manual is_active toggle → 'online'/'offline').
+  Event-driven beats a polling job: transitions are recorded at the moment they
+  happen with no sampling lag. If a periodic health prober lands later (ONVIF probe,
+  Phase 6 rollout), it calls the same helper.
+- Helper semantics: first-ever call writes a **baseline row**; same-status calls write
+  nothing; caller owns the commit. Uptime math (Task 3) treats "no events in window"
+  as online-for-the-whole-window.
+- Camera creation writes no baseline row — Task 3 must handle cameras with zero
+  status history.
+
 ## Environment notes
 
 - A Docker engine restart mid-session killed `vms-test-db`, `vms-redis`, and

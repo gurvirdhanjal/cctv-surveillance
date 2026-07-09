@@ -116,14 +116,22 @@ query — the day-one requirement. No migration needed; reads `tracking_events` 
 
 ## Task 2 — `camera_status_events` + real uptime foundation
 
-- [ ] Failing tests (real test DB): model + migration create table
+- [x] Failing tests (real test DB): model + migration create table
       `(id, camera_id FK ON DELETE CASCADE, status, at)` with CHECK on status enum and
       index `(camera_id, at)`; writer helper `record_camera_status_transition()` inserts
       only on CHANGE (same-status call = no row); migration downgrade round-trips.
-- [ ] Implement model in `vms/db/models.py` + Alembic migration (same commit).
-- [ ] Hook the existing camera-health scheduler job: on observed status change, call the
+      → `tests/test_camera_status_events.py` (6 tests); migration `e6f7a8b9c0d1`.
+- [x] Implement model in `vms/db/models.py` + Alembic migration (same commit).
+      Helper in `vms/db/camera_status.py`.
+- [x] Hook the existing camera-health scheduler job: on observed status change, call the
       helper. Test: simulated flap online→offline→online writes exactly 2 rows.
-- [ ] Verify: gate green; `alembic upgrade head && alembic downgrade -1 && alembic upgrade head` clean.
+      → **Deviation:** no camera-health scheduler job exists in the codebase. Hooked the
+      two real transition points instead (event-driven, no polling lag):
+      `IngestionWorker._mark_camera_inactive()` → 'offline';
+      `PATCH /api/cameras/{id}` is_active toggle → 'online'/'offline'.
+      Flap test asserts exactly 2 rows after the baseline row.
+- [x] Verify: gate green (857 passed, 2026-07-09); round-trip clean on test DB (5434)
+      and applied to dev DB (5432).
 
 ## Task 3 — `GET /api/analytics/kpi`
 

@@ -105,11 +105,15 @@ class IngestionWorker:
             return
         session = self._session_factory()
         try:
+            from vms.db.camera_status import record_camera_status_transition
             from vms.db.models import Camera
 
             cam = session.get(Camera, self._camera.camera_id)
             if cam is not None:
                 cam.is_active = False
+                record_camera_status_transition(
+                    session, camera_id=self._camera.camera_id, status="offline"
+                )
                 session.commit()
         except Exception:
             logger.exception("camera_id=%d failed to mark camera inactive", self._camera.camera_id)
