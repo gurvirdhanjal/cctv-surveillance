@@ -199,6 +199,10 @@ class Settings(BaseSettings):
     timeline_gap_s: float = Field(default=10.0, gt=0.0)
     timeline_max_spans: int = Field(default=500, ge=1)
 
+    # analytics rollups + caching (phase 4P tasks 3-4)
+    rollup_backfill_max_hours: int = Field(default=48, ge=1)
+    analytics_cache_ttl_s: int = Field(default=60, ge=1)
+
     # phase 6 — gpu acceleration (§5 of 2026-06-13-vms-gpu-acceleration.md)
     # master switch; False = current CUDA/CPU path (no change to existing deployments)
     gpu_tensorrt_enabled: bool = False

@@ -149,17 +149,22 @@ query — the day-one requirement. No migration needed; reads `tracking_events` 
 
 ## Task 4 — Head-count rollup + `GET /api/analytics/head-count`
 
-- [ ] Failing tests: `analytics_head_count_hourly` model + migration
+- [x] Failing tests: `analytics_head_count_hourly` model + migration
       `(bucket_start, zone_id NULLable, plant_total, by_zone JSONB or per-zone rows —
       pick per-zone rows: (bucket_start, zone_id, count) with UNIQUE(bucket_start, zone_id))`;
       scheduler rollup job aggregates the past closed hour idempotently
       (`ON CONFLICT DO UPDATE`); backfill helper fills missed hours on startup (bounded
       by `VMS_ROLLUP_BACKFILL_MAX_HOURS`, default 48).
-- [ ] Failing tests: endpoint 200 `{series:[{ts, plant_total, by_zone}]}` for
+      → per-zone rows with `NULLS NOT DISTINCT` unique (zone_id NULL = plant row);
+      migration `f7a8b9c0d1e2`; rollup in `vms/db/analytics_rollup.py`; dedup mirrors
+      HeadCountAggregator (person_id for identified, gid for unknown).
+- [x] Failing tests: endpoint 200 `{series:[{ts, plant_total, by_zone}]}` for
       `days=7&bucket=hour|day` (day = SUM over hourly), 422 on days>90, 403 below manager.
-- [ ] Implement table + migration; scheduler job (scheduler process, not ad-hoc);
+      → `tests/test_analytics_head_count.py` (10 tests).
+- [x] Implement table + migration; scheduler job (scheduler process, not ad-hoc);
       endpoint in `routes/analytics.py`.
-- [ ] Verify: gate green; migration round-trip clean.
+      → `head_count_rollup` ScheduledJob, cron `5 * * * *`, backfill-on-each-run.
+- [x] Verify: gate green (867 passed, 2026-07-09); migration round-trip clean.
 
 ## Task 5 — System metrics: sampler + endpoint + WS event
 

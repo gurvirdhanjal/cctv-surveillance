@@ -78,6 +78,25 @@ The plan says what to do; this file records what actually happened and why.
 - Camera creation writes no baseline row — Task 3 must handle cameras with zero
   status history.
 
+## Task 4 — head-count rollup + series endpoint (2026-07-09)
+
+- Chose per-zone rows over JSONB (plan's stated preference). The plant-total row is
+  `zone_id NULL`; the UNIQUE constraint uses **`NULLS NOT DISTINCT`** (PG15+) so the
+  plant row upserts through the same `ON CONFLICT ON CONSTRAINT` path as zone rows.
+- **Head-count semantics:** an hourly bucket counts DISTINCT heads seen during the
+  hour, deduped exactly like the live `HeadCountAggregator` (§N.1): identified
+  persons by `person_id` across tracks, unknowns by `global_track_id`
+  (`COALESCE('p'||person_id, 'g'||gid)` SQL key). This is "unique visitors per
+  hour", not instantaneous peak — instantaneous peak would need sub-hour sampling.
+- The rollup always writes the plant row (even 0) — its presence marks the hour as
+  processed, which is what backfill resumes from. Zone rows only for zones seen.
+- `bucket=day` **sums** hourly uniques per the plan. Note this over-counts a person
+  present in multiple hours (footfall-style number, not daily uniques) — accepted as
+  planned; revisit if the dashboard needs daily uniques.
+- Scheduler job `head_count_rollup` (cron `5 * * * *`) just calls
+  `backfill_missed_hours()` — one code path for the steady state, missed hours, and
+  cold start alike, bounded by `VMS_ROLLUP_BACKFILL_MAX_HOURS=48`.
+
 ## Environment notes
 
 - A Docker engine restart mid-session killed `vms-test-db`, `vms-redis`, and

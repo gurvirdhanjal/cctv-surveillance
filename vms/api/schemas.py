@@ -60,6 +60,16 @@ class PersonTimelineResponse(BaseModel):
     truncated: bool
 
 
+class HeadCountPoint(BaseModel):
+    ts: datetime
+    plant_total: int
+    by_zone: dict[int, int]
+
+
+class HeadCountSeriesResponse(BaseModel):
+    series: list[HeadCountPoint]
+
+
 class EmbeddingCreate(BaseModel):
     embedding: list[float] = Field(..., min_length=512, max_length=512)
     quality_score: float = Field(..., ge=0.0, le=1.0)

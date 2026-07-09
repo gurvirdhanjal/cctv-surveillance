@@ -129,7 +129,25 @@ def _worker_heartbeat_check() -> None:
         )
 
 
+def _head_count_rollup() -> None:
+    from vms.db.analytics_rollup import backfill_missed_hours
+    from vms.db.session import SessionLocal
+
+    with SessionLocal() as session:
+        done = backfill_missed_hours(session)
+        session.commit()
+    logger.info("head_count_rollup: rolled up %d hour(s)", done)
+
+
 JOBS: list[ScheduledJob] = [
+    ScheduledJob(
+        name="head_count_rollup",
+        cron="5 * * * *",
+        handler=_head_count_rollup,
+        timeout_s=300,
+        on_failure="alert",
+        audit_event_type="SCHEDULER_HEAD_COUNT_ROLLUP",
+    ),
     ScheduledJob(
         name="partition_create_next_month",
         cron="0 2 25 * *",

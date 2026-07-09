@@ -20,6 +20,7 @@ from vms.api.realtime.bridge import run_bridge
 from vms.api.realtime.server import sio
 from vms.api.routes import (
     alerts,
+    analytics,
     anomaly_detectors,
     audit,
     auth,
@@ -145,6 +146,7 @@ app.include_router(cameras.router, prefix="/api")
 app.include_router(routing.router, prefix="/api")
 app.include_router(audit.router, prefix="/api")
 app.include_router(forensic.router, prefix="/api")
+app.include_router(analytics.router, prefix="/api")
 
 # Prometheus metrics endpoint (standard /metrics path, no /api prefix)
 app.mount("/metrics", make_asgi_app())

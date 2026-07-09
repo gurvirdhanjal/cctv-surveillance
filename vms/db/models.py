@@ -83,6 +83,28 @@ class CameraStatusEvent(Base):
     at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow_naive)
 
 
+class AnalyticsHeadCountHourly(Base):
+    """Hourly head-count rollup (Phase 4P Task 4). zone_id NULL = plant-total row."""
+
+    __tablename__ = "analytics_head_count_hourly"
+    __table_args__ = (
+        UniqueConstraint(
+            "bucket_start",
+            "zone_id",
+            name="uq_head_count_bucket_zone",
+            postgresql_nulls_not_distinct=True,
+        ),
+        Index("ix_head_count_hourly_bucket", "bucket_start"),
+        CheckConstraint("count >= 0", name="chk_head_count_nonneg"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    bucket_start: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    # zone_id intentionally not FK'd (same rationale as tracking_events.zone_id)
+    zone_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    count: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
 class Zone(Base):
     __tablename__ = "zones"
     __table_args__ = (
