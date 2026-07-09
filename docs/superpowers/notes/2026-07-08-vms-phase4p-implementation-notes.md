@@ -97,6 +97,28 @@ The plan says what to do; this file records what actually happened and why.
   `backfill_missed_hours()` — one code path for the steady state, missed hours, and
   cold start alike, bounded by `VMS_ROLLUP_BACKFILL_MAX_HOURS=48`.
 
+## Task 3 — analytics KPI endpoint (2026-07-09)
+
+- `head_count_peak` = MAX over Task 4's hourly plant rows in the window, topped up by
+  the live in-process `HeadCountAggregator` (raw `snapshot()`, not EMA-smoothed) when
+  the window includes "now" — the open hour has no rollup row yet. New getter
+  `get_head_count_aggregator()` in `routes/state.py`.
+- `avg_dwell_minutes` = AVG of per-`global_track_id` (max−min event_ts) spans in the
+  window. Window query is bounded by the `event_ts` index; the aggregate runs on the
+  matched rows only. Same index posture as the timeline EXPLAIN (Task 1b notes).
+- `camera_uptime_pct`: per-camera offline-seconds reconstructed from
+  `camera_status_events` (status at window start = latest event ≤ start, default
+  online; no history = 100%), averaged over all cameras, rounded to 2 dp.
+- Redis cache keyed `analytics:kpi:{from}:{to}`, TTL `VMS_ANALYTICS_CACHE_TTL_S=60`;
+  Redis down → compute uncached with a WARNING (tested via monkeypatch).
+- **Test flake found + fixed:** an hour-aligned test window made the Redis cache key
+  identical across runs within the TTL — the second run got the first run's cached
+  body. Test windows now carry a sub-hour offset. Rule of thumb: any test hitting a
+  cached endpoint must use a per-run-unique window.
+- mypy gotcha: `Row.count` resolves to the tuple `count()` method — label aggregate
+  columns (`.label("peak_count")`) instead of exposing a column literally named
+  `count` through raw Row attribute access.
+
 ## Environment notes
 
 - A Docker engine restart mid-session killed `vms-test-db`, `vms-redis`, and

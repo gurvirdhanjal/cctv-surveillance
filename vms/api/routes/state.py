@@ -25,6 +25,10 @@ def set_head_count_aggregator(agg: HeadCountAggregator) -> None:
     _agg = agg
 
 
+def get_head_count_aggregator() -> HeadCountAggregator | None:
+    return _agg
+
+
 @router.get("/state/snapshot")
 def snapshot(
     db: Session = Depends(get_db),  # noqa: B008

@@ -135,17 +135,20 @@ query — the day-one requirement. No migration needed; reads `tracking_events` 
 
 ## Task 3 — `GET /api/analytics/kpi`
 
-- [ ] Failing tests: 200 schema per spec §8.2 (head_count_peak, head_count_peak_at,
+- [x] Failing tests: 200 schema per spec §8.2 (head_count_peak, head_count_peak_at,
       avg_dwell_minutes, unknown_person_events, camera_uptime_pct, open_alerts,
       alerts_by_severity); default window last-24h, honors from/to; uptime computed from
       `camera_status_events` over the window (fixture with known transitions → exact pct);
       alerts aggregation via one GROUP BY; 403 below manager; result cached in Redis
       keyed by window with `VMS_ANALYTICS_CACHE_TTL_S` (default 60).
-- [ ] Implement `routes/analytics.py` (new router, registered in `api/main.py`).
+      → `tests/test_analytics_kpi.py` (7 tests incl. redis-down graceful path and
+      cache-TTL check).
+- [x] Implement `routes/analytics.py` (new router, registered in `api/main.py`).
       head_count_peak from the rollup table (Task 4) with live-window top-up from the
       state snapshot; dwell + unknown-person from indexed aggregate queries — EXPLAIN
       each query in the implementation notes; none may seq-scan `tracking_events`.
-- [ ] Verify: gate green.
+      → live top-up via new `get_head_count_aggregator()` in `routes/state.py`.
+- [x] Verify: gate green (874 passed, 2026-07-09).
 
 ## Task 4 — Head-count rollup + `GET /api/analytics/head-count`
 

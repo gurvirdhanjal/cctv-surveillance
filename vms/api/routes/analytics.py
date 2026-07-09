@@ -2,16 +2,22 @@
 
 from __future__ import annotations
 
+import logging
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from vms.api.deps import get_current_user, get_db
-from vms.api.schemas import HeadCountPoint, HeadCountSeriesResponse
-from vms.db.models import AnalyticsHeadCountHourly
+from vms.api.deps import get_api_redis, get_current_user, get_db
+from vms.api.routes.state import get_head_count_aggregator
+from vms.api.schemas import HeadCountPoint, HeadCountSeriesResponse, KpiResponse
+from vms.config import get_settings
+from vms.db.models import Alert, AnalyticsHeadCountHourly, Camera, CameraStatusEvent, TrackingEvent
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -25,6 +31,145 @@ def _require_manager(user: dict[str, Any]) -> None:
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _camera_uptime_pct(db: Session, window_from: datetime, window_to: datetime) -> float:
+    """Mean per-camera uptime over the window from camera_status_events.
+
+    A camera with no transition history counts as fully online; the status at
+    window start comes from its latest event at or before the window.
+    """
+    cam_ids = list(db.execute(select(Camera.camera_id)).scalars().all())
+    if not cam_ids:
+        return 100.0
+    events = db.execute(
+        select(CameraStatusEvent.camera_id, CameraStatusEvent.status, CameraStatusEvent.at)
+        .where(CameraStatusEvent.at <= window_to)
+        .order_by(CameraStatusEvent.camera_id, CameraStatusEvent.at, CameraStatusEvent.id)
+    ).all()
+    by_cam: dict[int, list[tuple[str, datetime]]] = defaultdict(list)
+    for cam_id, event_status, at in events:
+        by_cam[cam_id].append((event_status, at))
+
+    window_s = (window_to - window_from).total_seconds()
+    uptime_sum = 0.0
+    for cam_id in cam_ids:
+        current = "online"
+        cursor = window_from
+        offline_s = 0.0
+        for event_status, at in by_cam.get(cam_id, []):
+            if at <= window_from:
+                current = event_status
+                continue
+            if current == "offline":
+                offline_s += (at - cursor).total_seconds()
+            current = event_status
+            cursor = at
+        if current == "offline":
+            offline_s += (window_to - cursor).total_seconds()
+        uptime_sum += max(0.0, 1.0 - offline_s / window_s)
+    return round(100.0 * uptime_sum / len(cam_ids), 2)
+
+
+@router.get("/analytics/kpi", response_model=KpiResponse)
+async def analytics_kpi(
+    from_ts: datetime | None = Query(default=None, alias="from"),  # noqa: B008
+    to_ts: datetime | None = Query(default=None, alias="to"),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+    user: dict[str, Any] = Depends(get_current_user),  # noqa: B008
+) -> KpiResponse:
+    _require_manager(user)
+    now = _utcnow()
+    window_to = to_ts if to_ts is not None else now
+    window_from = from_ts if from_ts is not None else window_to - timedelta(hours=24)
+    if window_from >= window_to:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="'from' must be earlier than 'to'",
+        )
+
+    cache_key = f"analytics:kpi:{window_from.isoformat()}:{window_to.isoformat()}"
+    redis = None
+    try:
+        redis = get_api_redis()
+        cached = await redis.get(cache_key)
+        if cached:
+            return KpiResponse.model_validate_json(cached)
+    except Exception:
+        logger.warning("analytics_kpi: redis cache unavailable; computing uncached")
+        redis = None
+
+    peak_row = db.execute(
+        select(
+            AnalyticsHeadCountHourly.count.label("peak_count"),
+            AnalyticsHeadCountHourly.bucket_start,
+        )
+        .where(
+            AnalyticsHeadCountHourly.zone_id.is_(None),
+            AnalyticsHeadCountHourly.bucket_start >= window_from,
+            AnalyticsHeadCountHourly.bucket_start < window_to,
+        )
+        .order_by(AnalyticsHeadCountHourly.count.desc())
+        .limit(1)
+    ).first()
+    peak, peak_at = (peak_row.peak_count, peak_row.bucket_start) if peak_row else (0, None)
+    # Live top-up: the open hour is not rolled up yet — consult the in-process aggregator
+    if window_to >= now:
+        agg = get_head_count_aggregator()
+        if agg is not None:
+            snap = agg.snapshot()
+            if snap.plant_total > peak:
+                peak = snap.plant_total
+                peak_at = snap.ts
+
+    spans = (
+        select(
+            func.min(TrackingEvent.event_ts).label("from_ts"),
+            func.max(TrackingEvent.event_ts).label("to_ts"),
+        )
+        .where(TrackingEvent.event_ts >= window_from, TrackingEvent.event_ts <= window_to)
+        .group_by(TrackingEvent.global_track_id)
+        .subquery()
+    )
+    avg_dwell_s = db.execute(
+        select(func.avg(func.extract("epoch", spans.c.to_ts - spans.c.from_ts)))
+    ).scalar()
+    avg_dwell_minutes = round(float(avg_dwell_s or 0.0) / 60.0, 2)
+
+    unknown_person_events: int = db.execute(
+        select(func.count())
+        .select_from(Alert)
+        .where(
+            Alert.alert_type == "UNKNOWN_PERSON",
+            Alert.triggered_at >= window_from,
+            Alert.triggered_at <= window_to,
+        )
+    ).scalar_one()
+
+    severity_rows = db.execute(
+        select(Alert.severity, func.count())
+        .where(Alert.state.in_(("active", "acknowledged")))
+        .group_by(Alert.severity)
+    ).all()
+    alerts_by_severity = {severity: count for severity, count in severity_rows}
+
+    response = KpiResponse(
+        head_count_peak=peak,
+        head_count_peak_at=peak_at,
+        avg_dwell_minutes=avg_dwell_minutes,
+        unknown_person_events=unknown_person_events,
+        camera_uptime_pct=_camera_uptime_pct(db, window_from, window_to),
+        open_alerts=sum(alerts_by_severity.values()),
+        alerts_by_severity=alerts_by_severity,
+    )
+    if redis is not None:
+        try:
+            await redis.set(
+                cache_key, response.model_dump_json(), ex=get_settings().analytics_cache_ttl_s
+            )
+        except Exception:
+            logger.warning("analytics_kpi: failed to cache result")
+    return response
 
 
 @router.get("/analytics/head-count", response_model=HeadCountSeriesResponse)

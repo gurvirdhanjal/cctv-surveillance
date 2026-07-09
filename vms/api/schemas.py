@@ -70,6 +70,16 @@ class HeadCountSeriesResponse(BaseModel):
     series: list[HeadCountPoint]
 
 
+class KpiResponse(BaseModel):
+    head_count_peak: int
+    head_count_peak_at: datetime | None
+    avg_dwell_minutes: float
+    unknown_person_events: int
+    camera_uptime_pct: float
+    open_alerts: int
+    alerts_by_severity: dict[str, int]
+
+
 class EmbeddingCreate(BaseModel):
     embedding: list[float] = Field(..., min_length=512, max_length=512)
     quality_score: float = Field(..., ge=0.0, le=1.0)
