@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Literal
 
+from vms.config import get_settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -129,6 +131,12 @@ def _worker_heartbeat_check() -> None:
         )
 
 
+def _system_metrics_sample() -> None:
+    from vms.scheduler.system_metrics import system_metrics_sample_job
+
+    system_metrics_sample_job()
+
+
 def _head_count_rollup() -> None:
     from vms.db.analytics_rollup import backfill_missed_hours
     from vms.db.session import SessionLocal
@@ -140,6 +148,14 @@ def _head_count_rollup() -> None:
 
 
 JOBS: list[ScheduledJob] = [
+    ScheduledJob(
+        name="system_metrics_sample",
+        cron=f"@every {get_settings().metrics_sample_interval_s}s",
+        handler=_system_metrics_sample,
+        timeout_s=10,
+        on_failure="log",
+        audit_event_type="SCHEDULER_SYSTEM_METRICS",
+    ),
     ScheduledJob(
         name="head_count_rollup",
         cron="5 * * * *",

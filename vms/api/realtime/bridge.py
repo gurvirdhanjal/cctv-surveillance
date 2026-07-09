@@ -1,13 +1,15 @@
-"""Redis → Socket.io bridge — consumes alert stream, emits §10 events."""
+"""Redis → Socket.io bridge — consumes alert + metrics streams, emits §10 events."""
 
 from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import logging
 from typing import Any
 
 from vms.api.realtime.server import sio
+from vms.scheduler.system_metrics import METRICS_STREAM
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +29,13 @@ async def _emit_alert(event: dict[str, Any]) -> None:
     await sio.emit("alert_fired", payload)
 
 
+async def _emit_system_metrics(entry: dict[str, Any]) -> None:
+    """Emit system_metrics from a raw metrics-stream entry (spec §8.4)."""
+    await sio.emit("system_metrics", json.loads(entry["payload"]))
+
+
 async def run_bridge(redis_url: str) -> None:
-    """Read the Redis alerts stream and emit Socket.io events to connected clients.
+    """Read the Redis alert + metrics streams and emit Socket.io events.
 
     Runs indefinitely until cancelled. Reconnects on Redis errors with a 1s backoff.
     """
@@ -37,19 +44,27 @@ async def run_bridge(redis_url: str) -> None:
     r: aioredis.Redis = aioredis.from_url(  # type: ignore[no-untyped-call]
         redis_url, decode_responses=True
     )
-    last_id = "$"
+    # typed to redis-py's xread parameter (dict is invariant in its key type)
+    last_ids: dict[bytes | str | memoryview, int | bytes | str | memoryview] = {
+        "vms:alerts": "$",
+        METRICS_STREAM: "$",
+    }
     degraded = False
 
     while True:
         try:
-            messages = await r.xread({"vms:alerts": last_id}, block=1000, count=10)
+            messages = await r.xread(last_ids, block=1000, count=10)
             if degraded:
                 await sio.emit("degraded_mode", {"enabled": False, "reason": ""})
                 degraded = False
-            for _stream, entries in messages or []:
+            for stream, entries in messages or []:
+                stream_name = str(stream)
                 for msg_id, data in entries:
-                    last_id = str(msg_id)
-                    await _emit_alert(data)
+                    last_ids[stream_name] = str(msg_id)
+                    if stream_name == METRICS_STREAM:
+                        await _emit_system_metrics(data)
+                    else:
+                        await _emit_alert(data)
         except asyncio.CancelledError:
             break
         except Exception:

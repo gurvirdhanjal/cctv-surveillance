@@ -119,6 +119,22 @@ The plan says what to do; this file records what actually happened and why.
   columns (`.label("peak_count")`) instead of exposing a column literally named
   `count` through raw Row attribute access.
 
+## Task 5 — system metrics (2026-07-09)
+
+- The scheduler and API are separate processes, so the sampler cannot `sio.emit`
+  directly. Each sample lands twice in Redis: the `system:metrics` string (read by
+  `GET /api/system/metrics`, 503 when absent or older than 3× the interval) and an
+  XADD to `vms:system_metrics` (maxlen 100). `run_bridge` now xreads BOTH streams
+  (alerts + metrics) in one call and emits `system_metrics` to the socket.
+- `inference_fps` and `ingest_lag_ms` ship as **null** — no cross-process pipeline
+  counters exist yet. When the inference engine exports counters (Prometheus metrics
+  exist — a Redis mirror would be the v2 source), fill them in; never fake 0.
+- GPU block is `null` on any NVML failure (import, init, no device) — frontend Task 11
+  hides the gauge on null.
+- mypy: pynvml/psutil have no stubs → `# type: ignore[import-untyped]` per the
+  croniter precedent. redis-py's `xread` dict param is invariant — the cursor dict is
+  annotated with redis-py's exact key/value union.
+
 ## Environment notes
 
 - A Docker engine restart mid-session killed `vms-test-db`, `vms-redis`, and

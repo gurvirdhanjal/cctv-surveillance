@@ -203,6 +203,9 @@ class Settings(BaseSettings):
     rollup_backfill_max_hours: int = Field(default=48, ge=1)
     analytics_cache_ttl_s: int = Field(default=60, ge=1)
 
+    # system metrics sampler (phase 4P task 5); endpoint 503s beyond 3x this age
+    metrics_sample_interval_s: int = Field(default=5, ge=1)
+
     # phase 6 — gpu acceleration (§5 of 2026-06-13-vms-gpu-acceleration.md)
     # master switch; False = current CUDA/CPU path (no change to existing deployments)
     gpu_tensorrt_enabled: bool = False

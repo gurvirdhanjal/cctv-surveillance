@@ -171,17 +171,24 @@ query — the day-one requirement. No migration needed; reads `tracking_events` 
 
 ## Task 5 — System metrics: sampler + endpoint + WS event
 
-- [ ] Failing tests: sampler job writes JSON to Redis key `system:metrics` with fields
+- [x] Failing tests: sampler job writes JSON to Redis key `system:metrics` with fields
       per spec §8.4 (gpu util/mem via pynvml with graceful `gpu: null` when NVML absent —
       CI has no GPU; cpu_pct/disk via psutil; inference_fps + ingest_lag_ms from existing
       pipeline counters if exposed, else null v1) every `VMS_METRICS_SAMPLE_INTERVAL_S`
       (default 5); endpoint `GET /api/system/metrics` returns the Redis payload (503 with
       `detail="metrics unavailable"` if key absent/stale > 3× interval); any authenticated
       role passes; unauthenticated 401.
-- [ ] Implement sampler in the scheduler process; endpoint in new `routes/system.py`.
-- [ ] WebSocket: publish `system_metrics` event on the existing live socket channel each
+      → `tests/test_system_metrics.py` (9 tests); inference_fps/ingest_lag_ms are
+      honest nulls in v1 (no cross-process pipeline counters exist yet).
+- [x] Implement sampler in the scheduler process; endpoint in new `routes/system.py`.
+      → `vms/scheduler/system_metrics.py`; `system_metrics_sample` ScheduledJob with
+      cron derived from the setting.
+- [x] WebSocket: publish `system_metrics` event on the existing live socket channel each
       sample (reuse the socket broadcast path used by alerts/state; test the event shape).
-- [ ] Verify: gate green (NVML-absent path covered).
+      → sampler XADDs to `vms:system_metrics`; realtime bridge xreads both streams and
+      emits `system_metrics` (scheduler and API are separate processes — the bridge is
+      the only socket owner).
+- [x] Verify: gate green (883 passed, 2026-07-09; NVML-absent path covered via monkeypatch).
 
 ## Task 6 — Clip export: 202-queued (`export_jobs`)
 
