@@ -135,6 +135,19 @@ The plan says what to do; this file records what actually happened and why.
   croniter precedent. redis-py's `xread` dict param is invariant — the cursor dict is
   annotated with redis-py's exact key/value union.
 
+## Task 6 — clip export 202-queued (2026-07-09)
+
+- Jobs are created QUEUED and stay QUEUED — the FFmpeg export worker belongs to the
+  recording spec (`2026-06-12-vms-recording-clips-analytics.md`), not this phase.
+  The `updated_at` + state CHECK are ready for that worker.
+- `requested_by` FK requires a real users row; a JWT whose subject has no users row
+  gets 403 "Requesting user not found" (deleted-user edge; mirrors the purge route's
+  actor handling).
+- **Frontend contract mismatch found:** `ClipExportDialog.tsx` posts
+  `{camera_id, start, end, format, label}` but the backend (per the plan/spec) takes
+  `{camera_id, from_ts, to_ts, reason}`. Task 12 must rewire the dialog; recorded on
+  the Task 6 checkbox so it can't be silently skipped.
+
 ## Environment notes
 
 - A Docker engine restart mid-session killed `vms-test-db`, `vms-redis`, and

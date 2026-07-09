@@ -206,6 +206,9 @@ class Settings(BaseSettings):
     # system metrics sampler (phase 4P task 5); endpoint 503s beyond 3x this age
     metrics_sample_interval_s: int = Field(default=5, ge=1)
 
+    # clip export (phase 4P task 6)
+    export_max_window_s: int = Field(default=300, ge=1)
+
     # phase 6 — gpu acceleration (§5 of 2026-06-13-vms-gpu-acceleration.md)
     # master switch; False = current CUDA/CPU path (no change to existing deployments)
     gpu_tensorrt_enabled: bool = False

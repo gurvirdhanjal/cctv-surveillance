@@ -506,6 +506,34 @@ class PersonClipEmbedding(Base):
     snapshot_path: Mapped[str] = mapped_column(String(500), nullable=False)
 
 
+class ExportJob(Base):
+    """Clip-export job (Phase 4P Task 6). Worker lands in the recording spec;
+    until then jobs stay honestly QUEUED."""
+
+    __tablename__ = "export_jobs"
+    __table_args__ = (
+        CheckConstraint(
+            "state IN ('QUEUED', 'RUNNING', 'COMPLETE', 'FAILED')",
+            name="chk_export_job_state",
+        ),
+        CheckConstraint("to_ts > from_ts", name="chk_export_window_valid"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    requested_by: Mapped[int] = mapped_column(ForeignKey("users.user_id"), nullable=False)
+    camera_id: Mapped[int] = mapped_column(
+        ForeignKey("cameras.camera_id", ondelete="NO ACTION"), nullable=False
+    )
+    from_ts: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    to_ts: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    reason: Mapped[str] = mapped_column(String(500), nullable=False)
+    state: Mapped[str] = mapped_column(String(10), nullable=False, default="QUEUED")
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow_naive)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=_utcnow_naive, onupdate=_utcnow_naive
+    )
+
+
 # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Model registry (manifest DB projection)
 # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

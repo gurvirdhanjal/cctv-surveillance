@@ -70,6 +70,22 @@ class HeadCountSeriesResponse(BaseModel):
     series: list[HeadCountPoint]
 
 
+class ExportJobCreate(BaseModel):
+    camera_id: int
+    from_ts: datetime
+    to_ts: datetime
+    reason: str = Field(..., min_length=3, max_length=500)
+
+
+class ExportJobResponse(BaseModel):
+    job_id: str
+    state: str
+    camera_id: int
+    from_ts: datetime
+    to_ts: datetime
+    created_at: datetime
+
+
 class KpiResponse(BaseModel):
     head_count_peak: int
     head_count_peak_at: datetime | None

@@ -192,7 +192,7 @@ query — the day-one requirement. No migration needed; reads `tracking_events` 
 
 ## Task 6 — Clip export: 202-queued (`export_jobs`)
 
-- [ ] Failing tests: `export_jobs` model + migration `(id UUID, requested_by FK users,
+- [x] Failing tests: `export_jobs` model + migration `(id UUID, requested_by FK users,
       camera_id FK, from_ts, to_ts, reason, state CHECK IN ('QUEUED','RUNNING','COMPLETE',
       'FAILED'), created_at, updated_at)`; `POST /api/forensic/export` validates
       from_ts<to_ts and window ≤ `VMS_EXPORT_MAX_WINDOW_S` (default 300), checks the
@@ -200,9 +200,13 @@ query — the day-one requirement. No migration needed; reads `tracking_events` 
       `write_audit_event`, returns 202 `{job_id, state:'QUEUED'}`; `GET
       /api/forensic/export/{job_id}` returns state (owner or admin only — 403 otherwise,
       404 unknown); negative: 403 wrong camera scope, 422 bad window.
-- [ ] Implement in `routes/forensic.py`. NO worker in this phase (recording spec owns it);
+      → `tests/test_api_forensic_export.py` (8 tests); migration `a8b9c0d1e2f3`.
+      Camera-permission semantics match Task 1b (rows exist → restrict; admin free).
+- [x] Implement in `routes/forensic.py`. NO worker in this phase (recording spec owns it);
       jobs stay QUEUED honestly.
-- [ ] Verify: gate green; migration round-trip clean.
+      → NOTE for Task 12: ClipExportDialog currently posts `{camera_id, start, end,
+      format, label}` — must be rewired to `{camera_id, from_ts, to_ts, reason}`.
+- [x] Verify: gate green (891 passed, 2026-07-09); migration round-trip clean.
 
 ## Task 7 — `/api/users` CRUD
 
