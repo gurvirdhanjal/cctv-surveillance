@@ -213,6 +213,10 @@ class Settings(BaseSettings):
     # reject calibrations whose reprojection RMS exceeds this many pixels
     homography_max_rms_px: float = Field(default=15.0, gt=0.0)
 
+    # floor read APIs (phase 4P task 8c, model-stack spec §8.2.2)
+    heatmap_max_window_h: int = Field(default=72, ge=1)
+    live_positions_window_s: int = Field(default=5, ge=1)
+
     # phase 6 — gpu acceleration (§5 of 2026-06-13-vms-gpu-acceleration.md)
     # master switch; False = current CUDA/CPU path (no change to existing deployments)
     gpu_tensorrt_enabled: bool = False

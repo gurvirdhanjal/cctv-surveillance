@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from vms.api.deps import get_current_user, get_db
 from vms.api.schemas import (
+    FloorPlanItem,
     HomographyCalibrateRequest,
     HomographyPointPair,
     HomographyResponse,
@@ -29,6 +30,31 @@ from vms.db.models import Camera, FloorPlan, UserCameraPermission
 from vms.db.models import User as DBUser
 
 router = APIRouter()
+
+
+@router.get("/floor-plans", response_model=list[FloorPlanItem])
+def list_floor_plans(
+    db: Session = Depends(get_db),  # noqa: B008
+    _user: dict[str, Any] = Depends(get_current_user),  # noqa: B008
+) -> list[FloorPlanItem]:
+    from sqlalchemy import func
+
+    rows = db.execute(
+        select(FloorPlan, func.count(Camera.camera_id))
+        .outerjoin(Camera, Camera.floor_plan_id == FloorPlan.id)
+        .group_by(FloorPlan.id)
+        .order_by(FloorPlan.name)
+    ).all()
+    return [
+        FloorPlanItem(
+            id=plan.id,
+            name=plan.name,
+            image_path=plan.image_path,
+            scale_m_per_px=plan.scale_m_per_px,
+            camera_count=count,
+        )
+        for plan, count in rows
+    ]
 
 
 def _get_camera_or_404(db: Session, camera_id: int) -> Camera:

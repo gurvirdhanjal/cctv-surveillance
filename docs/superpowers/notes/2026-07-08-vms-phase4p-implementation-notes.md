@@ -148,6 +148,29 @@ The plan says what to do; this file records what actually happened and why.
   `{camera_id, from_ts, to_ts, reason}`. Task 12 must rewire the dialog; recorded on
   the Task 6 checkbox so it can't be silently skipped.
 
+## Tasks 8b/8c — homography calibration + floor read APIs (2026-07-09)
+
+- The server ALWAYS recomputes the matrix from point pairs (`cv2.findHomography`
+  RANSAC); client-supplied matrices are never stored. RMS is computed over ALL
+  submitted pairs (RANSAC would otherwise hide outliers), rejected above
+  `VMS_HOMOGRAPHY_MAX_RMS_PX=15`. Note: exactly 4 pairs always fit perfectly (8 DOF)
+  — the UI should encourage ≥5 pairs so bad picks are catchable.
+- End-to-end proof: calibrating via the API then pushing a `DetectionFrame` through
+  `flush_detection_frame()` lands `floor_x/floor_y` at the ground-truth coordinates.
+  The writer caches homography per camera (`DBWriter._cam_homography`) — a live
+  recalibration is picked up on writer restart; a cache-invalidation hook is a
+  follow-up if live recalibration without restart is needed.
+- **Live floor positions deviation:** served from `tracking_events` (latest row per
+  `global_track_id` within `VMS_LIVE_POSITIONS_WINDOW_S=5`), not the state snapshot —
+  the snapshot has no per-tracklet coordinates and the identity registry is in
+  another process.
+- Heatmap bins in floor-plan pixels: `bin_px = bucket_m / scale_m_per_px`; response
+  carries cell indices + `bin_px` so the frontend maps cells to plan pixels without
+  re-deriving scale. Cache key includes the requesting user (camera scoping changes
+  the result set).
+- Floor-plans list endpoint lives in `routes/homography.py` (floor-plane domain file)
+  rather than a new `routes/floor_plans.py` — same behaviour, fewer files.
+
 ## Environment notes
 
 - A Docker engine restart mid-session killed `vms-test-db`, `vms-redis`, and

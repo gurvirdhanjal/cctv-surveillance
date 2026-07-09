@@ -116,6 +116,39 @@ class HomographyResponse(BaseModel):
     stale: bool
 
 
+class FloorPlanItem(BaseModel):
+    id: int
+    name: str
+    image_path: str
+    scale_m_per_px: float
+    camera_count: int
+
+
+class HeatmapCell(BaseModel):
+    x: int
+    y: int
+    count: int
+
+
+class HeatmapResponse(BaseModel):
+    bucket_m: float
+    bin_px: float
+    cells: list[HeatmapCell]
+
+
+class FloorPosition(BaseModel):
+    global_track_id: str
+    camera_id: int
+    person_id: int | None
+    floor_x: float
+    floor_y: float
+    ts: datetime
+
+
+class FloorPositionsResponse(BaseModel):
+    positions: list[FloorPosition]
+
+
 class BookmarkCreate(BaseModel):
     camera_id: int
     ts: datetime

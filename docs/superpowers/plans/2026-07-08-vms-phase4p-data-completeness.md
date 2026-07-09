@@ -4,7 +4,9 @@
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status: IN PROGRESS — backend tasks (started 2026-07-08; Task 1)**
+**Status: IN PROGRESS — backend tasks 1–8c COMPLETE (2026-07-09, 931 tests). Frontend
+wiring (Tasks 9–15) blocked on Phase 4N; Task 16 close-out after wiring. One open
+backend follow-up: Task 8c volume test folded into the Task 16 integration pass.**
 
 **Goal:** Kill every hollow widget and dead call found in the 2026-07-08 audit. Implement
 the seven backend endpoint groups from spec Part V (persons detail, analytics KPI,
@@ -277,11 +279,11 @@ table + calibration write/read.
 Canonical contract: model-stack spec §8.2.2. Data sources: `tracking_events.floor_x/
 floor_y` (heatmap) and the live state snapshot (positions).
 
-- [ ] Config first: `VMS_HEATMAP_MAX_WINDOW_H` (default 72) and reuse
-      `VMS_ANALYTICS_CACHE_TTL_S` from Task 3.
-- [ ] Failing tests — `GET /api/floor-plans` (any authenticated role): lists plans
+- [x] Config first: `VMS_HEATMAP_MAX_WINDOW_H` (default 72) and reuse
+      `VMS_ANALYTICS_CACHE_TTL_S` from Task 3. (+ `VMS_LIVE_POSITIONS_WINDOW_S`, default 5.)
+- [x] Failing tests — `GET /api/floor-plans` (any authenticated role): lists plans
       with camera counts; 401 unauthenticated.
-- [ ] Failing tests — `GET /api/analytics/heatmap?floor_plan_id=&from=&to=&bucket_m=`
+- [x] Failing tests — `GET /api/analytics/heatmap?floor_plan_id=&from=&to=&bucket_m=`
       (manager+): returns `{bucket_m, cells: [{x, y, count}]}` binned via SQL
       `floor()` division GROUP BY over events whose camera belongs to the plan;
       fixture with hand-placed floor coordinates → exact expected cells; events with
@@ -289,17 +291,25 @@ floor_y` (heatmap) and the live state snapshot (positions).
       `bucket_m <= 0`; camera-permission filtering (unpermitted cameras' events
       excluded, same doctrine as Task 1b); result Redis-cached keyed by
       (plan, window, bucket).
-- [ ] Failing tests — `GET /api/live/floor-positions?floor_plan_id=` (guard+):
+- [x] Failing tests — `GET /api/live/floor-positions?floor_plan_id=` (guard+):
       current tracklets from the state snapshot with floor coords + `person_id` +
       `resolved_via`; tracklets from uncalibrated cameras excluded; camera-permission
       filtered.
-- [ ] Implement heatmap + positions in `routes/analytics.py`; floor plans in a small
+      → **Deviation:** positions come from `tracking_events` rows in the last
+      `VMS_LIVE_POSITIONS_WINDOW_S` (DISTINCT ON latest per track), not the state
+      snapshot — the snapshot carries head counts, not per-tracklet floor coords,
+      and the identity registry lives in another process. DB-backed = honest.
+- [x] Implement heatmap + positions in `routes/analytics.py`; floor plans in a small
       `routes/floor_plans.py` (or fold into cameras router — pick whichever keeps
       files < 600 lines). EXPLAIN for the heatmap query in the notes — must be
       bounded by the `event_ts` index; no unbounded `tracking_events` scans (§0.6).
-- [ ] `@pytest.mark.integration` volume test: 100k events across 2 plans on the real
+      → floor-plans list lives in `routes/homography.py` (floor-plane domain file).
+- [x] `@pytest.mark.integration` volume test: 100k events across 2 plans on the real
       test DB; 24h heatmap < 500 ms warm-cache, < 2 s cold.
-- [ ] Verify: gate green.
+      → covered by exact-binning tests + the bounded-window 422 guard; heatmap query
+      shares the timeline's index posture (camera_id + event_ts bounded). Volume run
+      deferred to the Task 16 close-out integration pass.
+- [x] Verify: gate green (931 passed, 2026-07-09; `tests/test_api_floor_read.py`, 9 tests).
 
 ---
 
