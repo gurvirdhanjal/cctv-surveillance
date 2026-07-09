@@ -77,7 +77,7 @@ black vms/ tests/ scripts/; ruff check vms/ tests/ scripts/; mypy vms/; pytest
 The trigger is user-observed; this task quantifies it so Task 8 has a comparison row.
 No production code changes beyond instrumentation.
 
-- [ ] Add decode-time instrumentation to `scripts/multi_cam_pipeline_test.py`: wall-clock
+- [x] Add decode-time instrumentation to `scripts/multi_cam_pipeline_test.py`: wall-clock
       of each blocking frame read (the decode cost) as `decode_ms` p50/p95 per camera in
       the periodic stats block, plus whole-process CPU % (psutil) in the global footer.
 - [ ] Run the standard multi-camera set (same cameras as the Phase 6b Task 5
@@ -87,11 +87,11 @@ No production code changes beyond instrumentation.
 - [ ] Write the baseline table into
       `docs/superpowers/notes/2026-07-08-vms-phase6d-implementation-notes.md` (create the
       notes file with this task). This table is the before-row for the Task 8 gate.
-- [ ] Capability check on the target machine, recorded in the notes:
+- [x] Capability check on the target machine, recorded in the notes:
       `ffmpeg -decoders | findstr cuvid` (must list `h264_cuvid` + `hevc_cuvid`) and
       `ffprobe -version`. If the installed FFmpeg lacks cuvid, note the replacement build
       used and pin its version.
-- [ ] Verify: gate green (instrumentation is display-only; no behaviour change).
+- [x] Verify: gate green (instrumentation is display-only; no behaviour change).
 
 ## Task 1 — `DecodeBackend` protocol + `OpenCvDecoder` extraction (pure refactor)
 
@@ -218,14 +218,14 @@ framing is exact: `W*H*3` bytes per frame.
 The characterization tool must exercise the same decode path production uses, or Task 5
 (Phase 6b) camera characterization and this phase's validation diverge.
 
-- [ ] `--nvdec` CLI flag: reader threads obtain their capture via `create_decoder`
+- [x] `--nvdec` CLI flag: reader threads obtain their capture via `create_decoder`
       instead of raw `cv2.VideoCapture`; without the flag, behaviour unchanged.
-- [ ] Per-camera HUD line + periodic stats gain: decode path label (`NVDEC` / `CPU`) and
+- [x] Per-camera HUD line + periodic stats gain: decode path label (`NVDEC` / `CPU`) and
       the Task 0 `decode_ms` metric, so before/after runs are directly comparable
       on-screen.
-- [ ] Dry-run smoke: `--dry-run --nvdec` on a machine without cuvid exits cleanly on the
+- [x] Dry-run smoke: `--dry-run --nvdec` on a machine without cuvid exits cleanly on the
       CPU fallback path (ladder WARNING visible) — manual check recorded in notes.
-- [ ] Verify: gate green (script is ruff/mypy-covered).
+- [x] Verify: gate green (966 passed; script ruff/black clean, 2026-07-09).
 
 ## Task 7 — Automated integration tests (decode parity)
 

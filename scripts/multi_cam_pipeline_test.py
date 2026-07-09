@@ -126,17 +126,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger("mcam")
 
-import cv2
-import numpy as np
+# Imports below intentionally follow the DLL path injection + dotenv setup above.
+import cv2  # noqa: E402
+import numpy as np  # noqa: E402
 
-from vms.config import get_settings
-from vms.inference.body_embedder import create_body_embedder, extract_torso_crop
-from vms.inference.detector import SCRFDDetector
-from vms.inference.embedder import AdaFaceEmbedder
-from vms.inference.messages import FaceWithEmbedding, Tracklet
-from vms.inference.ppe import PPEModel
-from vms.inference.tracker import PerCameraTracker
-from vms.inference.violence import ViolenceModel
+from vms.config import get_settings  # noqa: E402
+from vms.inference.body_embedder import create_body_embedder, extract_torso_crop  # noqa: E402
+from vms.inference.detector import SCRFDDetector  # noqa: E402
+from vms.inference.embedder import AdaFaceEmbedder  # noqa: E402
+from vms.inference.messages import FaceWithEmbedding, Tracklet  # noqa: E402
+from vms.inference.ppe import PPEModel  # noqa: E402
+from vms.inference.tracker import PerCameraTracker  # noqa: E402
+from vms.inference.violence import ViolenceModel  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Shared mutable state (toggled by keypress in main thread)
@@ -185,6 +186,10 @@ class CameraStats:
         self.body_quality_norms: deque[float] = deque(maxlen=200)
         self.face_quality_norms: deque[float] = deque(maxlen=200)
         self.person_counts: deque[int] = deque(maxlen=60)
+        # Phase 6d: per-read decode cost + active decode path (CPU vs NVDEC)
+        self.decode_ms: deque[float] = deque(maxlen=200)
+        self.last_decode_ms: float = 0.0
+        self.decode_path: str = "CPU"
 
 
 # ---------------------------------------------------------------------------
@@ -206,6 +211,8 @@ class FrameResult:
     face_fps: float = 0.0
     violence_score: float | None = None
     ppe_results: list[dict[str, float] | None] = field(default_factory=list)
+    decode_path: str = "CPU"
+    decode_ms: float = 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -237,7 +244,9 @@ class CameraWorker:
         state: PipelineState,
         violence_model: Any = None,
         ppe_model: Any = None,
-        stats: "CameraStats | None" = None,
+        stats: CameraStats | None = None,
+        use_nvdec: bool = False,
+        nvdec_size: tuple[int, int] = (1920, 1080),
     ) -> None:
         self._id = camera_id
         self._label = label
@@ -263,6 +272,8 @@ class CameraWorker:
             threading.Event()
         )  # reader signals; avoids Windows sleep granularity
         self._stats: CameraStats = stats if stats is not None else CameraStats(camera_id, label)
+        self._use_nvdec = use_nvdec
+        self._nvdec_size = nvdec_size
 
     def start(self) -> None:
         self._reader_thread = threading.Thread(
@@ -288,8 +299,8 @@ class CameraWorker:
                 break
         return result
 
-    def _open(self) -> cv2.VideoCapture | None:
-        # Build candidate URLs: main stream path, legacy single-channel path, substream
+    def _candidate_urls(self) -> list[str]:
+        # Main stream path, legacy single-channel path, substream
         candidates = [self._url]
         if "/Streaming/Channels/101" in self._url:
             candidates.append(self._url.replace("/Streaming/Channels/101", "/Streaming/Channels/1"))
@@ -298,8 +309,38 @@ class CameraWorker:
             )
         elif "/101" in self._url:
             candidates.append(self._url.replace("/101", "/102"))
+        return candidates
 
-        for url in candidates:
+    def _open(self) -> Any:
+        """Return an object with .read()/.release(): NVDEC decoder or cv2 capture."""
+        if self._use_nvdec:
+            return self._open_nvdec()
+        return self._open_opencv()
+
+    def _open_nvdec(self) -> Any:
+        from vms.ingestion.decoder import _mask_url, create_decoder, probe_codec
+
+        for url in self._candidate_urls():
+            if probe_codec(url) is not None:
+                width, height = self._nvdec_size
+                decoder = create_decoder(url, camera_id=self._id, width=width, height=height)
+                path = type(decoder).__name__
+                with self._stats.lock:
+                    self._stats.decode_path = "NVDEC" if path == "NvdecDecoder" else "CPU"
+                logger.info(
+                    "%s: decode path %s (%s)",
+                    self._label,
+                    "NVDEC" if path == "NvdecDecoder" else "CPU (ladder fallback)",
+                    _mask_url(url),
+                )
+                return decoder
+        logger.warning(
+            "%s: NVDEC codec probe failed on all candidate URLs — CPU decode", self._label
+        )
+        return self._open_opencv()
+
+    def _open_opencv(self) -> cv2.VideoCapture | None:
+        for url in self._candidate_urls():
             import re as _re
 
             safe = _re.sub(r"(rtsp://[^:]+:)[^@]+(@)", r"\1***\2", url)
@@ -340,7 +381,13 @@ class CameraWorker:
         _min_interval = 1.0 / _MAX_DELIVER_FPS
         _last_deliver = 0.0
         while not self._stop.is_set():
+            _t_read = time.perf_counter()
             ret, frame = cap.read()
+            _decode_ms = (time.perf_counter() - _t_read) * 1000.0
+            if ret:
+                with self._stats.lock:
+                    self._stats.decode_ms.append(_decode_ms)
+                    self._stats.last_decode_ms = _decode_ms
             if not ret:
                 consecutive_fails += 1
                 if consecutive_fails == 1:
@@ -551,6 +598,8 @@ class CameraWorker:
                 face_fps=face_fps,
                 violence_score=violence_score,
                 ppe_results=ppe_results,
+                decode_path=self._stats.decode_path,
+                decode_ms=self._stats.last_decode_ms,
             )
             try:
                 self._q.put_nowait(result)
@@ -577,7 +626,7 @@ def _grid_dims(n: int) -> tuple[int, int]:
 
 
 def _letterbox_cell(img: np.ndarray, cell_w: int, cell_h: int) -> np.ndarray:  # type: ignore[type-arg]
-    """Fit img into (cell_w × cell_h) preserving aspect ratio; fill unused space with black."""
+    """Fit img into (cell_w x cell_h) preserving aspect ratio; fill unused space with black."""
     h, w = img.shape[:2]
     scale = min(cell_w / w, cell_h / h)
     nw, nh = int(w * scale), int(h * scale)
@@ -687,7 +736,8 @@ def _render_panel(result: FrameResult, target_h: int, show_reid_dim: bool) -> np
     hud = (
         f"{result.camera_label}  "
         f"P:{person_count} {embed_tag}  "
-        f"{fps_val}fps {result.latency_ms:.0f}ms{reid_tag}"
+        f"{fps_val}fps {result.latency_ms:.0f}ms"
+        f" {result.decode_path}:{result.decode_ms:.0f}ms{reid_tag}"
     )
     bar = np.zeros((28, w_scaled, 3), dtype=np.uint8)
     cv2.putText(bar, hud, (6, 19), cv2.FONT_HERSHEY_SIMPLEX, 0.52, (220, 220, 220), 1)
@@ -760,7 +810,25 @@ def _print_calibration_stats(
         )
         print(f"    Body  Bq : {bq_str}")
         print(f"    Face  Fq : {fq_str}")
+        with s.lock:
+            dq = list(s.decode_ms)
+            d_path = s.decode_path
+        if dq:
+            _dq = np.array(dq)
+            print(
+                f"    Decode   : path={d_path}  p50={np.percentile(_dq, 50):.1f}ms"
+                f"  p95={np.percentile(_dq, 95):.1f}ms  n={len(dq)}"
+            )
 
+    try:
+        import psutil  # type: ignore[import-untyped]
+
+        _proc_cpu = psutil.Process().cpu_percent(interval=None)
+        _sys_cpu = psutil.cpu_percent(interval=None)
+        print(sep)
+        print(f"  Process CPU: {_proc_cpu:.0f}%   System CPU: {_sys_cpu:.0f}%")
+    except ImportError:
+        pass
     print(sep)
     print("  Active thresholds:")
     print(f"    scrfd_conf              = {state.conf:.2f}")
@@ -865,6 +933,18 @@ def main() -> None:
     )
     parser.add_argument("--dry-run", action="store_true", help="Process 10 frames and exit")
     parser.add_argument(
+        "--nvdec",
+        action="store_true",
+        help="Decode streams on the GPU video engine (phase 6d fallback ladder; "
+        "requires cuvid-enabled ffmpeg — see VMS_NVDEC_FFMPEG_PATH)",
+    )
+    parser.add_argument(
+        "--nvdec-size",
+        default="1920x1080",
+        metavar="WxH",
+        help="NVDEC-side resize target, the production analytics resolution (default 1920x1080)",
+    )
+    parser.add_argument(
         "--stats-interval",
         type=float,
         default=5.0,
@@ -873,6 +953,15 @@ def main() -> None:
         help="Print calibration stats to console every N seconds (default 5.0; 0 = disable)",
     )
     args = parser.parse_args()
+
+    if args.nvdec:
+        # Force the ladder on for this run regardless of .env; must precede get_settings()
+        os.environ["VMS_GPU_NVDEC_ENABLED"] = "true"
+        get_settings.cache_clear()
+    try:
+        nvdec_w, nvdec_h = (int(v) for v in args.nvdec_size.lower().split("x"))
+    except ValueError:
+        parser.error(f"--nvdec-size must be WxH, got {args.nvdec_size!r}")
 
     settings = get_settings()
 
@@ -965,6 +1054,8 @@ def main() -> None:
             violence_model,
             ppe_model,
             stats=cam_stats,
+            use_nvdec=args.nvdec,
+            nvdec_size=(nvdec_w, nvdec_h),
         )
         w.start()
         workers.append(w)
