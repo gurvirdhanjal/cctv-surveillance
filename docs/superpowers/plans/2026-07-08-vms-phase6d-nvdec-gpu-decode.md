@@ -156,11 +156,11 @@ ffmpeg -nostdin -loglevel warning -rtsp_transport tcp
 engine, so the pipe carries analytics-resolution frames, not source resolution. Frame
 framing is exact: `W*H*3` bytes per frame.
 
-- [ ] Failing tests — command builder (pure function, exhaustive):
+- [x] Failing tests — command builder (pure function, exhaustive):
       correct decoder per codec; `-resize` before `-i`; `-rtsp_transport tcp` present for
       `rtsp://` inputs and absent for file inputs (file support is what the integration
       tests use); output is `bgr24` rawvideo to `pipe:1`; uses `nvdec_ffmpeg_path`.
-- [ ] Failing tests — read loop, via a stubbed Popen factory (a fake process object whose
+- [x] Failing tests — read loop, via a stubbed Popen factory (a fake process object whose
       stdout serves scripted bytes; no real FFmpeg in unit tests):
       * exact framing: stdout serving 3 frames of `W*H*3` bytes → 3 successful reads,
         each `(True, ndarray)` with shape `(H, W, 3)` dtype uint8;
@@ -170,15 +170,15 @@ framing is exact: `W*H*3` bytes per frame.
         (assert Popen factory call count), then failure counting resets on success;
       * `release()` terminates the process, escalates to kill after a bounded wait, and
         reaps it (no zombie — assert `wait()` called); idempotent double-release.
-- [ ] Failing tests — stderr drain: a daemon thread consumes stderr and logs at DEBUG
+- [x] Failing tests — stderr drain: a daemon thread consumes stderr and logs at DEBUG
       with `_mask_url()` applied (same `secret`-absence assertion as Task 2);
       pipe `bufsize` ≥ 2 frames so FFmpeg never blocks on a slow consumer.
-- [ ] Failing test — `get_resolution()` returns the configured `(W, H)` (frames are
+- [x] Failing test — `get_resolution()` returns the configured `(W, H)` (frames are
       resized decoder-side, so the worker's resize branch becomes a no-op on this path —
       assert the worker skips `cv2.resize` for correctly-sized frames, which is existing
       behaviour).
-- [ ] Implement `NvdecDecoder` in `vms/ingestion/decoder.py`.
-- [ ] Verify: gate green.
+- [x] Implement `NvdecDecoder` in `vms/ingestion/decoder.py`.
+- [x] Verify: gate green (951 passed, 2026-07-09).
 
 ## Task 4 — Session ledger + fallback ladder (no camera goes dark, no silent fallback)
 
