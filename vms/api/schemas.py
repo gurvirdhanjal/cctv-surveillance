@@ -70,6 +70,33 @@ class HeadCountSeriesResponse(BaseModel):
     series: list[HeadCountPoint]
 
 
+class UserResponse(BaseModel):
+    user_id: int
+    username: str
+    email: str | None
+    role: str
+    is_active: bool
+    camera_ids: list[int]
+
+
+class UserCreate(BaseModel):
+    username: str = Field(..., min_length=3, max_length=100)
+    email: str | None = Field(default=None, max_length=255)
+    password: str = Field(..., min_length=8, max_length=200)
+    role: str = Field(..., pattern="^(guard|manager|admin)$")
+
+
+class UserUpdate(BaseModel):
+    email: str | None = Field(default=None, max_length=255)
+    role: str | None = Field(default=None, pattern="^(guard|manager|admin)$")
+    is_active: bool | None = None
+    camera_ids: list[int] | None = None
+
+
+class PasswordResetRequest(BaseModel):
+    new_password: str = Field(..., min_length=8, max_length=200)
+
+
 class ExportJobCreate(BaseModel):
     camera_id: int
     from_ts: datetime

@@ -32,6 +32,7 @@ from vms.api.routes import (
     routing,
     state,
     system,
+    users,
     zones,
 )
 from vms.config import Settings, get_settings
@@ -149,6 +150,7 @@ app.include_router(audit.router, prefix="/api")
 app.include_router(forensic.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")
 app.include_router(system.router, prefix="/api")
+app.include_router(users.router, prefix="/api")
 
 # Prometheus metrics endpoint (standard /metrics path, no /api prefix)
 app.mount("/metrics", make_asgi_app())

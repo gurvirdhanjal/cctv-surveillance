@@ -210,7 +210,7 @@ query — the day-one requirement. No migration needed; reads `tracking_events` 
 
 ## Task 7 — `/api/users` CRUD
 
-- [ ] Failing tests: GET list (admin only); POST create (username/email uniqueness 409,
+- [x] Failing tests: GET list (admin only); POST create (username/email uniqueness 409,
       role enum, bcrypt/argon2 hash — reuse existing auth hashing); PATCH role/active/
       camera-permissions; POST `/{id}/reset-password` (returns one-time temp password or
       accepts new password per existing auth design — match `deps.py` conventions);
@@ -218,9 +218,12 @@ query — the day-one requirement. No migration needed; reads `tracking_events` 
       Guards: self-demotion 409; deactivating/demoting the LAST active admin 409
       (count query under the same transaction); every mutation writes an audit event
       (USER_CREATED / USER_UPDATED / USER_DEACTIVATED / USER_PASSWORD_RESET); non-admin 403.
-- [ ] Implement `routes/users.py` + register. Never log/return password hashes (schema
+      → `tests/test_api_users.py` (13 tests); users had no email column — added nullable
+      unique `email` via migration `b9c0d1e2f3a4`; reset-password accepts a new password
+      (bcrypt via existing `hash_password`).
+- [x] Implement `routes/users.py` + register. Never log/return password hashes (schema
       excludes them; test asserts absence in responses).
-- [ ] Verify: gate green.
+- [x] Verify: gate green (904 passed, 2026-07-09); migration round-trip clean.
 
 ## Task 8 — `/api/bookmarks`
 
