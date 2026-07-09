@@ -97,6 +97,24 @@ class PasswordResetRequest(BaseModel):
     new_password: str = Field(..., min_length=8, max_length=200)
 
 
+class BookmarkCreate(BaseModel):
+    camera_id: int
+    ts: datetime
+    alert_id: int | None = None
+    note: str | None = Field(default=None, max_length=500)
+
+
+class BookmarkResponse(BaseModel):
+    bookmark_id: int
+    camera_id: int
+    ts: datetime
+    alert_id: int | None
+    note: str | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class ExportJobCreate(BaseModel):
     camera_id: int
     from_ts: datetime

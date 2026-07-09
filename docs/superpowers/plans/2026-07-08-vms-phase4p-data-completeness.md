@@ -227,13 +227,14 @@ query — the day-one requirement. No migration needed; reads `tracking_events` 
 
 ## Task 8 — `/api/bookmarks`
 
-- [ ] Failing tests: `bookmarks` model + migration `(id, user_id FK CASCADE, camera_id FK
+- [x] Failing tests: `bookmarks` model + migration `(id, user_id FK CASCADE, camera_id FK
       CASCADE, ts, alert_id NULLable FK SET NULL, note VARCHAR(500), created_at)` index
       `(user_id, camera_id)`; GET (own rows only, optional camera_id filter); POST
       (camera permission check); DELETE own (404-not-403 for others' rows to avoid
       existence leak); guard+ roles.
-- [ ] Implement `routes/bookmarks.py` + register.
-- [ ] Verify: gate green; migration round-trip clean.
+      → `tests/test_api_bookmarks.py` (6 tests); migration `c0d1e2f3a4b5`.
+- [x] Implement `routes/bookmarks.py` + register.
+- [x] Verify: gate green (910 passed, 2026-07-09); migration round-trip clean.
 
 ## Task 8b — `floor_plans` table + homography calibration API
 

@@ -507,6 +507,27 @@ class PersonClipEmbedding(Base):
     snapshot_path: Mapped[str] = mapped_column(String(500), nullable=False)
 
 
+class Bookmark(Base):
+    """Per-user camera/timestamp bookmark (Phase 4P Task 8)."""
+
+    __tablename__ = "bookmarks"
+    __table_args__ = (Index("ix_bookmarks_user_camera", "user_id", "camera_id"),)
+
+    bookmark_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False
+    )
+    camera_id: Mapped[int] = mapped_column(
+        ForeignKey("cameras.camera_id", ondelete="CASCADE"), nullable=False
+    )
+    ts: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    alert_id: Mapped[int | None] = mapped_column(
+        ForeignKey("alerts.alert_id", ondelete="SET NULL"), nullable=True
+    )
+    note: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow_naive)
+
+
 class ExportJob(Base):
     """Clip-export job (Phase 4P Task 6). Worker lands in the recording spec;
     until then jobs stay honestly QUEUED."""
