@@ -8,6 +8,7 @@ import { MapPin } from 'lucide-react'
 import { Icon } from '@/shared/design-system/icons'
 import { api } from '@/shared/api/client'
 import type { ZoneResponse } from '@/shared/api/types'
+import { Button } from '@/shared/design-system/components/Button'
 import { EmptyState } from './components/EmptyState'
 import { SkeletonTable } from '@/shared/design-system/components/Skeleton'
 
@@ -101,14 +102,10 @@ export function ZoneEditorPage() {
       <div className="p-6">
         <div className="mb-5 flex items-center justify-between">
           <h1 className="text-[22px] font-bold text-text-primary">Zones</h1>
-          <button
-            type="button"
-            onClick={() => setShowAdd(true)}
-            className="inline-flex items-center gap-1.5 h-10 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
-          >
+          <Button type="button" size="sm" onClick={() => setShowAdd(true)}>
             <Icon.add className="h-4 w-4" aria-hidden="true" />
             Add Zone
-          </button>
+          </Button>
         </div>
 
         {isLoading && (
@@ -123,14 +120,10 @@ export function ZoneEditorPage() {
             title="No zones defined"
             description="Draw zones on the floor plan to track dwell time and restrict access."
             cta={
-              <button
-                type="button"
-                onClick={() => setShowAdd(true)}
-                className="inline-flex items-center gap-1.5 h-9 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800"
-              >
+              <Button type="button" size="sm" onClick={() => setShowAdd(true)}>
                 <Icon.add className="h-4 w-4" aria-hidden="true" />
                 Add Zone
-              </button>
+              </Button>
             }
           />
         )}
@@ -161,22 +154,25 @@ export function ZoneEditorPage() {
                       {zone.max_capacity ?? '—'}
                     </td>
                     <td className="px-4 py-3 text-right space-x-2">
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="sm"
                         aria-label={`Edit ${zone.name}`}
                         onClick={() => handleEditClick(zone)}
-                        className="rounded-[10px] px-2 py-1 text-[13px] text-text-primary hover:bg-surface-raised transition-colors"
                       >
                         Edit
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="sm"
                         aria-label={`Delete ${zone.name}`}
                         onClick={() => setDeleteTarget(zone)}
-                        className="rounded-[10px] px-2 py-1 text-[13px] text-error hover:bg-error/10 transition-colors"
+                        className="text-error hover:text-error/80"
                       >
                         Delete
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -240,20 +236,22 @@ export function ZoneEditorPage() {
                 )}
               </div>
               <div className="flex justify-end gap-2 pt-2">
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={() => { resetAdd(); setShowAdd(false) }}
-                  className="h-10 rounded-[10px] border border-border px-4 text-[13px] text-text-secondary hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
+                  size="sm"
                   disabled={createMutation.isPending}
-                  className="h-10 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                  loading={createMutation.isPending}
                 >
-                  {createMutation.isPending ? 'Saving…' : 'Add Zone'}
-                </button>
+                  Add Zone
+                </Button>
               </div>
             </form>
           </div>
@@ -303,20 +301,22 @@ export function ZoneEditorPage() {
                 </p>
               )}
               <div className="flex justify-end gap-2 pt-2">
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={() => setEditingZone(null)}
-                  className="h-10 rounded-[10px] border border-border px-4 text-[13px] text-text-secondary hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
+                  size="sm"
                   disabled={updateMutation.isPending}
-                  className="h-10 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                  loading={updateMutation.isPending}
                 >
-                  {updateMutation.isPending ? 'Saving…' : 'Save'}
-                </button>
+                  Save
+                </Button>
               </div>
             </form>
           </div>
@@ -354,21 +354,24 @@ export function ZoneEditorPage() {
               </p>
             )}
             <div className="flex justify-end gap-2">
-              <button
+              <Button
                 type="button"
+                variant="secondary"
+                size="sm"
                 onClick={() => { setDeleteTarget(null); setDeleteConfirm('') }}
-                className="h-10 rounded-[10px] border border-border px-4 text-[13px] text-text-secondary hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="destructive"
+                size="sm"
                 onClick={() => deleteMutation.mutate(deleteTarget.zone_id)}
                 disabled={deleteConfirm !== deleteTarget.name || deleteMutation.isPending}
-                className="h-10 rounded-[10px] bg-error px-4 text-[13px] font-medium text-white hover:bg-error/90 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                loading={deleteMutation.isPending}
               >
-                {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
-              </button>
+                Delete
+              </Button>
             </div>
           </div>
         </div>

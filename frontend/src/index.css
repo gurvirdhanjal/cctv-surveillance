@@ -115,6 +115,16 @@
   --shadow-4: 0 16px 48px rgba(15, 23, 42, 0.20);
 
   --body-letter-spacing: 0;
+
+  /* Sidebar tokens — delegated to VMS surface/text/border tokens */
+  --sidebar-background: var(--surface-raised);
+  --sidebar-foreground: var(--text-secondary);
+  --sidebar-primary: var(--interactive-primary);
+  --sidebar-primary-foreground: var(--text-inverse);
+  --sidebar-accent: var(--surface-sunken);
+  --sidebar-accent-foreground: var(--text-primary);
+  --sidebar-border: var(--border-default);
+  --sidebar-ring: var(--focus-ring);
 }
 
 /* ─── Dark theme (Guard / control-room) ─────────────────────────── */
@@ -171,6 +181,16 @@
 
   /* Slightly wider letter-spacing aids legibility on dark backgrounds */
   --body-letter-spacing: 0.01em;
+
+  /* Sidebar tokens — delegated to VMS surface/text/border tokens */
+  --sidebar-background: var(--surface-raised);
+  --sidebar-foreground: var(--text-secondary);
+  --sidebar-primary: var(--interactive-primary);
+  --sidebar-primary-foreground: var(--text-inverse);
+  --sidebar-accent: var(--surface-sunken);
+  --sidebar-accent-foreground: var(--text-primary);
+  --sidebar-border: var(--border-default);
+  --sidebar-ring: var(--focus-ring);
 }
 
 /* ─── Custom animations ──────────────────────────────────────────── */
@@ -201,6 +221,15 @@
   animation: logo-glow 2.5s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) { .animate-logo-glow { animation: none; } }
+
+@keyframes alert-insert-flash {
+  0%   { background-color: rgba(var(--brand-accent-rgb), 0.18); }
+  100% { background-color: transparent; }
+}
+.animate-alert-insert-flash {
+  animation: alert-insert-flash 800ms ease-out forwards;
+}
+@media (prefers-reduced-motion: reduce) { .animate-alert-insert-flash { animation: none; } }
 
 /* ─── shadcn/ui compatibility layer ─────────────────────────────── */
 /*

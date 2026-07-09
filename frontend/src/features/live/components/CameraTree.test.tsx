@@ -89,7 +89,7 @@ describe('CameraTree', () => {
     })
     render(<CameraTree />)
     const tile = screen.getByLabelText('Focus camera Cam 1')
-    expect(tile.className).toContain('border-[#dc2626]')
+    expect(tile.className).toContain('border-[var(--severity-critical)]')
   })
 
   it('search filters tiles by name', () => {

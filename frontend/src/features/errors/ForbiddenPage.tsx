@@ -15,7 +15,7 @@ export function ForbiddenPage() {
         </div>
         <Link
           to="/"
-          className="rounded-md bg-action-700 px-4 py-2 text-[14px] font-medium text-white hover:bg-action-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+          className="inline-flex h-10 items-center gap-2 rounded-md bg-[var(--interactive-primary)] px-4 text-[14px] font-medium text-text-inverse shadow-1 hover:bg-[var(--interactive-hover)] transition-colors duration-quick focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
         >
           Go to dashboard
         </Link>

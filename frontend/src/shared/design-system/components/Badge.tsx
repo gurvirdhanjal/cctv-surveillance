@@ -12,14 +12,14 @@ const badgeVariants = cva(
         medium: 'bg-[var(--severity-medium)] text-white',
         low: 'bg-[var(--severity-low)] text-white',
         /** Camera capability tier */
-        full: 'bg-action-700 text-white',
-        mid: 'bg-brand-300 text-brand-900',
+        full: 'bg-[var(--interactive-primary)] text-text-inverse',
+        mid: 'bg-[var(--info)]/20 text-[var(--info)]',
         tier_low: 'bg-surface-sunken text-text-secondary border border-border',
         /** Generic */
         default: 'bg-surface-sunken text-text-secondary',
-        success: 'bg-[var(--success)] text-white',
-        info: 'bg-[var(--info)] text-white',
-        warning: 'bg-[var(--warning)] text-white',
+        success: 'bg-success/20 text-success',
+        info: 'bg-[var(--info)]/20 text-[var(--info)]',
+        warning: 'bg-warning/20 text-warning',
       },
     },
     defaultVariants: {

@@ -227,7 +227,7 @@ export function DataTable<TData>({
         key={row.id}
         data-selected={row.getIsSelected() || undefined}
         data-active={activeRowIndex === index || undefined}
-        className="border-b border-border last:border-0 hover:bg-surface-sunken data-[selected]:bg-[var(--selected-row)] data-[active]:outline data-[active]:outline-2 data-[active]:outline-[var(--focus-ring)] transition-colors"
+        className="border-b border-border last:border-0 hover:bg-surface-raised data-[selected]:bg-[var(--selected-row)] data-[active]:outline data-[active]:outline-2 data-[active]:outline-[var(--focus-ring)] transition-colors"
         style={{ height: 'var(--table-row-h)' }}
       >
         {row.getVisibleCells().map((cell) => (

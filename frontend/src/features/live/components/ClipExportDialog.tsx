@@ -5,6 +5,7 @@ import * as Dialog from '@radix-ui/react-dialog'
 import { Icon } from '@/shared/design-system/icons'
 import { useMutation } from '@tanstack/react-query'
 import { api } from '@/shared/api/client'
+import { Button } from '@/shared/design-system/components/Button'
 
 const clipSchema = z
   .object({
@@ -173,13 +174,14 @@ export function ClipExportDialog({
                 </p>
               )}
 
-              <button
+              <Button
                 type="submit"
+                size="sm"
+                loading={isPending}
                 disabled={isPending}
-                className="rounded-[10px] bg-action-600 px-4 py-2 text-[13px] font-medium text-white hover:bg-action-700 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
               >
                 {isPending ? 'Exporting…' : 'Export'}
-              </button>
+              </Button>
             </form>
           )}
         </Dialog.Content>

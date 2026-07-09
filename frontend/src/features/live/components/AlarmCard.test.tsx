@@ -37,7 +37,7 @@ describe('AlarmCard', () => {
   it('critical card has the alarm-red left border class', () => {
     const { container } = render(<AlarmCard alert={makeAlert({ severity: 'CRITICAL' })} />)
     const card = container.querySelector('[role="article"]')
-    expect(card?.className).toContain('border-l-[#dc2626]')
+    expect(card?.className).toContain('border-l-[var(--severity-critical)]')
   })
 
   it('shows camera label', () => {
@@ -88,7 +88,7 @@ describe('AlarmCard', () => {
         <AlarmCard alert={makeAlert({ sla_deadline: deadline })} />,
       )
       const fill = container.querySelector('[role="progressbar"]')
-      expect(fill?.className).toContain('bg-amber-500')
+      expect(fill?.className).toContain('bg-[var(--severity-medium)]')
     })
 
     it('SLA bar fill is alarm-red when fraction ≤ 10%', () => {
@@ -98,7 +98,7 @@ describe('AlarmCard', () => {
         <AlarmCard alert={makeAlert({ sla_deadline: deadline })} />,
       )
       const fill = container.querySelector('[role="progressbar"]')
-      expect(fill?.className).toContain('bg-[#dc2626]')
+      expect(fill?.className).toContain('bg-[var(--severity-critical)]')
     })
   })
 

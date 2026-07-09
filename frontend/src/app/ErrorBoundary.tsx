@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type PropsWithChildren } from 'react'
+import { Button } from '@/shared/design-system/components/Button'
 
 interface State {
   error: Error | null
@@ -33,12 +34,9 @@ export class ErrorBoundary extends Component<Props, State> {
         >
           <p className="text-[18px] font-semibold text-text-primary">Something went wrong.</p>
           <p className="text-[14px] text-text-secondary">{error.message}</p>
-          <button
-            onClick={this.reset}
-            className="rounded-md bg-action-700 px-4 py-2 text-[14px] font-medium text-white hover:bg-action-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
-          >
+          <Button onClick={this.reset}>
             Try again
-          </button>
+          </Button>
         </div>
       )
     }

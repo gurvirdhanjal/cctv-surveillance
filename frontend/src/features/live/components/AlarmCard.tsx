@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/design-system/components/ui/Collapsible'
+import { Button } from '@/shared/design-system/components/Button'
 import { cn } from '@/shared/utils/cn'
 import { useCountdown } from '../hooks/useCountdown'
 import type { LiveAlert } from '../types'
@@ -7,23 +8,23 @@ import type { LiveAlert } from '../types'
 const DEFAULT_SLA_WINDOW_S = 900
 
 const severityBorder: Record<string, string> = {
-  CRITICAL: 'border-l-[#dc2626]',
-  HIGH: 'border-l-[#ea580c]',
-  MEDIUM: 'border-l-[#d97706]',
-  LOW: 'border-l-[#65a30d]',
+  CRITICAL: 'border-l-[var(--severity-critical)]',
+  HIGH: 'border-l-[var(--severity-high)]',
+  MEDIUM: 'border-l-[var(--severity-medium)]',
+  LOW: 'border-l-[var(--severity-low)]',
 }
 
 const severityText: Record<string, string> = {
-  CRITICAL: 'text-[#dc2626]',
-  HIGH: 'text-[#ea580c]',
-  MEDIUM: 'text-[#d97706]',
-  LOW: 'text-[#65a30d]',
+  CRITICAL: 'text-[var(--severity-critical)]',
+  HIGH: 'text-[var(--severity-high)]',
+  MEDIUM: 'text-[var(--severity-medium)]',
+  LOW: 'text-[var(--severity-low)]',
 }
 
 const slaBarColor: Record<string, string> = {
-  ok: 'bg-slate-400',
-  warn: 'bg-amber-500',
-  crit: 'bg-[#dc2626]',
+  ok: 'bg-border',
+  warn: 'bg-[var(--severity-medium)]',
+  crit: 'bg-[var(--severity-critical)]',
 }
 
 const ACRONYMS = new Set(['PPE', 'ID'])
@@ -124,40 +125,43 @@ export const AlarmCard = memo(function AlarmCard({
       {alert.state === 'OPEN' && (
         <div className="mt-2 flex flex-wrap gap-2">
           {onAcknowledge && (
-            <button
+            <Button
               type="button"
-              className="rounded-[10px] bg-action-600 px-2.5 py-1 text-[12px] font-medium text-white hover:bg-action-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+              size="sm"
               onClick={() => onAcknowledge(alert.alert_id)}
             >
               Acknowledge
-            </button>
+            </Button>
           )}
           {onResolve && (
-            <button
+            <Button
               type="button"
-              className="rounded-[10px] bg-[#232d42] px-2.5 py-1 text-[12px] font-medium text-slate-300 hover:bg-[#2d3a50] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+              size="sm"
+              variant="secondary"
               onClick={() => onResolve(alert.alert_id)}
             >
               Resolve
-            </button>
+            </Button>
           )}
           {onBookmark && (
-            <button
+            <Button
               type="button"
-              className="rounded-[10px] bg-[#232d42] px-2.5 py-1 text-[12px] font-medium text-slate-300 hover:bg-[#2d3a50] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+              size="sm"
+              variant="secondary"
               onClick={() => onBookmark(alert.alert_id)}
             >
               Bookmark
-            </button>
+            </Button>
           )}
           {onExport && (
-            <button
+            <Button
               type="button"
-              className="rounded-[10px] bg-[#232d42] px-2.5 py-1 text-[12px] font-medium text-slate-300 hover:bg-[#2d3a50] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+              size="sm"
+              variant="secondary"
               onClick={() => onExport(alert.alert_id)}
             >
               Export
-            </button>
+            </Button>
           )}
         </div>
       )}

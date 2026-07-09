@@ -5,6 +5,7 @@ import { api } from '@/shared/api/client'
 import type { ProfileResponse } from '@/shared/api/types'
 import { EmptyState } from '../components/EmptyState'
 import { Skeleton, SkeletonText } from '@/shared/design-system/components/Skeleton'
+import { Button } from '@/shared/design-system/components/Button'
 
 interface Props {
   cameraId: number
@@ -37,14 +38,14 @@ export function HardwareTab({ cameraId }: Props) {
         <h2 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
           Camera Profile
         </h2>
-        <button
+        <Button
           type="button"
+          size="sm"
           onClick={() => setShowConfirm(true)}
-          className="inline-flex items-center gap-1.5 h-9 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
         >
           <Cpu className="h-4 w-4" aria-hidden="true" />
           Run Profiler
-        </button>
+        </Button>
       </div>
 
       {isLoading && (
@@ -135,22 +136,24 @@ export function HardwareTab({ cameraId }: Props) {
               </p>
             )}
             <div className="flex justify-end gap-2">
-              <button
+              <Button
                 type="button"
+                variant="secondary"
+                size="sm"
                 onClick={() => setShowConfirm(false)}
                 disabled={profileMutation.isPending}
-                className="h-10 rounded-[10px] border border-border px-4 text-[13px] text-text-secondary hover:text-text-primary disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                size="sm"
                 onClick={() => profileMutation.mutate()}
                 disabled={profileMutation.isPending}
-                className="h-10 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                loading={profileMutation.isPending}
               >
                 {profileMutation.isPending ? 'Running…' : 'Run'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

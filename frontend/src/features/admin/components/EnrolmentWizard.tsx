@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation } from '@tanstack/react-query'
 import { api } from '@/shared/api/client'
+import { Button } from '@/shared/design-system/components/Button'
 
 const step1Schema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(200),
@@ -79,14 +80,16 @@ export function EnrolmentWizard({ onDone, onCancel }: Props) {
       <div className="bg-surface-base rounded-lg shadow-lg w-full max-w-lg p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-[18px] font-semibold text-text-primary">Enrol New Person</h2>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             aria-label="Cancel enrolment"
             onClick={handleCancelClick}
-            className="text-text-muted hover:text-text-primary text-[20px] leading-none"
+            className="text-[20px] leading-none text-text-muted hover:text-text-primary"
           >
             ×
-          </button>
+          </Button>
         </div>
 
         {/* Step indicator */}
@@ -96,7 +99,7 @@ export function EnrolmentWizard({ onDone, onCancel }: Props) {
               key={label}
               className={`flex-1 text-center text-[12px] py-1 rounded ${
                 i === step
-                  ? 'bg-action-700 text-white font-medium'
+                  ? 'bg-[var(--interactive-primary)] text-text-inverse font-medium'
                   : i < step
                     ? 'bg-brand-100 text-brand-700'
                     : 'bg-surface-sunken text-text-muted'
@@ -129,7 +132,7 @@ export function EnrolmentWizard({ onDone, onCancel }: Props) {
                 placeholder="Ranjeet Kumar"
               />
               {errors.name && (
-                <p role="alert" className="mt-1 text-[12px] text-red-600">
+                <p role="alert" className="mt-1 text-[12px] text-error">
                   {errors.name.message}
                 </p>
               )}
@@ -148,25 +151,22 @@ export function EnrolmentWizard({ onDone, onCancel }: Props) {
                 placeholder="EMP-001234"
               />
               {errors.employee_id && (
-                <p role="alert" className="mt-1 text-[12px] text-red-600">
+                <p role="alert" className="mt-1 text-[12px] text-error">
                   {errors.employee_id.message}
                 </p>
               )}
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <button
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={handleCancelClick}
-                className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary hover:text-text-primary"
               >
                 Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 text-[14px] rounded bg-action-700 text-white hover:bg-action-800 disabled:opacity-50"
-              >
+              </Button>
+              <Button type="submit">
                 Next
-              </button>
+              </Button>
             </div>
           </form>
         )}
@@ -184,20 +184,16 @@ export function EnrolmentWizard({ onDone, onCancel }: Props) {
               <p className="text-[13px] text-text-muted">Camera capture (simulated)</p>
             </div>
             <div className="flex justify-between pt-2">
-              <button
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={handleBack}
-                className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary hover:text-text-primary"
               >
                 Back
-              </button>
-              <button
-                type="button"
-                onClick={handleNext}
-                className="px-4 py-2 text-[14px] rounded bg-action-700 text-white hover:bg-action-800"
-              >
+              </Button>
+              <Button type="button" onClick={handleNext}>
                 Next
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -207,24 +203,20 @@ export function EnrolmentWizard({ onDone, onCancel }: Props) {
             <p className="text-[14px] text-text-secondary">
               Checking image quality — face detection, sharpness, and lighting.
             </p>
-            <div className="bg-green-50 border border-green-200 rounded p-3 text-[13px] text-green-800">
+            <div className="bg-success/10 border border-success/20 rounded p-3 text-[13px] text-success">
               Quality check passed. Ready to save.
             </div>
             <div className="flex justify-between pt-2">
-              <button
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={handleBack}
-                className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary hover:text-text-primary"
               >
                 Back
-              </button>
-              <button
-                type="button"
-                onClick={handleNext}
-                className="px-4 py-2 text-[14px] rounded bg-action-700 text-white hover:bg-action-800"
-              >
+              </Button>
+              <Button type="button" onClick={handleNext}>
                 Next
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -242,26 +234,26 @@ export function EnrolmentWizard({ onDone, onCancel }: Props) {
               </div>
             </dl>
             {enrolMutation.isError && (
-              <p role="alert" className="text-[13px] text-red-600">
+              <p role="alert" className="text-[13px] text-error">
                 Save failed. Please try again.
               </p>
             )}
             <div className="flex justify-between pt-2">
-              <button
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={handleBack}
-                className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary hover:text-text-primary"
               >
                 Back
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={handleFinalSave}
                 disabled={enrolMutation.isPending}
-                className="px-4 py-2 text-[14px] rounded bg-action-700 text-white hover:bg-action-800 disabled:opacity-50"
+                loading={enrolMutation.isPending}
               >
-                {enrolMutation.isPending ? 'Saving…' : 'Save'}
-              </button>
+                Save
+              </Button>
             </div>
           </div>
         )}
@@ -280,20 +272,20 @@ export function EnrolmentWizard({ onDone, onCancel }: Props) {
               Partial enrolment data will be lost.
             </p>
             <div className="flex gap-2 justify-end">
-              <button
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={() => setConfirmCancel(false)}
-                className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary"
               >
                 Keep editing
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="destructive"
                 onClick={onCancel}
-                className="px-4 py-2 text-[14px] rounded bg-red-600 text-white hover:bg-red-700"
               >
                 Discard
-              </button>
+              </Button>
             </div>
           </div>
         </div>

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/shared/api/client'
 import type { ResolvedConfigResponse } from '@/shared/api/types'
 import { SkeletonTable } from '@/shared/design-system/components/Skeleton'
+import { Button } from '@/shared/design-system/components/Button'
 
 interface Props {
   cameraId: number
@@ -75,17 +76,18 @@ export function OverridesTab({ cameraId }: Props) {
         <h2 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
           Per-camera overrides
         </h2>
-        <button
+        <Button
           type="button"
+          variant="secondary"
+          size="sm"
           onClick={() => {
             setShowAdd(true)
             setAddError(null)
           }}
           aria-label="Add override"
-          className="h-9 rounded-[10px] border border-border px-3 text-[13px] text-text-secondary hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
         >
           Add override
-        </button>
+        </Button>
       </div>
 
       {isLoading && (
@@ -177,24 +179,26 @@ export function OverridesTab({ cameraId }: Props) {
             </p>
           )}
           <div className="flex justify-end gap-2">
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
               onClick={() => {
                 setShowAdd(false)
                 setAddError(null)
               }}
-              className="h-9 rounded-[10px] border border-border px-3 text-[13px] text-text-secondary hover:text-text-primary"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              size="sm"
               onClick={handleAddOverride}
               disabled={saveMutation.isPending}
-              className="h-9 rounded-[10px] bg-action-700 px-3 text-[13px] font-medium text-white hover:bg-action-800 disabled:opacity-40"
+              loading={saveMutation.isPending}
             >
               {saveMutation.isPending ? 'Saving…' : 'Save'}
-            </button>
+            </Button>
           </div>
         </div>
       )}

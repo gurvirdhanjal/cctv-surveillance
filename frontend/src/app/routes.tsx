@@ -5,6 +5,7 @@ import { NotFoundPage } from '@/features/errors/NotFoundPage'
 import { ForbiddenPage } from '@/features/errors/ForbiddenPage'
 import { RoleGuard } from './RoleGuard'
 import { WorkspaceShell } from '@/shared/workspace/WorkspaceShell'
+import { LoadingThreeDotsJumping } from '@/shared/design-system/components/LoadingThreeDotsJumping'
 
 // Code-split top-level pages — loaded only when the route is first visited
 const GuardView = lazy(() =>
@@ -51,15 +52,11 @@ const AdminPage = lazy(() =>
   import('@/features/admin/AdminPage').then((m) => ({ default: m.AdminPage })),
 )
 
-/** Full-screen loading shimmer used while lazy chunks are fetching. */
+/** Full-screen loader used while lazy chunks are fetching. */
 function PageFallback() {
   return (
-    <div
-      role="status"
-      aria-label="Loading page"
-      className="flex min-h-screen items-center justify-center bg-surface-sunken"
-    >
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-200 border-t-brand-500" />
+    <div className="flex min-h-screen items-center justify-center bg-surface-sunken">
+      <LoadingThreeDotsJumping size="lg" />
     </div>
   )
 }

@@ -1,6 +1,7 @@
 ﻿import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { request } from '@/shared/api/client'
+import { Button } from '@/shared/design-system/components/Button'
 
 interface Props {
   personId: number
@@ -55,7 +56,7 @@ export function GdprDeleteDialog({ personId, personName, onConfirmed, onCancel }
               onChange={(e) => setConfirmationName(e.target.value)}
               placeholder={personName}
               aria-describedby="gdpr-name-hint"
-              className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary focus:outline-none focus:ring-2 focus:ring-red-500"
+              className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
             />
             <p id="gdpr-name-hint" className="mt-1 text-[12px] text-text-muted">
               Must match exactly: {personName}
@@ -74,7 +75,7 @@ export function GdprDeleteDialog({ personId, personName, onConfirmed, onCancel }
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
-              className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary resize-none focus:outline-none focus:ring-2 focus:ring-red-500"
+              className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface-base text-text-primary resize-none focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
               placeholder="GDPR erasure request received on…"
             />
             <p className="mt-1 text-[12px] text-text-muted">
@@ -83,29 +84,30 @@ export function GdprDeleteDialog({ personId, personName, onConfirmed, onCancel }
           </div>
 
           {deleteMutation.isError && (
-            <p role="alert" className="text-[13px] text-red-600">
+            <p role="alert" className="text-[13px] text-error">
               Deletion failed. Please try again.
             </p>
           )}
 
           <div className="flex gap-2 justify-end pt-2">
-            <button
+            <Button
               type="button"
+              variant="secondary"
               onClick={onCancel}
               disabled={deleteMutation.isPending}
-              className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary hover:text-text-primary disabled:opacity-50"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="destructive"
               onClick={() => deleteMutation.mutate()}
               disabled={!canDelete || deleteMutation.isPending}
               aria-disabled={!canDelete || deleteMutation.isPending}
-              className="px-4 py-2 text-[14px] rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
+              loading={deleteMutation.isPending}
             >
-              {deleteMutation.isPending ? 'Deleting…' : 'Delete Person'}
-            </button>
+              Delete Person
+            </Button>
           </div>
         </div>
       </div>

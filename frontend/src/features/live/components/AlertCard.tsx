@@ -7,6 +7,8 @@ interface AlertCardProps {
   cameraName?: string
   onAcknowledge?: (id: number) => void
   onResolve?: (id: number) => void
+  /** Triggers a one-shot severity flash on mount (set for newly-arrived alerts). */
+  isNew?: boolean
 }
 
 const severityBar: Record<string, string> = {
@@ -46,6 +48,7 @@ export const AlertCard = memo(function AlertCard({
   cameraName,
   onAcknowledge,
   onResolve,
+  isNew,
 }: AlertCardProps) {
   const camLabel = cameraName ?? (alert.camera_id !== null ? `Cam #${alert.camera_id}` : null)
   const location = [
@@ -57,7 +60,10 @@ export const AlertCard = memo(function AlertCard({
 
   return (
     <div
-      className="flex gap-2 rounded-lg bg-surface-raised p-3"
+      className={cn(
+        'flex gap-2 rounded-lg bg-surface-raised p-3',
+        isNew && 'animate-alert-insert-flash',
+      )}
       role="article"
       aria-label={`${alert.severity} alert: ${formatAlertType(alert.alert_type)}`}
     >

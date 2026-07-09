@@ -83,10 +83,10 @@ export function TimeScrubber({ disabled = false }: TimeScrubberProps) {
             onClick={() => setSpeed(s)}
             disabled={disabled}
             className={[
-              'rounded-md px-2 py-1 text-[12px] transition-colors disabled:opacity-40',
+              'rounded-md px-2 py-1 text-[12px] transition-colors duration-fast disabled:opacity-40',
               state.speed === s
-                ? 'bg-action-700 text-text-inverse'
-                : 'border border hover:bg-surface-sunken',
+                ? 'bg-[var(--interactive-primary)] text-text-inverse border-[var(--interactive-primary)]'
+                : 'border border-border text-text-secondary hover:text-text-primary bg-transparent',
             ].join(' ')}
           >
             {s}&times;

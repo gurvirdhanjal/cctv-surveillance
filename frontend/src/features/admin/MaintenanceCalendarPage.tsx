@@ -8,6 +8,7 @@ import { CronExpressionParser } from 'cron-parser'
 import { api } from '@/shared/api/client'
 import type { MaintenanceWindow } from '@/shared/api/types'
 import { SkeletonTable } from '@/shared/design-system/components/Skeleton'
+import { Button } from '@/shared/design-system/components/Button'
 
 function getNextFirings(cronExpr: string, n = 3): string[] {
   try {
@@ -108,13 +109,9 @@ export function MaintenanceCalendarPage() {
       <div className="p-6">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-[22px] font-semibold text-text-primary">Maintenance Windows</h1>
-          <button
-            type="button"
-            onClick={() => setShowCreate(true)}
-            className="px-4 py-2 text-[14px] rounded bg-action-700 text-white hover:bg-action-800"
-          >
+          <Button type="button" onClick={() => setShowCreate(true)}>
             Schedule Window
-          </button>
+          </Button>
         </div>
 
         {deleteMutation.isError && (
@@ -171,15 +168,17 @@ export function MaintenanceCalendarPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="sm"
                         aria-label={`Delete ${w.name}`}
                         onClick={() => deleteMutation.mutate(w.window_id)}
                         disabled={deleteMutation.isPending}
-                        className="text-[13px] text-error hover:underline"
+                        className="text-error hover:text-error/80"
                       >
                         Delete
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -284,10 +283,10 @@ export function MaintenanceCalendarPage() {
                           type="button"
                           aria-pressed={field.value === 'ONE_TIME'}
                           onClick={() => field.onChange('ONE_TIME')}
-                          className={`px-4 py-2 text-[13px] rounded border transition-colors ${
+                          className={`px-4 py-2 text-[13px] rounded-md border transition-colors duration-fast ${
                             field.value === 'ONE_TIME'
-                              ? 'bg-action-700 text-white border-action-700'
-                              : 'border-border text-text-secondary hover:text-text-primary'
+                              ? 'bg-[var(--interactive-primary)] text-text-inverse border-[var(--interactive-primary)]'
+                              : 'border-border text-text-secondary hover:text-text-primary bg-transparent'
                           }`}
                         >
                           One-time
@@ -296,10 +295,10 @@ export function MaintenanceCalendarPage() {
                           type="button"
                           aria-pressed={field.value === 'RECURRING'}
                           onClick={() => field.onChange('RECURRING')}
-                          className={`px-4 py-2 text-[13px] rounded border transition-colors ${
+                          className={`px-4 py-2 text-[13px] rounded-md border transition-colors duration-fast ${
                             field.value === 'RECURRING'
-                              ? 'bg-action-700 text-white border-action-700'
-                              : 'border-border text-text-secondary hover:text-text-primary'
+                              ? 'bg-[var(--interactive-primary)] text-text-inverse border-[var(--interactive-primary)]'
+                              : 'border-border text-text-secondary hover:text-text-primary bg-transparent'
                           }`}
                         >
                           Recurring
@@ -416,20 +415,22 @@ export function MaintenanceCalendarPage() {
               )}
 
               <div className="flex justify-end gap-2 pt-2">
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="md"
                   onClick={() => { reset(); setShowCreate(false) }}
-                  className="px-4 py-2 text-[14px] rounded border border-border text-text-secondary"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
+                  size="md"
+                  loading={createMutation.isPending}
                   disabled={createMutation.isPending}
-                  className="px-4 py-2 text-[14px] rounded bg-action-700 text-white hover:bg-action-800 disabled:opacity-50"
                 >
-                  {createMutation.isPending ? 'Scheduling…' : 'Schedule'}
-                </button>
+                  Schedule
+                </Button>
               </div>
             </form>
           </div>

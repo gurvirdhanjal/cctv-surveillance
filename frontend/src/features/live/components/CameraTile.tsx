@@ -24,9 +24,9 @@ const tierBadge: Record<string, string> = {
 
 const statusDot: Record<string, string> = {
   online: 'bg-[#22c55e]',
-  offline: 'bg-slate-500',
+  offline: 'bg-border',
   auth_failed: 'bg-amber-400',
-  maintenance: 'bg-blue-400',
+  maintenance: 'bg-status-maintenance',
 }
 
 export const CameraTile = memo(function CameraTile({
@@ -62,7 +62,7 @@ export const CameraTile = memo(function CameraTile({
           isFocused
             ? 'border-[#1e293b] ring-2 ring-white/40'
             : isAlarming
-              ? 'animate-severity-pulse border-2 border-[#dc2626]'
+              ? 'animate-severity-pulse border-2 border-[var(--severity-critical)]'
               : 'border-[#1e293b] hover:border-[#334155]',
           camera.status === 'maintenance' && 'opacity-60',
         )}
@@ -81,7 +81,7 @@ export const CameraTile = memo(function CameraTile({
             />
             {recording && (
               <span
-                className="rounded px-1 text-[9px] font-semibold uppercase text-red-400 bg-red-400/10"
+                className="rounded px-1 text-[9px] font-semibold uppercase text-error bg-error/10"
                 aria-label="Recording"
               >
                 REC

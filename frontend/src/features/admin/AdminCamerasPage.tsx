@@ -232,21 +232,25 @@ export function AdminCamerasPage() {
           if (confirmDeleteId === cam.camera_id) {
             return (
               <div className="flex items-center gap-3">
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={() => deleteMutation.mutate(cam.camera_id)}
                   disabled={deleteMutation.isPending}
-                  className="text-[13px] font-medium text-error hover:underline disabled:opacity-50"
+                  loading={deleteMutation.isPending}
+                  className="text-error hover:text-error/80"
                 >
                   {deleteMutation.isPending ? 'Deleting…' : 'Confirm'}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={() => setConfirmDeleteId(null)}
-                  className="text-[13px] text-text-muted hover:text-text-primary"
                 >
                   Cancel
-                </button>
+                </Button>
               </div>
             )
           }
@@ -254,7 +258,7 @@ export function AdminCamerasPage() {
             <div className="flex items-center gap-2">
               <Link
                 to="/live"
-                className="inline-flex items-center gap-1 rounded-[8px] bg-action-700 px-2 py-1 text-[12px] font-medium text-white hover:bg-action-800 transition-colors"
+                className="inline-flex h-8 items-center gap-1 rounded-md bg-[var(--interactive-primary)] px-2 text-[12px] font-medium text-text-inverse shadow-1 hover:bg-[var(--interactive-hover)] transition-colors duration-quick focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                 aria-label={`Live view ${cam.name}`}
               >
                 <Icon.live className="h-3 w-3" aria-hidden="true" />
@@ -262,20 +266,22 @@ export function AdminCamerasPage() {
               </Link>
               <Link
                 to={`/admin/cameras/${cam.camera_id}`}
-                className="inline-flex items-center gap-1 rounded-[8px] border border-border px-2 py-1 text-[12px] font-medium text-text-secondary hover:border-brand-500/40 hover:text-text-primary transition-colors"
+                className="inline-flex h-8 items-center gap-1 rounded-md border border-border px-2 text-[12px] font-medium text-text-secondary hover:border-brand-500/40 hover:text-text-primary transition-colors duration-quick focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                 aria-label={`Settings ${cam.name}`}
               >
                 <Icon.settings className="h-3 w-3" aria-hidden="true" />
                 Settings
               </Link>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={() => setConfirmDeleteId(cam.camera_id)}
-                className="rounded-[8px] p-1 text-text-muted hover:bg-error/10 hover:text-error transition-colors"
                 aria-label={`Delete ${cam.name}`}
+                className="p-1 text-text-muted hover:bg-error/10 hover:text-error"
               >
                 <Icon.delete className="h-3.5 w-3.5" aria-hidden="true" />
-              </button>
+              </Button>
             </div>
           )
         },
@@ -525,20 +531,22 @@ export function AdminCamerasPage() {
               )}
 
               <div className="flex justify-end gap-2 pt-2">
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={closeModal}
-                  className="h-10 rounded-[10px] border border-border px-4 text-[13px] text-text-secondary hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
+                  size="sm"
                   disabled={addMutation.isPending}
-                  className="h-10 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                  loading={addMutation.isPending}
                 >
                   {addMutation.isPending ? 'Adding…' : 'Add Camera'}
-                </button>
+                </Button>
               </div>
             </form>
           </div>

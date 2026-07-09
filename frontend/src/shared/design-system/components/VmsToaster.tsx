@@ -43,6 +43,10 @@ export function VmsToaster() {
         duration: 5000,
         classNames: {
           toast: 'rounded-xl border border-border bg-surface-base shadow-4',
+          success: 'border-l-4 border-l-[var(--success)]',
+          error: 'border-l-4 border-l-[var(--error)]',
+          warning: 'border-l-4 border-l-[var(--warning)]',
+          info: 'border-l-4 border-l-[var(--info)]',
           title: 'text-[14px] font-medium text-text-primary',
           description: 'text-[13px] text-text-secondary',
           closeButton: 'text-text-muted hover:text-text-primary',

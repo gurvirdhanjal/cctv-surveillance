@@ -1,5 +1,6 @@
-﻿import { NavLink, Outlet } from 'react-router-dom'
+﻿import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const NAV = [
   { to: '/analytics', label: 'Dashboard', end: true },
@@ -8,6 +9,8 @@ const NAV = [
 ]
 
 export function AnalyticsLayout() {
+  const { pathname } = useLocation()
+
   return (
     <div data-theme="light" className="flex min-h-screen bg-surface-base">
       <Helmet titleTemplate="%s — Analytics" />
@@ -48,7 +51,17 @@ export function AnalyticsLayout() {
         </div>
       </nav>
       <main className="flex-1 overflow-auto p-6">
-        <Outlet />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={pathname}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
+          >
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
       </main>
     </div>
   )

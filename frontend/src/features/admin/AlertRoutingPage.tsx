@@ -150,14 +150,16 @@ export function AlertRoutingPage() {
         header: '',
         enableSorting: false,
         cell: ({ row }) => (
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             aria-label={`Delete rule ${row.original.routing_id}`}
             onClick={() => deleteMutation.mutate(row.original.routing_id)}
-            className="rounded-[10px] px-2 py-1 text-[13px] text-error hover:bg-error/10 transition-colors"
+            className="text-error hover:text-error/80"
           >
             Delete
-          </button>
+          </Button>
         ),
       },
     ],
@@ -306,20 +308,22 @@ export function AlertRoutingPage() {
                 </p>
               )}
               <div className="flex justify-end gap-2 pt-2">
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={() => { reset(); setShowAdd(false) }}
-                  className="h-10 rounded-[10px] border border-border px-4 text-[13px] text-text-secondary hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
+                  size="sm"
+                  loading={createMutation.isPending}
                   disabled={createMutation.isPending}
-                  className="h-10 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                 >
-                  {createMutation.isPending ? 'Adding…' : 'Add Rule'}
-                </button>
+                  Add Rule
+                </Button>
               </div>
             </form>
           </div>

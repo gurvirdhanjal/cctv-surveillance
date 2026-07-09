@@ -112,6 +112,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ) => {
     const isDisabled = disabled || loading
     const reducedMotion = useReducedMotion()
+    const isLiftable = variant === 'primary' || variant === 'secondary' || variant === 'destructive'
+    const isSmall = variant === 'icon' || variant === 'toolbar'
+    const tapScale = isSmall ? 0.94 : BUTTON_TAP_SCALE
     const handleClick = variant === 'split' && onPrimary
       ? (e: React.MouseEvent<HTMLButtonElement>) => { onPrimary(); onClick?.(e) }
       : onClick
@@ -123,7 +126,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         aria-disabled={isDisabled || undefined}
         aria-busy={loading || undefined}
         onClick={handleClick}
-        whileTap={reducedMotion ? undefined : { scale: BUTTON_TAP_SCALE }}
+        whileHover={reducedMotion || !isLiftable ? undefined : { scale: 1.02 }}
+        whileTap={reducedMotion ? undefined : { scale: tapScale }}
         transition={MOTION.hover}
         {...props}
       >

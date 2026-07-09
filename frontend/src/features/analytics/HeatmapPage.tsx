@@ -29,10 +29,10 @@ export function HeatmapPage() {
                 aria-pressed={timeWindow === w}
                 onClick={() => setTimeWindow(w)}
                 className={[
-                  'rounded-md px-3 py-1.5 text-[12px] capitalize transition-colors',
+                  'rounded-md px-3 py-1.5 text-[12px] capitalize transition-colors duration-fast',
                   timeWindow === w
-                    ? 'bg-action-700 text-white'
-                    : 'border border text-text-secondary hover:bg-surface-sunken',
+                    ? 'bg-[var(--interactive-primary)] text-text-inverse border-[var(--interactive-primary)]'
+                    : 'border border-border text-text-secondary hover:text-text-primary bg-transparent',
                 ].join(' ')}
               >
                 {w}

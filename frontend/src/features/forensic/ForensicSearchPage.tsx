@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/shared/api/client'
 import type { ForensicClip } from '@/shared/api/types'
 import { NotImplementedError } from '@/shared/api/errors'
+import { Button } from '@/shared/design-system/components/Button'
 import { ClipResultCard } from './components/ClipResultCard'
 import { ClipDrawer } from './components/ClipDrawer'
 
@@ -72,13 +73,13 @@ export function ForensicSearchPage() {
               aria-label="Search query"
               className="flex-1 rounded-md border border bg-surface-base px-3 py-2 text-[14px] placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-50"
             />
-            <button
+            <Button
               type="submit"
+              size="sm"
               disabled={isClipBlocked || !filters.query.trim()}
-              className="rounded-md bg-action-700 px-4 py-2 text-[13px] font-medium text-white hover:bg-action-800 disabled:opacity-40"
             >
               Search
-            </button>
+            </Button>
           </div>
 
           <div className="flex flex-wrap gap-3" aria-label="Search filters">

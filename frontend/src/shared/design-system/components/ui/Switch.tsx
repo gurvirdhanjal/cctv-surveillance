@@ -1,6 +1,6 @@
 import * as React from 'react'
 import * as SwitchPrimitive from '@radix-ui/react-switch'
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { cn } from '@/shared/utils/cn'
 
 /** §O exact spring config for switch thumb animation. */
@@ -15,6 +15,7 @@ const Switch = React.forwardRef<
     isControlled ? checkedProp : (defaultChecked ?? false)
   )
   const isChecked = isControlled ? checkedProp : internalChecked
+  const shouldReduce = useReducedMotion()
 
   const handleCheckedChange = (val: boolean) => {
     if (!isControlled) setInternalChecked(val)
@@ -31,6 +32,7 @@ const Switch = React.forwardRef<
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base',
         'disabled:cursor-not-allowed disabled:opacity-50',
         'data-[state=unchecked]:bg-border-strong data-[state=checked]:bg-interactive-primary',
+        'transition-colors duration-[120ms]',
         className
       )}
       {...props}
@@ -39,7 +41,7 @@ const Switch = React.forwardRef<
         aria-hidden="true"
         className="pointer-events-none block h-4 w-4 rounded-full bg-white shadow-1 ring-0"
         animate={{ x: isChecked ? 16 : 0 }}
-        transition={TOGGLE_SPRING}
+        transition={shouldReduce ? { duration: 0 } : TOGGLE_SPRING}
       />
     </SwitchPrimitive.Root>
   )

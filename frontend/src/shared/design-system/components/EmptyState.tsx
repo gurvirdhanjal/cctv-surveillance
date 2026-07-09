@@ -1,6 +1,8 @@
 import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
 import { cn } from '@/shared/utils/cn'
+import { MOTION } from '@/shared/motion/motion'
 
 interface EmptyStateProps {
   icon: LucideIcon
@@ -12,8 +14,13 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({ icon: Icon, title, description, cta, className }: EmptyStateProps) {
+  const shouldReduce = useReducedMotion()
+
   return (
-    <div
+    <motion.div
+      initial={shouldReduce ? undefined : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={MOTION.page}
       className={cn(
         'flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-surface-base py-20 text-center',
         className,
@@ -23,6 +30,6 @@ export function EmptyState({ icon: Icon, title, description, cta, className }: E
       <p className="text-[15px] font-semibold text-text-secondary">{title}</p>
       {description && <p className="mt-1 text-[13px] text-text-muted">{description}</p>}
       <div className="mt-4">{cta}</div>
-    </div>
+    </motion.div>
   )
 }

@@ -1,4 +1,5 @@
 ﻿import { useState } from 'react'
+import { Button } from '@/shared/design-system/components/Button'
 
 interface Props {
   cameraId: number
@@ -88,13 +89,13 @@ export function HomographyCalibrator({ cameraId: _cameraId, initialStep = 'start
             Calibrate the camera-to-floor homography by picking 4 matching points — first on the
             live frame, then on the floor plan. Reprojection error must be &lt;2 px to save.
           </p>
-          <button
+          <Button
             type="button"
+            size="sm"
             onClick={handleNext}
-            className="h-10 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
           >
             Start calibration
-          </button>
+          </Button>
         </div>
       )}
 
@@ -119,14 +120,14 @@ export function HomographyCalibrator({ cameraId: _cameraId, initialStep = 'start
               />
             ))}
           </div>
-          <button
+          <Button
             type="button"
+            size="sm"
             onClick={handleNext}
             disabled={framePoints.length < 4}
-            className="h-10 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
           >
             Next
-          </button>
+          </Button>
         </div>
       )}
 
@@ -151,14 +152,14 @@ export function HomographyCalibrator({ cameraId: _cameraId, initialStep = 'start
               />
             ))}
           </div>
-          <button
+          <Button
             type="button"
+            size="sm"
             onClick={handleNext}
             disabled={floorPoints.length < 4}
-            className="h-10 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
           >
             Compute
-          </button>
+          </Button>
         </div>
       )}
 
@@ -180,22 +181,23 @@ export function HomographyCalibrator({ cameraId: _cameraId, initialStep = 'start
             </p>
           </div>
           <div className="flex gap-2">
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
               onClick={handleReset}
-              className="h-10 rounded-[10px] border border-border px-4 text-[13px] text-text-secondary hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
             >
               Recalibrate
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              size="sm"
               onClick={handleSave}
               disabled={!canSave}
               aria-disabled={!canSave}
-              className="h-10 rounded-[10px] bg-action-700 px-4 text-[13px] font-medium text-white hover:bg-action-800 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
             >
               Save homography
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -206,13 +208,14 @@ export function HomographyCalibrator({ cameraId: _cameraId, initialStep = 'start
           <p className="text-[13px] text-success">
             Reprojection error: {reprErr?.toFixed(2)} px
           </p>
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            size="sm"
             onClick={handleReset}
-            className="h-9 rounded-[10px] border border-success/30 px-3 text-[13px] text-success hover:bg-success/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
           >
             Recalibrate
-          </button>
+          </Button>
         </div>
       )}
     </div>

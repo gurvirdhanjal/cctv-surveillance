@@ -385,7 +385,7 @@ export function CameraTree() {
                 <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                   {site.label}
                 </div>
-                <div className="grid grid-cols-4 gap-1.5">
+                <div className="grid grid-cols-2 gap-1.5">
                   {filtered.map((cam) => (
                     <CameraTile
                       key={cam.camera_id}
@@ -422,7 +422,7 @@ export function CameraTree() {
                                 items={sorted.map((c) => c.camera_id)}
                                 strategy={verticalListSortingStrategy}
                               >
-                                <div className="grid grid-cols-4 gap-1.5 py-1" style={{ paddingLeft: `${8 + 3 * 12}px` }}>
+                                <div className="grid grid-cols-2 gap-1.5 py-1" style={{ paddingLeft: `${8 + 3 * 12}px` }}>
                                   {pageCams.map((cam) => (
                                     <SortableCameraRow
                                       key={cam.camera_id}

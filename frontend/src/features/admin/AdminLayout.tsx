@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard,
   Camera,
@@ -15,6 +15,20 @@ import {
 } from 'lucide-react'
 import { Icon } from '@/shared/design-system/icons'
 import { ProfileDialog } from '@/shared/workspace/ProfileDialog'
+import { useAuthStore } from '@/stores/authStore'
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarInset,
+} from '@/shared/design-system/components/ui/sidebar'
 
 function VmsLogo() {
   return (
@@ -34,8 +48,6 @@ function VmsLogo() {
     </div>
   )
 }
-import { useAuthStore } from '@/stores/authStore'
-import { useRouteTheme } from '@/hooks/useRouteTheme'
 
 interface NavItem {
   to: string
@@ -97,98 +109,102 @@ export function AdminLayout() {
   const logout = useAuthStore((s) => s.logout)
   const user = useAuthStore((s) => s.user)
   const pageTitle = useAdminPageTitle()
+  const { pathname } = useLocation()
   const [profileOpen, setProfileOpen] = useState(false)
 
-  useRouteTheme('light')
-
   return (
-    <>
+    <div data-theme="light" className="contents">
       <Helmet title={`${pageTitle} — Admin`} />
-      <div className="flex h-screen overflow-hidden">
-        {/* ── Light sidebar ────────────────────────────────────────────────── */}
-        <aside className="flex w-60 flex-shrink-0 flex-col overflow-hidden border-r border-border bg-surface-raised">
+      <SidebarProvider>
+        <Sidebar collapsible="icon">
           {/* Brand header */}
-          <div className="flex h-14 flex-shrink-0 items-center gap-3 border-b border-border px-4">
-            <VmsLogo />
-            <span className="font-display text-[15px] font-bold tracking-tight text-text-primary">
-              VMS
-            </span>
-            <span className="ml-auto shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest bg-surface-sunken text-text-muted select-none">
-              Admin
-            </span>
-          </div>
+          <SidebarHeader className="border-b border-sidebar-border px-2 py-3">
+            <div className="flex items-center gap-3 px-1">
+              <VmsLogo />
+              <span className="font-display text-[15px] font-bold tracking-tight text-text-primary group-data-[collapsible=icon]:hidden">
+                VMS
+              </span>
+              <span className="ml-auto shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest bg-surface-sunken text-text-muted select-none group-data-[collapsible=icon]:hidden">
+                Admin
+              </span>
+            </div>
+          </SidebarHeader>
 
           {/* Navigation */}
-          <nav aria-label="Admin navigation" className="flex-1 overflow-y-auto py-2">
+          <SidebarContent>
+            <nav aria-label="Admin navigation">
             {NAV_SECTIONS.map((section) => (
-              <div key={section.group}>
-                <p className="mt-4 mb-1 px-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted select-none">
+              <SidebarGroup key={section.group}>
+                <SidebarGroupLabel className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
                   {section.group}
-                </p>
-                {section.items.map(({ to, label, icon: Icon, end }) => (
-                  <NavLink
-                    key={to}
-                    to={to}
-                    end={end}
-                    className={({ isActive }) =>
-                      `relative mx-2 flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-medium transition-colors duration-fast ${
-                        isActive
-                          ? 'text-text-primary'
-                          : 'text-text-secondary hover:bg-surface-sunken hover:text-text-primary'
-                      }`
-                    }
-                  >
-                    {({ isActive }) => (
-                      <>
-                        {isActive && (
-                          <motion.span
-                            layoutId="admin-nav-active"
-                            className="absolute inset-0 rounded-md bg-surface-sunken"
-                            style={{ borderLeft: '3px solid var(--brand-accent)' }}
-                            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                          />
+                </SidebarGroupLabel>
+                <SidebarMenu>
+                  {section.items.map(({ to, label, icon: ItemIcon, end }) => (
+                    <SidebarMenuItem key={to}>
+                      <NavLink to={to} end={end} className="w-full">
+                        {({ isActive }) => (
+                          <SidebarMenuButton
+                            isActive={isActive}
+                            tooltip={label}
+                            className={
+                              isActive
+                                ? 'relative font-medium text-text-primary [border-left:3px_solid_var(--brand-accent)]'
+                                : 'text-text-secondary'
+                            }
+                          >
+                            {isActive && (
+                              <motion.span
+                                layoutId="admin-nav-active"
+                                className="absolute inset-0 rounded-md bg-surface-sunken"
+                                transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                              />
+                            )}
+                            <ItemIcon className="relative h-[15px] w-[15px] shrink-0" aria-hidden="true" />
+                            <span className="relative">{label}</span>
+                          </SidebarMenuButton>
                         )}
-                        <Icon className="relative h-[15px] w-[15px] shrink-0" aria-hidden="true" />
-                        <span className="relative">{label}</span>
-                      </>
-                    )}
-                  </NavLink>
-                ))}
-              </div>
+                      </NavLink>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroup>
             ))}
-          </nav>
+            </nav>
+          </SidebarContent>
 
           {/* Sidebar footer */}
-          <div className="flex-shrink-0 border-t border-border p-2 space-y-0.5">
-            <Link
-              to="/live"
-              className="flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] text-text-secondary transition-colors hover:bg-surface-sunken hover:text-text-primary"
-            >
-              <ExternalLink className="h-[15px] w-[15px] shrink-0" aria-hidden="true" />
-              Live View
-            </Link>
-            <button
-              type="button"
-              onClick={() => {
-                logout()
-                navigate('/login', { replace: true })
-              }}
-              className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-[13px] text-text-secondary transition-colors hover:bg-surface-sunken hover:text-text-primary"
-            >
-              <LogOut className="h-[15px] w-[15px] shrink-0" aria-hidden="true" />
-              Sign out
-            </button>
-          </div>
-        </aside>
+          <SidebarFooter className="border-t border-sidebar-border">
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <Link to="/live" className="w-full">
+                  <SidebarMenuButton tooltip="Live View" className="text-text-secondary">
+                    <ExternalLink className="h-[15px] w-[15px] shrink-0" aria-hidden="true" />
+                    <span>Live View</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip="Sign out"
+                  className="text-text-secondary"
+                  onClick={() => {
+                    logout()
+                    navigate('/login', { replace: true })
+                  }}
+                >
+                  <LogOut className="h-[15px] w-[15px] shrink-0" aria-hidden="true" />
+                  <span>Sign out</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarFooter>
+        </Sidebar>
 
         {/* ── Main area ─────────────────────────────────────────────────────── */}
-        <div className="flex min-w-0 flex-1 flex-col bg-surface-sunken">
+        <SidebarInset className="bg-surface-sunken">
           {/* Top bar */}
           <header className="flex h-14 flex-shrink-0 items-center border-b border-border bg-surface-base px-6">
-            <span
-              className="text-[15px] font-semibold text-text-primary"
-              aria-hidden="true"
-            >
+            <span className="text-[15px] font-semibold text-text-primary" aria-hidden="true">
               {pageTitle}
             </span>
             <div className="flex-1" />
@@ -215,11 +231,21 @@ export function AdminLayout() {
             workspaceId="administration"
           />
 
-          <main className="min-w-0 flex-1 overflow-auto">
-            <Outlet />
-          </main>
-        </div>
-      </div>
-    </>
+          <div className="min-w-0 flex-1 overflow-auto">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={pathname}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
+              >
+                <Outlet />
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    </div>
   )
 }

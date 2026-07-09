@@ -58,7 +58,7 @@ describe('CameraTile', () => {
       <CameraTile camera={makeCamera()} isFocused={false} isAlarming onSelect={vi.fn()} />,
     )
     const btn = container.querySelector('button')
-    expect(btn?.className).toContain('border-[#dc2626]')
+    expect(btn?.className).toContain('border-[var(--severity-critical)]')
   })
 
   it('applies reduced opacity for maintenance status', () => {
