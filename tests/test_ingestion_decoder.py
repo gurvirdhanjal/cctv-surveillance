@@ -368,3 +368,157 @@ async def test_worker_skips_resize_for_correctly_sized_frames() -> None:
         await worker.start()
 
     mock_resize.assert_not_called()
+
+
+# -- session ledger + fallback ladder (Task 4) -------------------------------------
+
+
+def test_ledger_caps_and_releases() -> None:
+    from vms.ingestion.decoder import NvdecSessionLedger
+
+    ledger = NvdecSessionLedger(max_sessions=2)
+    assert ledger.acquire() is True
+    assert ledger.acquire() is True
+    assert ledger.acquire() is False  # cap reached
+    ledger.release()
+    assert ledger.acquire() is True
+    ledger.release()
+    ledger.release()
+    ledger.release()  # over-release never goes negative
+    assert ledger.active == 0
+
+
+def test_ledger_thread_safety_never_overallocates() -> None:
+    import threading
+
+    from vms.ingestion.decoder import NvdecSessionLedger
+
+    ledger = NvdecSessionLedger(max_sessions=5)
+    granted: list[bool] = []
+    lock = threading.Lock()
+
+    def worker() -> None:
+        got = ledger.acquire()
+        with lock:
+            granted.append(got)
+
+    threads = [threading.Thread(target=worker) for _ in range(50)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert sum(granted) == 5
+
+
+def _settings(enabled: bool = True, max_sessions: int = 12) -> MagicMock:
+    s = MagicMock()
+    s.gpu_nvdec_enabled = enabled
+    s.nvdec_max_sessions = max_sessions
+    s.nvdec_ffmpeg_path = "ffmpeg"
+    s.nvdec_restart_after_failures = 3
+    return s
+
+
+@pytest.fixture()
+def _fresh_ledger() -> Any:
+    from vms.ingestion import decoder as decoder_module
+
+    decoder_module.get_session_ledger.cache_clear()
+    yield
+    decoder_module.get_session_ledger.cache_clear()
+
+
+def _make(url: str = "rtsp://x", camera_id: int = 5) -> Any:
+    from vms.ingestion.decoder import create_decoder
+
+    return create_decoder(url, camera_id=camera_id, width=64, height=48)
+
+
+def test_factory_disabled_returns_opencv_without_probing(_fresh_ledger: Any) -> None:
+    with (
+        patch("vms.ingestion.decoder.get_settings", return_value=_settings(enabled=False)),
+        patch("vms.ingestion.decoder.OpenCvDecoder") as mock_cv,
+        patch("vms.ingestion.decoder.nvdec_available") as mock_avail,
+        patch("vms.ingestion.decoder.probe_codec") as mock_probe,
+    ):
+        _make()
+    mock_cv.assert_called_once_with("rtsp://x")
+    mock_avail.assert_not_called()
+    mock_probe.assert_not_called()
+
+
+def test_factory_falls_back_when_nvdec_unavailable(_fresh_ledger: Any, caplog: Any) -> None:
+    with (
+        patch("vms.ingestion.decoder.get_settings", return_value=_settings()),
+        patch("vms.ingestion.decoder.OpenCvDecoder") as mock_cv,
+        patch("vms.ingestion.decoder.nvdec_available", return_value=False),
+        caplog.at_level("WARNING"),
+    ):
+        _make()
+    mock_cv.assert_called_once()
+    assert any("NVDEC" in r.getMessage() for r in caplog.records)
+
+
+def test_factory_falls_back_when_codec_probe_fails(_fresh_ledger: Any, caplog: Any) -> None:
+    with (
+        patch("vms.ingestion.decoder.get_settings", return_value=_settings()),
+        patch("vms.ingestion.decoder.OpenCvDecoder") as mock_cv,
+        patch("vms.ingestion.decoder.nvdec_available", return_value=True),
+        patch("vms.ingestion.decoder.probe_codec", return_value=None),
+        caplog.at_level("WARNING"),
+    ):
+        _make(camera_id=42)
+    mock_cv.assert_called_once()
+    assert any("camera_id=42" in r.getMessage() for r in caplog.records)
+
+
+def test_factory_falls_back_when_session_cap_reached(_fresh_ledger: Any, caplog: Any) -> None:
+    with (
+        patch("vms.ingestion.decoder.get_settings", return_value=_settings(max_sessions=0)),
+        patch("vms.ingestion.decoder.OpenCvDecoder") as mock_cv,
+        patch("vms.ingestion.decoder.nvdec_available", return_value=True),
+        patch("vms.ingestion.decoder.probe_codec", return_value="h264"),
+        caplog.at_level("WARNING"),
+    ):
+        _make()
+    mock_cv.assert_called_once()
+    assert any("session cap" in r.getMessage() for r in caplog.records)
+
+
+def test_factory_releases_slot_when_nvdec_startup_fails(_fresh_ledger: Any) -> None:
+    from vms.ingestion import decoder as decoder_module
+
+    with (
+        patch("vms.ingestion.decoder.get_settings", return_value=_settings(max_sessions=1)),
+        patch("vms.ingestion.decoder.OpenCvDecoder") as mock_cv,
+        patch("vms.ingestion.decoder.nvdec_available", return_value=True),
+        patch("vms.ingestion.decoder.probe_codec", return_value="h264"),
+        patch("vms.ingestion.decoder.NvdecDecoder", side_effect=OSError("spawn failed")),
+    ):
+        _make()
+        assert decoder_module.get_session_ledger().active == 0  # slot given back
+    mock_cv.assert_called_once()
+
+
+def test_factory_success_wires_ledger_release(_fresh_ledger: Any) -> None:
+    from vms.ingestion import decoder as decoder_module
+
+    captured: dict[str, Any] = {}
+
+    def fake_nvdec(url: str, codec: str, width: int, height: int, **kwargs: Any) -> MagicMock:
+        captured["codec"] = codec
+        captured["on_release"] = kwargs["on_release"]
+        return MagicMock(name="nvdec")
+
+    with (
+        patch("vms.ingestion.decoder.get_settings", return_value=_settings(max_sessions=1)),
+        patch("vms.ingestion.decoder.nvdec_available", return_value=True),
+        patch("vms.ingestion.decoder.probe_codec", return_value="hevc"),
+        patch("vms.ingestion.decoder.NvdecDecoder", side_effect=fake_nvdec),
+    ):
+        _make()
+        ledger = decoder_module.get_session_ledger()
+        assert ledger.active == 1
+        captured["on_release"]()  # decoder.release() must free the slot
+        assert ledger.active == 0
+    assert captured["codec"] == "hevc"

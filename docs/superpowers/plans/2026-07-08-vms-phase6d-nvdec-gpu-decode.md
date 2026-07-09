@@ -182,10 +182,10 @@ framing is exact: `W*H*3` bytes per frame.
 
 ## Task 4 — Session ledger + fallback ladder (no camera goes dark, no silent fallback)
 
-- [ ] Failing tests: `NvdecSessionLedger` — thread-safe acquire/release against
+- [x] Failing tests: `NvdecSessionLedger` — thread-safe acquire/release against
       `nvdec_max_sessions`; acquire beyond cap returns False; release frees a slot;
       concurrent acquire from threads never over-allocates (hammer test).
-- [ ] Failing tests — `create_decoder(camera, settings)` factory, every ladder branch
+- [x] Failing tests — `create_decoder(camera, settings)` factory, every ladder branch
       from the Architecture diagram:
       * `gpu_nvdec_enabled=False` → `OpenCvDecoder`, no probes run (assert stubs not called);
       * enabled but `nvdec_available()` False → `OpenCvDecoder` + one WARNING;
@@ -196,8 +196,8 @@ framing is exact: `W*H*3` bytes per frame.
         count) → `OpenCvDecoder` fallback; camera still delivers frames;
       * `NvdecDecoder.release()` releases its ledger slot (test via factory-wired
         callback).
-- [ ] Implement ledger + factory in `vms/ingestion/decoder.py`.
-- [ ] Verify: gate green.
+- [x] Implement ledger + factory in `vms/ingestion/decoder.py`.
+- [x] Verify: gate green (959 passed, 2026-07-09).
 
 ## Task 5 — Worker + config integration
 

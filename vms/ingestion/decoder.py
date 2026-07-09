@@ -276,3 +276,66 @@ class OpenCvDecoder:
 
     def release(self) -> None:
         self._cap.release()
+
+
+class NvdecSessionLedger:
+    """Thread-safe counter of live NVDEC decoder sessions.
+
+    Consumer cards have 1-2 NVDEC units; overflowing them degrades every stream.
+    Cameras beyond the cap fall back to CPU decode with an explicit WARNING
+    (spec §6.3: no silent truncation)."""
+
+    def __init__(self, max_sessions: int) -> None:
+        self._lock = threading.Lock()
+        self._max = max_sessions
+        self._active = 0
+
+    def acquire(self) -> bool:
+        with self._lock:
+            if self._active >= self._max:
+                return False
+            self._active += 1
+            return True
+
+    def release(self) -> None:
+        with self._lock:
+            self._active = max(0, self._active - 1)
+
+    @property
+    def active(self) -> int:
+        with self._lock:
+            return self._active
+
+
+@lru_cache(maxsize=1)
+def get_session_ledger() -> NvdecSessionLedger:
+    return NvdecSessionLedger(get_settings().nvdec_max_sessions)
+
+
+def create_decoder(url: str, *, camera_id: int, width: int, height: int) -> DecodeBackend:
+    """Fallback ladder (plan diagram): NVDEC when enabled+available+probed+within cap,
+    CPU decode otherwise — every fallback logged, no camera ever goes dark."""
+    settings = get_settings()
+    if not settings.gpu_nvdec_enabled:
+        return OpenCvDecoder(url)
+    if not nvdec_available():
+        logger.warning("camera_id=%d NVDEC requested but unavailable — CPU decode", camera_id)
+        return OpenCvDecoder(url)
+    codec = probe_codec(url)
+    if codec is None:
+        logger.warning("camera_id=%d codec probe failed — CPU decode", camera_id)
+        return OpenCvDecoder(url)
+    ledger = get_session_ledger()
+    if not ledger.acquire():
+        logger.warning(
+            "camera_id=%d NVDEC session cap (%d) reached — CPU decode",
+            camera_id,
+            settings.nvdec_max_sessions,
+        )
+        return OpenCvDecoder(url)
+    try:
+        return NvdecDecoder(url, codec, width, height, on_release=ledger.release)
+    except Exception:
+        ledger.release()
+        logger.warning("camera_id=%d NVDEC decoder failed to start — CPU decode", camera_id)
+        return OpenCvDecoder(url)
