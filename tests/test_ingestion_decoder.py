@@ -522,3 +522,79 @@ def test_factory_success_wires_ledger_release(_fresh_ledger: Any) -> None:
         captured["on_release"]()  # decoder.release() must free the slot
         assert ledger.active == 0
     assert captured["codec"] == "hevc"
+
+
+# -- worker + config integration (Task 5) -------------------------------------------
+
+
+def test_nvdec_settings_env_var_round_trip(monkeypatch: Any) -> None:
+    from vms.config import Settings
+
+    monkeypatch.setenv("VMS_NVDEC_FFMPEG_PATH", "tools/ffmpeg/bin/ffmpeg.exe")
+    monkeypatch.setenv("VMS_NVDEC_FFPROBE_PATH", "tools/ffmpeg/bin/ffprobe.exe")
+    monkeypatch.setenv("VMS_NVDEC_MAX_SESSIONS", "3")
+    monkeypatch.setenv("VMS_NVDEC_PROBE_TIMEOUT_S", "7")
+    monkeypatch.setenv("VMS_NVDEC_RESTART_AFTER_FAILURES", "5")
+
+    settings = Settings()  # type: ignore[call-arg]
+
+    assert settings.nvdec_ffmpeg_path == "tools/ffmpeg/bin/ffmpeg.exe"
+    assert settings.nvdec_ffprobe_path == "tools/ffmpeg/bin/ffprobe.exe"
+    assert settings.nvdec_max_sessions == 3
+    assert settings.nvdec_probe_timeout_s == 7
+    assert settings.nvdec_restart_after_failures == 5
+
+
+@pytest.mark.asyncio
+async def test_worker_default_factory_is_the_fallback_ladder() -> None:
+    cfg = CameraConfig(camera_id=11, rtsp_url="rtsp://x", worker_group=1, width=64, height=48)
+    decoder = _FakeDecoder(frames=1, width=64, height=48)
+
+    async def stop_stream_add(client, stream, fields, maxlen=None):  # type: ignore[no-untyped-def]
+        worker._running = False
+        return "1-0"
+
+    worker = IngestionWorker(cfg, AsyncMock())  # no explicit factory
+
+    with (
+        patch("vms.ingestion.worker.create_decoder", return_value=decoder) as mock_factory,
+        patch("vms.ingestion.worker.stream_add", side_effect=stop_stream_add),
+        patch("vms.ingestion.worker.SHMSlot.create") as mock_create,
+    ):
+        mock_slot = MagicMock()
+        mock_slot.name = "vms_cam_11"
+        mock_slot.write.return_value = 1000
+        mock_create.return_value = mock_slot
+        await worker.start()
+
+    mock_factory.assert_called_once_with("rtsp://x", camera_id=11, width=64, height=48)
+    assert decoder.released is True
+
+
+@pytest.mark.asyncio
+async def test_worker_failure_threshold_semantics_unchanged_on_any_decoder() -> None:
+    """A permanently failing decoder still walks backoff -> threshold -> inactive."""
+    cfg = CameraConfig(camera_id=12, rtsp_url="rtsp://x", worker_group=1, width=64, height=48)
+
+    class _DeadDecoder(_FakeDecoder):
+        def read(self) -> tuple[bool, np.ndarray | None]:  # type: ignore[type-arg]
+            return False, None
+
+    dead = _DeadDecoder(frames=0)
+    worker = IngestionWorker(cfg, AsyncMock(), decoder_factory=lambda _url: dead)
+    worker._mark_camera_inactive = AsyncMock()  # type: ignore[method-assign]
+
+    fake_settings = MagicMock()
+    fake_settings.rtsp_failure_threshold = 2
+    fake_settings.rtsp_backoff_delays_ms = [1]
+
+    with (
+        patch("vms.ingestion.worker.get_settings", return_value=fake_settings),
+        patch("vms.ingestion.worker.asyncio.sleep", new=AsyncMock()),
+        patch("vms.ingestion.worker.SHMSlot.create") as mock_create,
+    ):
+        mock_create.return_value = MagicMock()
+        await worker.start()
+
+    worker._mark_camera_inactive.assert_awaited_once()
+    assert dead.released is True

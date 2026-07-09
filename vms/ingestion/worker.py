@@ -14,7 +14,7 @@ import redis.asyncio as aioredis
 from sqlalchemy.orm import Session
 
 from vms.config import get_settings
-from vms.ingestion.decoder import DecodeBackend, OpenCvDecoder
+from vms.ingestion.decoder import DecodeBackend, create_decoder
 from vms.ingestion.messages import FramePointer
 from vms.ingestion.shm import SHMSlot
 from vms.redis_client import stream_add
@@ -44,7 +44,7 @@ class IngestionWorker:
         redis_client: aioredis.Redis,
         session_factory: Callable[[], Session] | None = None,
         executor: ThreadPoolExecutor | None = None,
-        decoder_factory: Callable[[str], DecodeBackend] = OpenCvDecoder,
+        decoder_factory: Callable[[str], DecodeBackend] | None = None,
     ) -> None:
         self._camera = camera
         self._redis = redis_client
@@ -53,11 +53,20 @@ class IngestionWorker:
         # all decoder.read() calls can block concurrently without hitting the default
         # pool ceiling (min(32, cpu_count+4)), which causes queuing lag at 20+ cameras.
         self._executor = executor
-        self._decoder_factory = decoder_factory
+        # Default = the NVDEC/CPU fallback ladder (gpu_nvdec_enabled=False -> pure CPU)
+        self._decoder_factory = decoder_factory or self._default_decoder_factory
         self._seq_id: int = 0
         self._running: bool = False
         self._slot: SHMSlot | None = None
         self._consecutive_failures: int = 0
+
+    def _default_decoder_factory(self, url: str) -> DecodeBackend:
+        return create_decoder(
+            url,
+            camera_id=self._camera.camera_id,
+            width=self._camera.width,
+            height=self._camera.height,
+        )
 
     async def start(self) -> None:
         shm_name = f"vms_cam_{self._camera.camera_id}"

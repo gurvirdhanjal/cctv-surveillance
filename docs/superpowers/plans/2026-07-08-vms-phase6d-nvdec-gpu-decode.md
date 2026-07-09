@@ -201,17 +201,17 @@ framing is exact: `W*H*3` bytes per frame.
 
 ## Task 5 — Worker + config integration
 
-- [ ] Config: add the five new settings to `vms/config.py` with the defaults from the
+- [x] Config: add the five new settings to `vms/config.py` with the defaults from the
       table above; failing test asserts env-var override round-trip (`VMS_NVDEC_*`).
-- [ ] Failing tests — worker behaviour: default factory is `create_decoder`;
+- [x] Failing tests — worker behaviour: default factory is `create_decoder`;
       with `gpu_nvdec_enabled=False` the worker path is regression-identical (existing
       suite is the proof); with enabled+ladder-fallback the worker runs on
       `OpenCvDecoder` without marking the camera inactive; read-failure → existing
       backoff → `rtsp_failure_threshold` → `_mark_camera_inactive()` semantics unchanged
       on BOTH decoder types (parametrized test).
-- [ ] Update `.env.example` (or the deploy runbook section that documents env vars) with
+- [x] Update `.env.example` (or the deploy runbook section that documents env vars) with
       the `VMS_NVDEC_*` block + the FFmpeg-with-cuvid prerequisite note.
-- [ ] Verify: gate green.
+- [x] Verify: gate green (962 passed, 2026-07-09). Env block documented in .env (commented, off by default).
 
 ## Task 6 — Test-pipeline integration (`scripts/multi_cam_pipeline_test.py`)
 
