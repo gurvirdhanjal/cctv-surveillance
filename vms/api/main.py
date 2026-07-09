@@ -28,6 +28,7 @@ from vms.api.routes import (
     cameras,
     forensic,
     health,
+    homography,
     maintenance,
     persons,
     routing,
@@ -153,6 +154,7 @@ app.include_router(analytics.router, prefix="/api")
 app.include_router(system.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 app.include_router(bookmarks.router, prefix="/api")
+app.include_router(homography.router, prefix="/api")
 
 # Prometheus metrics endpoint (standard /metrics path, no /api prefix)
 app.mount("/metrics", make_asgi_app())

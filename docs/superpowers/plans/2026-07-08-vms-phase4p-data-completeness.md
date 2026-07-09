@@ -243,13 +243,13 @@ Canonical contract: model-stack spec §8.2.1. Backend half of the existing
 versioning) is deferred to the recording/analytics spec — this task is the minimal
 table + calibration write/read.
 
-- [ ] Config first: `VMS_HOMOGRAPHY_MAX_RMS_PX` (default 15) in `config.py`.
-- [ ] Failing tests — schema (real test DB): `floor_plans` model + migration
+- [x] Config first: `VMS_HOMOGRAPHY_MAX_RMS_PX` (default 15) in `config.py`.
+- [x] Failing tests — schema (real test DB): `floor_plans` model + migration
       `(id, name UNIQUE, image_path, scale_m_per_px CHECK > 0, created_at)`;
       `cameras.floor_plan_id` FK nullable ON DELETE SET NULL;
       `cameras.homography_calibration` Text (JSON: `point_pairs`, `rms_error_px`,
       `calibrated_at`, `calibrated_by`) — one migration, downgrade round-trips.
-- [ ] Failing tests — `PUT /api/cameras/{id}/homography` (admin only, 403 below):
+- [x] Failing tests — `PUT /api/cameras/{id}/homography` (admin only, 403 below):
       body `{point_pairs: [{image:[x,y], floor:[x,y]}] (≥4), floor_plan_id|null}`.
       Server recomputes the matrix with `cv2.findHomography(RANSAC)` — the client
       never supplies the stored matrix. 422 when: < 4 pairs, degenerate/collinear
@@ -261,13 +261,16 @@ table + calibration write/read.
       synthetic ground-truth homography (generate floor points from image points
       through a fixed matrix) round-trips — recovered matrix projects a held-out
       image point to within 1 floor unit.
-- [ ] Failing tests — `GET /api/cameras/{id}/homography` (viewer+ with camera
+- [x] Failing tests — `GET /api/cameras/{id}/homography` (viewer+ with camera
       permission): returns matrix + calibration metadata + `stale: true` when
       `recalibrate_required_at` is set; 404 when never calibrated.
-- [ ] `@pytest.mark.integration` end-to-end: calibrate via the API on the real test
+- [x] `@pytest.mark.integration` end-to-end: calibrate via the API on the real test
       DB, insert a tracking event through the writer path, assert `floor_x/floor_y`
       populated by `project_to_floor()` with the newly stored matrix.
-- [ ] Verify: gate green; migration round-trip clean.
+      → `flush_detection_frame()` invoked directly with a DetectionFrame DTO.
+- [x] Verify: gate green (922 passed, 2026-07-09; `tests/test_api_homography.py`,
+      12 tests; migration `d1e2f3a4b5c6` round-trip clean; route in new
+      `routes/homography.py` to keep cameras.py under the 600-line limit).
 
 ## Task 8c — Floor read APIs: floor plans, heatmap, live floor positions
 

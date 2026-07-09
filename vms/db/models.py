@@ -56,6 +56,11 @@ class Camera(Base):
     model_overrides: Mapped[str | None] = mapped_column(Text, nullable=True)
     worker_group: Mapped[int | None] = mapped_column(Integer, nullable=True)
     homography_matrix: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # JSON: {point_pairs, rms_error_px, calibrated_at, calibrated_by, floor_plan_id}
+    homography_calibration: Mapped[str | None] = mapped_column(Text, nullable=True)
+    floor_plan_id: Mapped[int | None] = mapped_column(
+        ForeignKey("floor_plans.id", ondelete="SET NULL"), nullable=True
+    )
     recalibrate_required_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     # Sub-stream URL for analytics ingestion (§6.7 dual-stream). When set, the ingestion
     # worker opens this instead of rtsp_url. rtsp_url is kept for recording/clip use.
@@ -64,6 +69,22 @@ class Camera(Base):
     site_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     building_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     floor_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+
+class FloorPlan(Base):
+    """Minimal floor-plan registry (Phase 4P Task 8b, model-stack spec §8.2).
+
+    Full asset management (upload, versioning) is deferred to the
+    recording/analytics spec."""
+
+    __tablename__ = "floor_plans"
+    __table_args__ = (CheckConstraint("scale_m_per_px > 0", name="chk_floor_plan_scale"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False, unique=True)
+    image_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    scale_m_per_px: Mapped[float] = mapped_column(Float, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow_naive)
 
 
 class CameraStatusEvent(Base):

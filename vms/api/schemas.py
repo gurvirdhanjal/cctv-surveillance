@@ -97,6 +97,25 @@ class PasswordResetRequest(BaseModel):
     new_password: str = Field(..., min_length=8, max_length=200)
 
 
+class HomographyPointPair(BaseModel):
+    image: list[float] = Field(..., min_length=2, max_length=2)
+    floor: list[float] = Field(..., min_length=2, max_length=2)
+
+
+class HomographyCalibrateRequest(BaseModel):
+    point_pairs: list[HomographyPointPair] = Field(..., min_length=4)
+    floor_plan_id: int | None = None
+
+
+class HomographyResponse(BaseModel):
+    matrix: list[float]
+    point_pairs: list[HomographyPointPair] | None
+    rms_error_px: float | None
+    floor_plan_id: int | None
+    calibrated_at: datetime | None
+    stale: bool
+
+
 class BookmarkCreate(BaseModel):
     camera_id: int
     ts: datetime
